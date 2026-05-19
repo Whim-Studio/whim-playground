@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Whim Asteroids</title>
+    <meta
+      name="description"
+      content="A minimal Whim-themed HTML5 canvas asteroid game."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="scorebar" aria-label="Score">
+        <div class="brand-lockup" aria-label="Whim">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <i></i>
+          </span>
+          <span>WHIM</span>
+        </div>
+        <div class="scorebar__stats">
+          <span class="stat">
+            <span class="stat__label">Score</span>
+            <strong id="score">000000</strong>
+          </span>
+          <span class="stat">
+            <span class="stat__label">Best</span>
+            <strong id="best">000000</strong>
+          </span>
+          <span id="roundState" class="round-state">Live</span>
+        </div>
+      </header>
+
+      <main class="game-shell" aria-label="Whim Asteroids game">
+        <canvas
+          id="gameCanvas"
+          aria-label="Whim Asteroids canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot."
+        ></canvas>
+        <button
+          id="shootButton"
+          class="shoot-button"
+          type="button"
+          aria-label="Shoot"
+        >
+          <span aria-hidden="true"></span>
+        </button>
+        <div
+          id="previewHint"
+          class="preview-hint"
+          role="status"
+          aria-live="polite"
+          hidden
+        >
+          <span>Live preview</span>
+          <strong>This is where changes appear.</strong>
+        </div>
+        <div id="gameOverlay" class="game-overlay" hidden>
+          <div class="game-overlay__panel">
+            <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>
+            <strong id="overlayTitle">Whim Asteroids</strong>
+            <p id="overlayCopy" class="game-overlay__copy">
+              Arrow keys or drag to move. Space shoots. Clear shards and keep
+              the face moving.
+            </p>
+            <button id="restartButton" type="button">Start</button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
