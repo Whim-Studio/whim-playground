@@ -17,29 +17,17 @@
   </head>
   <body>
     <div id="app" class="app-shell">
-      <header class="scorebar" aria-label="Score">
-        <div class="brand-lockup" aria-label="Whim">
-          <span class="brand-mark" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <i></i>
-          </span>
-          <span>WHIM</span>
-        </div>
-        <div class="scorebar__stats">
+      <main class="game-shell" aria-label="Whim Asteroids game">
+        <div class="game-hud" aria-label="Game stats">
           <span class="stat">
             <span class="stat__label">Score</span>
             <strong id="score">000000</strong>
           </span>
           <span class="stat">
-            <span class="stat__label">Best</span>
-            <strong id="best">000000</strong>
+            <span class="stat__label">Time</span>
+            <strong id="time">0:00</strong>
           </span>
-          <span id="roundState" class="round-state">Live</span>
         </div>
-      </header>
-
-      <main class="game-shell" aria-label="Whim Asteroids game">
         <canvas
           id="gameCanvas"
           aria-label="Whim Asteroids canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot."

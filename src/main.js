@@ -15,11 +15,9 @@ import {
 
 const canvas = document.querySelector("#gameCanvas");
 const gameShell = document.querySelector(".game-shell");
-const scorebar = document.querySelector(".scorebar");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
-const bestEl = document.querySelector("#best");
-const roundStateEl = document.querySelector("#roundState");
+const timeEl = document.querySelector("#time");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -150,6 +148,13 @@ function formatScore(value) {
   return String(Math.max(0, Math.floor(value))).padStart(6, "0");
 }
 
+function formatTime(value) {
+  const totalSeconds = Math.max(0, Math.floor(value));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function readBestScore() {
   try {
     return Number(localStorage.getItem("whim-asteroids-best") ?? 0) || 0;
@@ -166,15 +171,9 @@ function writeBestScore(value) {
   }
 }
 
-function updateScorebar() {
+function updateHud() {
   scoreEl.textContent = formatScore(score);
-  bestEl.textContent = formatScore(best);
-  roundStateEl.textContent = state === GAME_STATE.INTRO
-    ? "Ready"
-    : state === GAME_STATE.PLAYING
-      ? "Live"
-      : "Ended";
-  roundStateEl.classList.toggle("is-over", state === GAME_STATE.OVER);
+  timeEl.textContent = formatTime(elapsed);
 }
 
 function showIntroOverlay() {
@@ -185,7 +184,7 @@ function showIntroOverlay() {
     "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
-  updateScorebar();
+  updateHud();
 }
 
 function isPreviewActive() {
@@ -234,10 +233,9 @@ function resizeCanvas() {
   // early layout is still reporting zero-sized elements.
   const rect = canvas.getBoundingClientRect();
   const shellRect = gameShell.getBoundingClientRect();
-  const scorebarHeight = scorebar.getBoundingClientRect().height;
   const measuredWidth = shellRect.width || rect.width;
   const measuredHeight = shellRect.height || rect.height;
-  const fallbackHeight = Math.max(1, window.innerHeight - scorebarHeight);
+  const fallbackHeight = Math.max(1, window.innerHeight);
   const nextWidth = Math.max(1, measuredWidth || window.innerWidth);
   const nextHeight = Math.max(1, measuredHeight || fallbackHeight);
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -312,7 +310,7 @@ function resetRound() {
   burstParticles = [];
   centerPlayer();
   overlayEl.hidden = true;
-  updateScorebar();
+  updateHud();
 }
 
 function endRound() {
@@ -321,7 +319,7 @@ function endRound() {
   writeBestScore(best);
   showGameOverOverlay();
   createBurst(player.x, player.y, 26, COLORS.danger);
-  updateScorebar();
+  updateHud();
 }
 
 function getDifficulty() {
@@ -640,11 +638,11 @@ function update(dt, now) {
   }
 
   updateEffects(dt);
-  updateScorebar();
+  updateHud();
 }
 
 function drawBackground(now) {
-  // The game scene is painted entirely on canvas; CSS owns only the header and
+  // The game scene is painted entirely on canvas; CSS owns only the HUD and
   // overlay chrome. Keep decorative canvas work cheap and low contrast.
   ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, width, height);
@@ -978,7 +976,7 @@ if ("IntersectionObserver" in window) {
 resizeCanvas();
 showIntroOverlay();
 showPreviewHintWhenActive();
-updateScorebar();
+updateHud();
 requestAnimationFrame((now) => {
   resizeCanvas();
   showPreviewHintWhenActive();
