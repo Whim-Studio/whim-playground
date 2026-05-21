@@ -20,8 +20,7 @@ npm run build
 
 ## Controls
 
-- The game tutorial appears on first entry. A separate live-preview hint appears
-  when the preview becomes active, so users know where changes appear.
+- The game tutorial appears on first entry.
 - Arrow keys move the Whim face.
 - Pointer drag or touch moves toward the target point.
 - Space shoots on keyboard.

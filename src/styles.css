@@ -256,56 +256,6 @@ button {
   outline-offset: 3px;
 }
 
-.preview-hint {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  z-index: 4;
-  display: grid;
-  gap: 4px;
-  width: min(320px, calc(100% - 32px));
-  padding: 11px 14px;
-  border: 1px solid rgba(100, 205, 252, 0.3);
-  border-radius: 8px;
-  background: rgba(30, 51, 85, 0.86);
-  box-shadow:
-    0 16px 46px rgba(3, 9, 18, 0.28),
-    inset 0 1px 0 rgba(232, 228, 222, 0.06);
-  color: var(--foreground);
-  pointer-events: none;
-  text-align: center;
-  transform: translateX(-50%);
-  transition:
-    opacity 200ms ease,
-    transform 200ms ease;
-  backdrop-filter: blur(16px);
-}
-
-.preview-hint[hidden] {
-  display: none;
-}
-
-.preview-hint.is-hiding {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-6px);
-}
-
-.preview-hint span {
-  color: var(--blue);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.preview-hint strong {
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
 @media (hover: none), (pointer: coarse), (max-width: 760px), (max-height: 520px) {
   .shoot-button {
     display: grid;
@@ -375,12 +325,6 @@ button {
 
   .game-overlay__panel button {
     min-height: 36px;
-  }
-
-  .preview-hint {
-    top: 8px;
-    width: min(280px, calc(100% - 24px));
-    padding: 9px 12px;
   }
 
   .shoot-button {

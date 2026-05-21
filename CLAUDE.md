@@ -45,9 +45,7 @@ asks and the task truly needs it.
 - Start gameplay tuning in `GAME_CONFIG` and visual tuning in `COLORS`.
 - Keep draw order intentional: background, effects, pointer guide, hazards,
   bullets, player.
-- Keep gameplay instructions available on first entry, and keep the separate
-  live-preview hint tied to preview activation so demo users know where changes
-  appear.
+- Keep gameplay instructions available on first entry.
 - Add comments only where they help the next agent safely modify behavior.
 - Keep documentation minimal but current. Update `README.md` or this file when
   the architecture, run commands, or collaboration expectations change.

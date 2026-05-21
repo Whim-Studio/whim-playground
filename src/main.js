@@ -24,7 +24,6 @@ const overlayTitleEl = document.querySelector("#overlayTitle");
 const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
-const previewHintEl = document.querySelector("#previewHint");
 
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
@@ -108,7 +107,6 @@ let width = 1;
 let height = 1;
 let dpr = 1;
 let state = GAME_STATE.INTRO;
-let hasShownPreviewHint = false;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
@@ -129,8 +127,6 @@ let bullets = [];
 let trails = [];
 let burstParticles = [];
 let starField = [];
-let previewHintTimer = null;
-let previewHintHideTimer = null;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -185,36 +181,6 @@ function showIntroOverlay() {
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateHud();
-}
-
-function isPreviewActive() {
-  const rect = gameShell.getBoundingClientRect();
-  return (
-    document.visibilityState !== "hidden" &&
-    rect.width > 0 &&
-    rect.height > 0
-  );
-}
-
-function hidePreviewHint() {
-  previewHintEl.classList.add("is-hiding");
-  previewHintHideTimer = window.setTimeout(() => {
-    previewHintEl.hidden = true;
-    previewHintEl.classList.remove("is-hiding");
-  }, 220);
-}
-
-function showPreviewHintWhenActive() {
-  // Only the Whim-preview guidance waits for preview activation. The gameplay
-  // tutorial still appears immediately when the workspace loads.
-  if (hasShownPreviewHint || !isPreviewActive()) return;
-
-  hasShownPreviewHint = true;
-  window.clearTimeout(previewHintTimer);
-  window.clearTimeout(previewHintHideTimer);
-  previewHintEl.classList.remove("is-hiding");
-  previewHintEl.hidden = false;
-  previewHintTimer = window.setTimeout(hidePreviewHint, 5200);
 }
 
 function showGameOverOverlay() {
@@ -954,32 +920,17 @@ window.addEventListener("blur", () => {
   clearPointerTarget();
 });
 window.addEventListener("resize", resizeCanvas);
-window.addEventListener("focus", showPreviewHintWhenActive);
-document.addEventListener("visibilitychange", showPreviewHintWhenActive);
 if ("ResizeObserver" in window) {
   // The game row can change height independently from the viewport on mobile
   // when browser UI appears/disappears, so observe the actual playfield.
   new ResizeObserver(resizeCanvas).observe(gameShell);
 }
-if ("IntersectionObserver" in window) {
-  const previewObserver = new IntersectionObserver((entries) => {
-    if (entries.some((entry) => entry.isIntersecting)) {
-      showPreviewHintWhenActive();
-    }
-    if (hasShownPreviewHint) {
-      previewObserver.disconnect();
-    }
-  });
-  previewObserver.observe(gameShell);
-}
 
 resizeCanvas();
 showIntroOverlay();
-showPreviewHintWhenActive();
 updateHud();
 requestAnimationFrame((now) => {
   resizeCanvas();
-  showPreviewHintWhenActive();
   lastTime = now;
   requestAnimationFrame(loop);
 });
