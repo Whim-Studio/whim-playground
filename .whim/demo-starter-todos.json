@@ -1,0 +1,44 @@
+{
+  "todos": [
+    {
+      "title": "Add a pause button",
+      "body": "Add a small pause/resume control for the Asteroids game. Keep the current score visible while paused and make sure keyboard input resumes cleanly.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Add stronger missiles",
+      "body": "Make an upgraded missile type that can clear larger shards or pierce through two targets. Keep the change scoped to gameplay tuning and bullet behavior.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Create power-ups",
+      "body": "Add one simple power-up pickup that appears occasionally, has a clear visual style, and gives the player a short-lived gameplay boost.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Add a shield pickup",
+      "body": "Add a shield pickup that lets the player survive one collision. Show a visible shield state around the face while it is active.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Add asteroid splitting",
+      "body": "When a large asteroid is hit, split it into two smaller pieces instead of removing it immediately. Keep collision behavior predictable.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Add sound effects",
+      "body": "Add lightweight sound effects for shooting, collecting an item, and game over. Include a mute control so the preview stays comfortable.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Add a combo meter",
+      "body": "Track quick consecutive asteroid clears and show a small combo multiplier near the score. Reset the combo when the player stops clearing shards.",
+      "tags": ["Feature"]
+    },
+    {
+      "title": "Polish the mobile controls",
+      "body": "Improve the touch controls so dragging and shooting feel clearer on a phone-sized preview. Keep desktop keyboard controls unchanged.",
+      "tags": ["Improvement"]
+    }
+  ]
+}
