@@ -10,12 +10,14 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "seed:todos": "node scripts/seed-demo-todos.mjs"
   },
   "engines": {
     "node": ">=20.19.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "vite": "^8.0.13"
   }
 }

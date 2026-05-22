@@ -18,6 +18,25 @@ npm run dev
 npm run build
 ```
 
+## Demo Todos
+
+Starter todos are normal Whim todos, not app logic. Edit
+`.whim/demo-starter-todos.json`, then seed the shared demo workspace through
+Whim MCP:
+
+```bash
+WHIM_MCP_URL="https://api.whim.run/api/mcp/<team>/<workspace>" \
+WHIM_MCP_TOKEN="..." \
+npm run seed:todos -- --dry-run
+
+WHIM_MCP_URL="https://api.whim.run/api/mcp/<team>/<workspace>" \
+WHIM_MCP_TOKEN="..." \
+npm run seed:todos
+```
+
+The script compares exact todo titles across all task statuses and only creates
+missing titles. Completed or archived todos are still treated as already seeded.
+
 ## Controls
 
 - The game tutorial appears on first entry.

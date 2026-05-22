@@ -27,6 +27,9 @@ asks and the task truly needs it.
   the task is specifically about build artifacts.
 - Do not optimize for a theoretical full game yet. This repo is a base for demo
   tasks, iteration, and collaborative handoff.
+- Starter todo examples live in `.whim/demo-starter-todos.json` and are seeded
+  manually with `npm run seed:todos` through Whim MCP. They are ordinary todos:
+  do not add platform-specific seed keys or app bootstrap behavior.
 
 ## Code Map
 
