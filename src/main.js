@@ -59,6 +59,9 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  shardSplitMinRadius: 20,
+  shardSplitChildScale: 0.62,
+  shardSplitSpeedBoost: 1.25,
 };
 
 const ARROW_KEYS = new Set([
@@ -355,6 +358,30 @@ function spawnShard() {
   });
 }
 
+function splitShard(parent, bullet) {
+  if (parent.radius < GAME_CONFIG.shardSplitMinRadius) return;
+
+  const childRadius = parent.radius * GAME_CONFIG.shardSplitChildScale;
+  const parentSpeed = Math.hypot(parent.vx, parent.vy);
+  const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
+  const childSpeed = (parentSpeed + 60) * GAME_CONFIG.shardSplitSpeedBoost;
+
+  for (const sign of [-1, 1]) {
+    const heading = bulletAngle + (Math.PI / 2) * sign + randomBetween(-0.18, 0.18);
+    shards.push({
+      x: parent.x + Math.cos(heading) * childRadius * 0.4,
+      y: parent.y + Math.sin(heading) * childRadius * 0.4,
+      vx: Math.cos(heading) * childSpeed,
+      vy: Math.sin(heading) * childSpeed,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.8, 1.8),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function maxShardCount() {
   const areaBonus = clamp((width * height) / 150000, 0, 5);
   return Math.floor(6 + areaBonus + getDifficulty() * 8);
@@ -573,6 +600,7 @@ function updateBullets(dt) {
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
+      splitShard(shard, bullet);
       break;
     }
   }
