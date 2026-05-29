@@ -307,6 +307,25 @@ function createShardPoints(radius) {
   });
 }
 
+function createShard(x, y, radius, vx = null, vy = null) {
+  const targetX = randomBetween(width * 0.15, width * 0.85);
+  const targetY = randomBetween(height * 0.15, height * 0.85);
+  const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
+  const speed = randomBetween(54, 108) + getDifficulty() * 82;
+
+  shards.push({
+    x,
+    y,
+    vx: vx !== null ? vx : Math.cos(heading) * speed,
+    vy: vy !== null ? vy : Math.sin(heading) * speed,
+    radius,
+    points: createShardPoints(radius),
+    angle: Math.random() * Math.PI * 2,
+    spin: randomBetween(-1.3, 1.3),
+    pulse: Math.random() * Math.PI * 2,
+  });
+}
+
 function spawnShard() {
   // Hazards spawn just offscreen, then aim roughly toward the playfield center
   // with jitter. This feels intentional without requiring pathfinding.
@@ -337,22 +356,8 @@ function spawnShard() {
 
   const difficulty = getDifficulty();
   const radius = randomBetween(18, 38 + difficulty * 12);
-  const targetX = randomBetween(width * 0.15, width * 0.85);
-  const targetY = randomBetween(height * 0.15, height * 0.85);
-  const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
-  const speed = randomBetween(54, 108) + difficulty * 82;
 
-  shards.push({
-    x,
-    y,
-    vx: Math.cos(heading) * speed,
-    vy: Math.sin(heading) * speed,
-    radius,
-    points: createShardPoints(radius),
-    angle: Math.random() * Math.PI * 2,
-    spin: randomBetween(-1.3, 1.3),
-    pulse: Math.random() * Math.PI * 2,
-  });
+  createShard(x, y, radius);
 }
 
 function maxShardCount() {
@@ -551,6 +556,27 @@ function updateShards(dt) {
   }
 }
 
+function splitShard(shard, bulletVx, bulletVy) {
+  // Smaller shards split outward. Only split if the shard is large enough.
+  const minSplitRadius = 12;
+  if (shard.radius < minSplitRadius) {
+    return; // Too small to split, just destroy
+  }
+
+  const childRadius = shard.radius * randomBetween(0.55, 0.75);
+  const childCount = Math.floor(randomBetween(2.5, 4.5));
+  const bulletSpeed = Math.hypot(bulletVx, bulletVy);
+
+  for (let i = 0; i < childCount; i += 1) {
+    const angle = (i / childCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const splitSpeed = randomBetween(80, 160);
+    const vx = Math.cos(angle) * splitSpeed + bulletVx * 0.35;
+    const vy = Math.sin(angle) * splitSpeed + bulletVy * 0.35;
+
+    createShard(shard.x, shard.y, childRadius, vx, vy);
+  }
+}
+
 function updateBullets(dt) {
   for (const bullet of bullets) {
     bullet.age += dt;
@@ -570,6 +596,7 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
+      splitShard(shard, bullet.vx, bullet.vy);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
