@@ -551,6 +551,39 @@ function updateShards(dt) {
   }
 }
 
+function splitShard(shard) {
+  // Split a shard into smaller chunks. Smaller shards don't split further to
+  // prevent infinite fragmentation.
+  const minSplitRadius = 12;
+  if (shard.radius < minSplitRadius) return;
+
+  const childRadius = shard.radius * randomBetween(0.55, 0.68);
+  const childCount = Math.random() < 0.5 ? 2 : 3;
+  const baseAngle = Math.random() * Math.PI * 2;
+
+  for (let i = 0; i < childCount; i += 1) {
+    const spawnAngle = baseAngle + (i / childCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const spawnDistance = shard.radius * 0.6;
+    const childX = shard.x + Math.cos(spawnAngle) * spawnDistance;
+    const childY = shard.y + Math.sin(spawnAngle) * spawnDistance;
+    const childSpeed = Math.hypot(shard.vx, shard.vy) + randomBetween(40, 90);
+    const childVx = Math.cos(spawnAngle) * childSpeed;
+    const childVy = Math.sin(spawnAngle) * childSpeed;
+
+    shards.push({
+      x: childX,
+      y: childY,
+      vx: childVx,
+      vy: childVy,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.3, 1.3),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function updateBullets(dt) {
   for (const bullet of bullets) {
     bullet.age += dt;
@@ -570,6 +603,7 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
+      splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
