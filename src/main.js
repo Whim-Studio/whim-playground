@@ -551,6 +551,35 @@ function updateShards(dt) {
   }
 }
 
+function splitShard(shard) {
+  if (shard.radius < 20) {
+    return [];
+  }
+
+  const childCount = shard.radius > 30 ? 3 : 2;
+  const childRadius = shard.radius * 0.68;
+  const newShards = [];
+
+  for (let i = 0; i < childCount; i += 1) {
+    const angle = (i / childCount) * Math.PI * 2;
+    const spreadSpeed = 120;
+
+    newShards.push({
+      x: shard.x,
+      y: shard.y,
+      vx: shard.vx + Math.cos(angle) * spreadSpeed,
+      vy: shard.vy + Math.sin(angle) * spreadSpeed,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.3, 1.3),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+
+  return newShards;
+}
+
 function updateBullets(dt) {
   for (const bullet of bullets) {
     bullet.age += dt;
@@ -570,7 +599,8 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
-      shards.splice(shardIndex, 1);
+      const childShards = splitShard(shard);
+      shards.splice(shardIndex, 1, ...childShards);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
       break;
