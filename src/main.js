@@ -59,6 +59,8 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  maxShardGeneration: 2,
+  shardSplitCount: 3,
 };
 
 const ARROW_KEYS = new Set([
@@ -307,51 +309,60 @@ function createShardPoints(radius) {
   });
 }
 
-function spawnShard() {
-  // Hazards spawn just offscreen, then aim roughly toward the playfield center
-  // with jitter. This feels intentional without requiring pathfinding.
-  const margin = 70;
-  const edge = Math.floor(Math.random() * 4);
-  let x;
-  let y;
+function spawnShard(x, y, vx, vy, generation = 0) {
+  // If spawning from scratch (generation 0), pick random entry point.
+  // Otherwise, use provided position and velocity (for splits).
+  if (generation === 0) {
+    const margin = 70;
+    const edge = Math.floor(Math.random() * 4);
 
-  if (edge === 0) {
-    x = randomBetween(0, width);
-    y = -margin;
-  } else if (edge === 1) {
-    x = width + margin;
-    y = randomBetween(0, height);
-  } else if (edge === 2) {
-    x = randomBetween(0, width);
-    y = height + margin;
-  } else {
-    x = -margin;
-    y = randomBetween(0, height);
+    if (edge === 0) {
+      x = randomBetween(0, width);
+      y = -margin;
+    } else if (edge === 1) {
+      x = width + margin;
+      y = randomBetween(0, height);
+    } else if (edge === 2) {
+      x = randomBetween(0, width);
+      y = height + margin;
+    } else {
+      x = -margin;
+      y = randomBetween(0, height);
+    }
+
+    const distanceToPlayer = Math.hypot(x - player.x, y - player.y);
+    if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
+      x += Math.sign(x - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
+      y += Math.sign(y - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
+    }
+
+    const difficulty = getDifficulty();
+    const radius = randomBetween(18, 38 + difficulty * 12);
+    const targetX = randomBetween(width * 0.15, width * 0.85);
+    const targetY = randomBetween(height * 0.15, height * 0.85);
+    const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
+    const speed = randomBetween(54, 108) + difficulty * 82;
+
+    vx = Math.cos(heading) * speed;
+    vy = Math.sin(heading) * speed;
   }
 
-  const distanceToPlayer = Math.hypot(x - player.x, y - player.y);
-  if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
-    x += Math.sign(x - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
-    y += Math.sign(y - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
-  }
-
-  const difficulty = getDifficulty();
-  const radius = randomBetween(18, 38 + difficulty * 12);
-  const targetX = randomBetween(width * 0.15, width * 0.85);
-  const targetY = randomBetween(height * 0.15, height * 0.85);
-  const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
-  const speed = randomBetween(54, 108) + difficulty * 82;
+  // Scale radius down by generation; apply speed boost to splits.
+  const sizeMultiplier = 1 / Math.pow(1.8, generation);
+  const radius = randomBetween(18, 38) * sizeMultiplier;
+  const speedMultiplier = 1 + generation * 0.3;
 
   shards.push({
     x,
     y,
-    vx: Math.cos(heading) * speed,
-    vy: Math.sin(heading) * speed,
+    vx: vx * speedMultiplier,
+    vy: vy * speedMultiplier,
     radius,
     points: createShardPoints(radius),
     angle: Math.random() * Math.PI * 2,
     spin: randomBetween(-1.3, 1.3),
     pulse: Math.random() * Math.PI * 2,
+    generation,
   });
 }
 
@@ -374,6 +385,22 @@ function createBurst(x, y, count, color) {
       life: randomBetween(0.35, 0.85),
       color,
     });
+  }
+}
+
+function splitShard(shard) {
+  // When a shard is hit and should split, spawn smaller shards in different
+  // directions. Each generation is smaller and faster than its parent.
+  createBurst(shard.x, shard.y, 8, COLORS.face);
+
+  const nextGen = shard.generation + 1;
+  const childSpeed = 320;
+
+  for (let i = 0; i < GAME_CONFIG.shardSplitCount; i += 1) {
+    const angle = (i / GAME_CONFIG.shardSplitCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const vx = Math.cos(angle) * childSpeed;
+    const vy = Math.sin(angle) * childSpeed;
+    spawnShard(shard.x, shard.y, vx, vy, nextGen);
   }
 }
 
@@ -570,9 +597,17 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
+
+      // Larger shards split; smaller ones are destroyed.
+      if (shard.generation < GAME_CONFIG.maxShardGeneration) {
+        splitShard(shard);
+        clearScore += GAME_CONFIG.shardClearScore * 0.5;
+      } else {
+        createBurst(shard.x, shard.y, 12, COLORS.face);
+        clearScore += GAME_CONFIG.shardClearScore;
+      }
+
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, COLORS.face);
       break;
     }
   }
