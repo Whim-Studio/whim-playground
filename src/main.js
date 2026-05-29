@@ -307,47 +307,60 @@ function createShardPoints(radius) {
   });
 }
 
-function spawnShard() {
-  // Hazards spawn just offscreen, then aim roughly toward the playfield center
-  // with jitter. This feels intentional without requiring pathfinding.
-  const margin = 70;
-  const edge = Math.floor(Math.random() * 4);
-  let x;
-  let y;
+function spawnShard(x, y, vx, vy, generation = 0) {
+  // When called with position/velocity, creates a child shard from a split.
+  // Otherwise, hazards spawn just offscreen and aim toward the playfield center.
+  let shardX = x;
+  let shardY = y;
+  let shardVx = vx;
+  let shardVy = vy;
 
-  if (edge === 0) {
-    x = randomBetween(0, width);
-    y = -margin;
-  } else if (edge === 1) {
-    x = width + margin;
-    y = randomBetween(0, height);
-  } else if (edge === 2) {
-    x = randomBetween(0, width);
-    y = height + margin;
-  } else {
-    x = -margin;
-    y = randomBetween(0, height);
+  if (generation === 0) {
+    const margin = 70;
+    const edge = Math.floor(Math.random() * 4);
+
+    if (edge === 0) {
+      shardX = randomBetween(0, width);
+      shardY = -margin;
+    } else if (edge === 1) {
+      shardX = width + margin;
+      shardY = randomBetween(0, height);
+    } else if (edge === 2) {
+      shardX = randomBetween(0, width);
+      shardY = height + margin;
+    } else {
+      shardX = -margin;
+      shardY = randomBetween(0, height);
+    }
+
+    const distanceToPlayer = Math.hypot(shardX - player.x, shardY - player.y);
+    if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
+      shardX += Math.sign(shardX - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
+      shardY += Math.sign(shardY - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
+    }
+
+    const difficulty = getDifficulty();
+    const radius = randomBetween(18, 38 + difficulty * 12);
+    const targetX = randomBetween(width * 0.15, width * 0.85);
+    const targetY = randomBetween(height * 0.15, height * 0.85);
+    const heading = Math.atan2(targetY - shardY, targetX - shardX) + randomBetween(-0.42, 0.42);
+    const speed = randomBetween(54, 108) + difficulty * 82;
+
+    shardVx = Math.cos(heading) * speed;
+    shardVy = Math.sin(heading) * speed;
   }
 
-  const distanceToPlayer = Math.hypot(x - player.x, y - player.y);
-  if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
-    x += Math.sign(x - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
-    y += Math.sign(y - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
-  }
-
-  const difficulty = getDifficulty();
-  const radius = randomBetween(18, 38 + difficulty * 12);
-  const targetX = randomBetween(width * 0.15, width * 0.85);
-  const targetY = randomBetween(height * 0.15, height * 0.85);
-  const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
-  const speed = randomBetween(54, 108) + difficulty * 82;
+  const radius = generation === 0
+    ? randomBetween(18, 38 + getDifficulty() * 12)
+    : (generation === 1 ? randomBetween(9, 16) : randomBetween(5, 10));
 
   shards.push({
-    x,
-    y,
-    vx: Math.cos(heading) * speed,
-    vy: Math.sin(heading) * speed,
+    x: shardX,
+    y: shardY,
+    vx: shardVx,
+    vy: shardVy,
     radius,
+    generation,
     points: createShardPoints(radius),
     angle: Math.random() * Math.PI * 2,
     spin: randomBetween(-1.3, 1.3),
@@ -570,9 +583,23 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
-      shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
+
+      // Split shard into smaller pieces if not at max generation
+      if (shard.generation < 2) {
+        const childCount = randomBetween(2, 3.999);
+        const angleSpread = Math.PI * 2 / childCount;
+        for (let i = 0; i < childCount; i += 1) {
+          const angle = i * angleSpread + randomBetween(-0.3, 0.3);
+          const speed = Math.hypot(shard.vx, shard.vy) * randomBetween(0.8, 1.2);
+          const childVx = Math.cos(angle) * speed;
+          const childVy = Math.sin(angle) * speed;
+          spawnShard(shard.x, shard.y, childVx, childVy, shard.generation + 1);
+        }
+      }
+
+      shards.splice(shardIndex, 1);
       break;
     }
   }
