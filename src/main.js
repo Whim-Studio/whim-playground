@@ -59,6 +59,8 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  maxShardGeneration: 2,
+  childShardCount: 3,
 };
 
 const ARROW_KEYS = new Set([
@@ -352,7 +354,31 @@ function spawnShard() {
     angle: Math.random() * Math.PI * 2,
     spin: randomBetween(-1.3, 1.3),
     pulse: Math.random() * Math.PI * 2,
+    generation: 0,
   });
+}
+
+function spawnChildShards(parentShard) {
+  // When a shard is destroyed, spawn smaller child shards that spread outward.
+  if (parentShard.generation >= GAME_CONFIG.maxShardGeneration) return;
+
+  const childRadius = parentShard.radius * 0.62;
+  for (let i = 0; i < GAME_CONFIG.childShardCount; i += 1) {
+    const angle = (i / GAME_CONFIG.childShardCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const speed = randomBetween(120, 200);
+    shards.push({
+      x: parentShard.x,
+      y: parentShard.y,
+      vx: Math.cos(angle) * speed + parentShard.vx * 0.35,
+      vy: Math.sin(angle) * speed + parentShard.vy * 0.35,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.3, 1.3),
+      pulse: Math.random() * Math.PI * 2,
+      generation: parentShard.generation + 1,
+    });
+  }
 }
 
 function maxShardCount() {
@@ -573,6 +599,7 @@ function updateBullets(dt) {
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
+      spawnChildShards(shard);
       break;
     }
   }
