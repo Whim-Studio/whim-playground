@@ -355,6 +355,37 @@ function spawnShard() {
   });
 }
 
+function splitShard(parentShard) {
+  // Create 2-3 smaller shards when a parent is destroyed. Stop splitting
+  // when shards get too small to manage gameplay.
+  const minSplitRadius = 10;
+  if (parentShard.radius < minSplitRadius * 1.8) return;
+
+  const childCount = Math.random() < 0.6 ? 2 : 3;
+  const childRadius = parentShard.radius * randomBetween(0.58, 0.68);
+
+  for (let i = 0; i < childCount; i += 1) {
+    const angle = (i / childCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const speed = randomBetween(45, 95);
+    const direction = Math.atan2(
+      Math.sin(angle) * speed,
+      Math.cos(angle) * speed,
+    );
+
+    shards.push({
+      x: parentShard.x + Math.cos(angle) * (parentShard.radius * 0.4),
+      y: parentShard.y + Math.sin(angle) * (parentShard.radius * 0.4),
+      vx: Math.cos(direction) * speed + parentShard.vx * 0.35,
+      vy: Math.sin(direction) * speed + parentShard.vy * 0.35,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.8, 1.8),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function maxShardCount() {
   const areaBonus = clamp((width * height) / 150000, 0, 5);
   return Math.floor(6 + areaBonus + getDifficulty() * 8);
@@ -570,6 +601,7 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
+      splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
