@@ -18,6 +18,7 @@ const gameShell = document.querySelector(".game-shell");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const timeEl = document.querySelector("#time");
+const multiplierEl = document.querySelector("#multiplier");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -59,6 +60,12 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Combo multiplier: each shard cleared within comboWindow seconds of the last
+  // bumps the multiplier by multiplierStep (capped at maxMultiplier). The combo
+  // lapses back to x1 once the window elapses without another hit.
+  comboWindow: 2.2,
+  multiplierStep: 0.5,
+  maxMultiplier: 5,
 };
 
 const ARROW_KEYS = new Set([
@@ -110,6 +117,8 @@ let state = GAME_STATE.INTRO;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
+let multiplier = 1;
+let comboTimer = 0;
 let best = readBestScore();
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
@@ -170,6 +179,8 @@ function writeBestScore(value) {
 function updateHud() {
   scoreEl.textContent = formatScore(score);
   timeEl.textContent = formatTime(elapsed);
+  multiplierEl.textContent = `×${multiplier.toFixed(1)}`;
+  multiplierEl.classList.toggle("is-combo", multiplier > 1);
 }
 
 function showIntroOverlay() {
@@ -262,6 +273,8 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  multiplier = 1;
+  comboTimer = 0;
   spawnTimer = 0.45;
   trailTimer = 0;
   lastShotAt = -Infinity;
@@ -605,7 +618,14 @@ function updateBullets(dt) {
       bullets.splice(bulletIndex, 1);
       splitShard(shard);
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
+      // Build the combo: bump the multiplier one step (capped), refresh the
+      // combo window, then award the shard at the boosted multiplier.
+      multiplier = Math.min(
+        GAME_CONFIG.maxMultiplier,
+        multiplier + GAME_CONFIG.multiplierStep,
+      );
+      comboTimer = GAME_CONFIG.comboWindow;
+      clearScore += Math.round(GAME_CONFIG.shardClearScore * multiplier);
       createBurst(shard.x, shard.y, 12, COLORS.face);
       break;
     }
@@ -631,6 +651,12 @@ function updateEffects(dt) {
 function update(dt, now) {
   if (state === GAME_STATE.PLAYING) {
     elapsed += dt;
+    // Combo multiplier decays in real time; once the window lapses without a
+    // shard cleared, it falls back to x1.
+    if (comboTimer > 0) {
+      comboTimer = Math.max(0, comboTimer - dt);
+      if (comboTimer === 0) multiplier = 1;
+    }
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
     updateShards(dt);

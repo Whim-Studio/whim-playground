@@ -113,6 +113,19 @@ button {
   line-height: 1;
 }
 
+/* Multiplier stat tints toward Whim blue while a combo is live. Inherits all
+   .stat / .stat strong sizing, so it stays responsive with the other stats. */
+#multiplier {
+  transition:
+    color 200ms ease,
+    text-shadow 200ms ease;
+}
+
+#multiplier.is-combo {
+  color: var(--blue);
+  text-shadow: 0 0 12px rgba(100, 205, 252, 0.42);
+}
+
 .game-shell {
   position: relative;
   min-height: 0;
