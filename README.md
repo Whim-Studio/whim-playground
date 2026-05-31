@@ -1,6 +1,6 @@
 # Whim Asteroids Demo
 
-Minimal Whim-themed HTML5 canvas game built with vanilla JavaScript and Vite.
+Minimal Whim-themed, Asteroids-style HTML5 canvas game built with vanilla JavaScript and Vite.
 This repo is intended as a small, polished base that future coding agents can
 extend without first untangling framework or asset complexity. It exists to
 demonstrate Whim collaboration through a simple artifact, not to become a large
