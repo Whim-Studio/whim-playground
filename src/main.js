@@ -59,6 +59,13 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Shards break into smaller fragments when shot. A shard splits while its
+  // radius is at or above shardMinSplitRadius; smaller fragments are destroyed.
+  shardMinSplitRadius: 15,
+  shardSplitScale: 0.6,
+  shardSplitCount: 2,
+  shardSplitSpread: 1.1,
+  shardSplitSpeedBoost: 1.15,
 };
 
 const ARROW_KEYS = new Set([
@@ -355,6 +362,33 @@ function spawnShard() {
   });
 }
 
+function createShardFragments(shard) {
+  // Split a struck shard into smaller fragments that fan out from the parent's
+  // travel direction, giving the classic Asteroids "break apart" feel.
+  const parentSpeed = Math.hypot(shard.vx, shard.vy);
+  const parentHeading =
+    parentSpeed > 1 ? Math.atan2(shard.vy, shard.vx) : Math.random() * Math.PI * 2;
+  const childRadius = shard.radius * GAME_CONFIG.shardSplitScale;
+  const count = GAME_CONFIG.shardSplitCount;
+
+  return Array.from({ length: count }, (_, index) => {
+    const spread = (index - (count - 1) / 2) * GAME_CONFIG.shardSplitSpread;
+    const heading = parentHeading + spread + randomBetween(-0.18, 0.18);
+    const speed = parentSpeed * GAME_CONFIG.shardSplitSpeedBoost + randomBetween(20, 60);
+    return {
+      x: shard.x,
+      y: shard.y,
+      vx: Math.cos(heading) * speed,
+      vy: Math.sin(heading) * speed,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.8, 1.8),
+      pulse: Math.random() * Math.PI * 2,
+    };
+  });
+}
+
 function maxShardCount() {
   const areaBonus = clamp((width * height) / 150000, 0, 5);
   return Math.floor(6 + areaBonus + getDifficulty() * 8);
@@ -572,7 +606,15 @@ function updateBullets(dt) {
       bullets.splice(bulletIndex, 1);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, COLORS.face);
+
+      if (shard.radius >= GAME_CONFIG.shardMinSplitRadius) {
+        // Large shards break apart instead of vanishing. Fragments are pushed
+        // past maxShardCount on purpose; only edge spawns respect that cap.
+        shards.push(...createShardFragments(shard));
+        createBurst(shard.x, shard.y, 10, COLORS.face);
+      } else {
+        createBurst(shard.x, shard.y, 14, COLORS.face);
+      }
       break;
     }
   }
