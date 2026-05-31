@@ -59,6 +59,14 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Shot shards cleave into smaller fragments. A fragment is only spawned when
+  // its radius would stay at/above splitMinRadius, so small shards just pop and
+  // splitting always terminates.
+  splitMinRadius: 14,
+  splitChildScale: 0.6,
+  splitChildCount: 2,
+  splitSeparationSpeed: 104,
+  splitInheritDrift: 0.5,
 };
 
 const ARROW_KEYS = new Set([
@@ -360,6 +368,39 @@ function maxShardCount() {
   return Math.floor(6 + areaBonus + getDifficulty() * 8);
 }
 
+function splitShard(shard, bullet) {
+  // Classic Asteroids splitting: a shot shard cleaves into smaller fragments
+  // that fan out perpendicular to the bullet's path while keeping part of the
+  // parent's drift. Fragments below splitMinRadius are not worth spawning, so
+  // the shard simply pops (the caller has already removed it). Children are
+  // strictly smaller, so repeated hits always converge to a pop.
+  const childRadius = shard.radius * GAME_CONFIG.splitChildScale;
+  if (childRadius < GAME_CONFIG.splitMinRadius) return;
+
+  const impactAngle = Math.atan2(bullet.vy, bullet.vx);
+  const inheritVx = shard.vx * GAME_CONFIG.splitInheritDrift;
+  const inheritVy = shard.vy * GAME_CONFIG.splitInheritDrift;
+
+  for (let i = 0; i < GAME_CONFIG.splitChildCount; i += 1) {
+    const side = i % 2 === 0 ? 1 : -1;
+    const heading =
+      impactAngle + side * (Math.PI / 2) + randomBetween(-0.35, 0.35);
+    const separation = GAME_CONFIG.splitSeparationSpeed * randomBetween(0.82, 1.18);
+    const offset = childRadius * 0.5;
+    shards.push({
+      x: shard.x + Math.cos(heading) * offset,
+      y: shard.y + Math.sin(heading) * offset,
+      vx: inheritVx + Math.cos(heading) * separation,
+      vy: inheritVy + Math.sin(heading) * separation,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.6, 1.6),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function createBurst(x, y, count, color) {
   for (let i = 0; i < count; i += 1) {
     const angle = Math.random() * Math.PI * 2;
@@ -573,6 +614,7 @@ function updateBullets(dt) {
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
+      splitShard(shard, bullet);
       break;
     }
   }
