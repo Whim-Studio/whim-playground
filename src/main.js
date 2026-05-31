@@ -38,6 +38,11 @@ const COLORS = {
   faceSoft: "rgba(100, 205, 252, 0.14)",
   faceLine: "rgba(100, 205, 252, 0.52)",
   danger: "#d4836c",
+  // Power-up accents. Kept soft so the Whim blue stays primary; each type also
+  // draws a glyph (on the orb and HUD pill) so it reads without relying on color.
+  powerShield: "#7ad6c4",
+  powerRapid: "#f2c987",
+  powerTriple: "#b6a6f0",
 };
 
 // Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
@@ -59,7 +64,41 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Power-ups. Orb spawn/lifetime are dt-driven seconds (like shard spawning);
+  // buff durations are performance.now() ms (like shootCooldownMs). See `buffs`.
+  powerupSpawnInterval: 7.5,
+  powerupLifetime: 9,
+  maxPowerups: 2,
+  powerupRadius: 16,
+  powerupDriftSpeed: 46,
+  shieldDurationMs: 5000,
+  rapidDurationMs: 6000,
+  tripleDurationMs: 6000,
+  rapidFireCooldownFactor: 0.5,
+  tripleSpreadAngle: 0.22,
+  tripleShotCount: 3,
 };
+
+// Power-up type metadata. Durations live in GAME_CONFIG; this maps each type to
+// its accent color and the single-character glyph drawn on the orb and HUD pill.
+const POWERUP_TYPES = {
+  shield: {
+    color: COLORS.powerShield,
+    glyph: "S",
+    durationMs: GAME_CONFIG.shieldDurationMs,
+  },
+  rapid: {
+    color: COLORS.powerRapid,
+    glyph: "R",
+    durationMs: GAME_CONFIG.rapidDurationMs,
+  },
+  triple: {
+    color: COLORS.powerTriple,
+    glyph: "3",
+    durationMs: GAME_CONFIG.tripleDurationMs,
+  },
+};
+const POWERUP_KEYS = Object.keys(POWERUP_TYPES);
 
 const ARROW_KEYS = new Set([
   "ArrowLeft",
@@ -126,6 +165,12 @@ let shards = [];
 let bullets = [];
 let trails = [];
 let burstParticles = [];
+let powerups = [];
+let powerupTimer = GAME_CONFIG.powerupSpawnInterval;
+// Buff timers use one time base: performance.now() ms (matching shoot()'s
+// cooldown and the face-frame timers). buffs[type] holds the ms timestamp at
+// which that buff expires; a buff is active while performance.now() is below it.
+let buffs = { shield: 0, rapid: 0, triple: 0 };
 let starField = [];
 
 function clamp(value, min, max) {
@@ -138,6 +183,10 @@ function lerp(start, end, amount) {
 
 function randomBetween(min, max) {
   return min + Math.random() * (max - min);
+}
+
+function buffActive(type, now) {
+  return buffs[type] > now;
 }
 
 function formatScore(value) {
@@ -177,7 +226,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards, grab glowing orbs for power-ups, and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateHud();
@@ -274,6 +323,9 @@ function resetRound() {
   bullets = [];
   trails = [];
   burstParticles = [];
+  powerups = [];
+  powerupTimer = GAME_CONFIG.powerupSpawnInterval * 0.5;
+  buffs = { shield: 0, rapid: 0, triple: 0 };
   centerPlayer();
   overlayEl.hidden = true;
   updateHud();
@@ -396,31 +448,56 @@ function getFireAngle() {
   return aimAngle;
 }
 
+function shotSpreadOffsets(now) {
+  // Triple shot fans bullets symmetrically around the aim; tripleSpreadAngle is
+  // the offset of the outermost bullets, so the full fan spans twice that.
+  if (!buffActive("triple", now)) return [0];
+  const count = GAME_CONFIG.tripleShotCount;
+  if (count <= 1) return [0];
+  const spread = GAME_CONFIG.tripleSpreadAngle;
+  return Array.from(
+    { length: count },
+    (_, i) => (i / (count - 1) - 0.5) * 2 * spread,
+  );
+}
+
 function shoot(now = performance.now()) {
   if (state !== GAME_STATE.PLAYING) return;
-  if (now - lastShotAt < GAME_CONFIG.shootCooldownMs) return;
+  // Rapid fire shortens the cooldown; both values are performance.now() ms.
+  const cooldown = buffActive("rapid", now)
+    ? GAME_CONFIG.shootCooldownMs * GAME_CONFIG.rapidFireCooldownFactor
+    : GAME_CONFIG.shootCooldownMs;
+  if (now - lastShotAt < cooldown) return;
 
   const angle = getFireAngle();
   const muzzleDistance = player.radius * 1.25;
-  const muzzleX = player.x + Math.cos(angle) * muzzleDistance;
-  const muzzleY = player.y + Math.sin(angle) * muzzleDistance;
 
   aimAngle = angle;
   lastShotAt = now;
   shotFrameUntil = now + 180;
-  bullets.push({
-    x: muzzleX,
-    y: muzzleY,
-    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
-    age: 0,
-    life: GAME_CONFIG.bulletLife,
-    radius: GAME_CONFIG.bulletRadius,
-  });
 
+  for (const offset of shotSpreadOffsets(now)) {
+    const a = angle + offset;
+    bullets.push({
+      x: player.x + Math.cos(a) * muzzleDistance,
+      y: player.y + Math.sin(a) * muzzleDistance,
+      vx: Math.cos(a) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
+      vy: Math.sin(a) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
+      age: 0,
+      life: GAME_CONFIG.bulletLife,
+      radius: GAME_CONFIG.bulletRadius,
+    });
+  }
+
+  // Recoil and muzzle flash follow the central aim regardless of spread.
   player.vx -= Math.cos(angle) * 34;
   player.vy -= Math.sin(angle) * 34;
-  createBurst(muzzleX, muzzleY, 6, COLORS.face);
+  createBurst(
+    player.x + Math.cos(angle) * muzzleDistance,
+    player.y + Math.sin(angle) * muzzleDistance,
+    6,
+    COLORS.face,
+  );
 }
 
 function getInputVector() {
@@ -522,7 +599,7 @@ function getFaceFrame(now, moving) {
   return "default";
 }
 
-function updateShards(dt) {
+function updateShards(dt, now) {
   // Shard lifecycle, spawn pacing, and collision detection are intentionally
   // coupled for v1. Split this only when hazards gain distinct behaviors.
   const difficulty = getDifficulty();
@@ -550,6 +627,7 @@ function updateShards(dt) {
   for (const shard of shards) {
     const hitRadius = player.radius + shard.radius * 0.72;
     if (Math.hypot(player.x - shard.x, player.y - shard.y) <= hitRadius) {
+      if (buffActive("shield", now)) continue; // shield absorbs the hit
       endRound();
       break;
     }
@@ -605,6 +683,66 @@ function updateBullets(dt) {
   }
 }
 
+function activateBuff(type, now) {
+  // Re-collecting a type refreshes its duration; types stack independently.
+  buffs[type] = now + POWERUP_TYPES[type].durationMs;
+}
+
+function spawnPowerup() {
+  // Orbs are collectible buffs, not hazards: they appear in the playfield and
+  // drift slowly in a random direction, wrapping at the edges like everything
+  // else. Keep them clear of the face so a buff never lands directly on it.
+  const type = POWERUP_KEYS[Math.floor(Math.random() * POWERUP_KEYS.length)];
+  let x = randomBetween(width * 0.12, width * 0.88);
+  let y = randomBetween(height * 0.12, height * 0.88);
+  if (Math.hypot(x - player.x, y - player.y) < GAME_CONFIG.safeSpawnDistance) {
+    x = wrap(x + Math.sign(x - player.x || 1) * GAME_CONFIG.safeSpawnDistance, width);
+    y = wrap(y + Math.sign(y - player.y || 1) * GAME_CONFIG.safeSpawnDistance, height);
+  }
+  const heading = Math.random() * Math.PI * 2;
+  powerups.push({
+    type,
+    x,
+    y,
+    vx: Math.cos(heading) * GAME_CONFIG.powerupDriftSpeed,
+    vy: Math.sin(heading) * GAME_CONFIG.powerupDriftSpeed,
+    radius: GAME_CONFIG.powerupRadius,
+    age: 0,
+    life: GAME_CONFIG.powerupLifetime,
+    pulse: Math.random() * Math.PI * 2,
+  });
+}
+
+function updatePowerups(dt, now) {
+  // Spawn pacing is independent of shards. Orbs drift, wrap, and expire so they
+  // never accumulate; overlapping the face collects one and grants its buff.
+  powerupTimer -= dt;
+  if (powerupTimer <= 0 && powerups.length < GAME_CONFIG.maxPowerups) {
+    spawnPowerup();
+    powerupTimer = GAME_CONFIG.powerupSpawnInterval * randomBetween(0.8, 1.25);
+  }
+
+  for (const orb of powerups) {
+    orb.age += dt;
+    orb.x = wrap(orb.x + orb.vx * dt, width);
+    orb.y = wrap(orb.y + orb.vy * dt, height);
+    orb.pulse += dt * 2.4;
+  }
+
+  for (let i = powerups.length - 1; i >= 0; i -= 1) {
+    const orb = powerups[i];
+    const reach = player.radius + orb.radius;
+    if (Math.hypot(player.x - orb.x, player.y - orb.y) <= reach) {
+      activateBuff(orb.type, now);
+      createBurst(orb.x, orb.y, 14, POWERUP_TYPES[orb.type].color);
+      shotFrameUntil = now + 320; // brief smile acknowledges the pickup
+      powerups.splice(i, 1);
+    }
+  }
+
+  powerups = powerups.filter((orb) => orb.age < orb.life);
+}
+
 function updateEffects(dt) {
   for (const trail of trails) {
     trail.age += dt;
@@ -626,8 +764,9 @@ function update(dt, now) {
     elapsed += dt;
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
-    updateShards(dt);
+    updateShards(dt, now);
     updateBullets(dt);
+    updatePowerups(dt, now);
   }
 
   updateEffects(dt);
@@ -748,6 +887,28 @@ function drawPlayer(now) {
   ctx.stroke();
   ctx.restore();
 
+  if (state === GAME_STATE.PLAYING && buffActive("shield", now)) {
+    // Aura ring sits with the player; it flashes faster during the final second
+    // so the shield's expiry is visible before invincibility drops.
+    const expiring = buffs.shield - now < 1000;
+    const wobble = 0.5 + 0.5 * Math.sin(now / (expiring ? 80 : 320));
+    const alpha = expiring ? 0.25 + wobble * 0.55 : 0.6 + wobble * 0.25;
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COLORS.powerShield;
+    ctx.shadowColor = COLORS.powerShield;
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.size * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = alpha * 0.12;
+    ctx.fillStyle = COLORS.powerShield;
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (shotPulse > 0) {
     ctx.save();
     ctx.translate(player.x, player.y);
@@ -832,17 +993,106 @@ function drawPointerGuide() {
   ctx.restore();
 }
 
+function drawPowerup(orb, now) {
+  // Glowing collectible orb: soft halo, faint core, ring, and a type glyph.
+  // Fades out over its final stretch of life so despawning is not abrupt.
+  const meta = POWERUP_TYPES[orb.type];
+  const fade = clamp((orb.life - orb.age) / 1.1, 0, 1);
+  const pulse = 0.5 + Math.sin(orb.pulse) * 0.5;
+  const r = orb.radius;
+
+  ctx.save();
+  ctx.translate(orb.x, orb.y);
+  ctx.fillStyle = meta.color;
+  ctx.globalAlpha = fade * (0.1 + pulse * 0.07);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * (1.7 + pulse * 0.3), 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = fade * 0.16;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = fade * 0.9;
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = meta.color;
+  ctx.shadowColor = meta.color;
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = meta.color;
+  ctx.font = `700 ${Math.round(r * 1.05)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(meta.glyph, 0, 1);
+  ctx.restore();
+}
+
+function drawBuffPills(now) {
+  // Compact active-buff pills, anchored top-right to stay clear of the score HUD
+  // (top-left) and the shoot button (bottom-right). Each shows its glyph and
+  // flashes during its final second so expiry is visible.
+  if (state !== GAME_STATE.PLAYING) return;
+  const active = POWERUP_KEYS.filter((type) => buffActive(type, now));
+  if (active.length === 0) return;
+
+  const pillH = clamp(width * 0.05, 22, 28);
+  const pillW = pillH * 1.5;
+  const gap = pillH * 0.4;
+  const margin = clamp(width * 0.04, 14, 22);
+  const totalW = active.length * pillW + (active.length - 1) * gap;
+  let x = width - margin - totalW;
+  const y = clamp(height * 0.035, 12, 24);
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${Math.round(pillH * 0.5)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  for (const type of active) {
+    const meta = POWERUP_TYPES[type];
+    const expiring = buffs[type] - now < 1000;
+    const flash = expiring ? 0.5 + Math.sin(now / 90) * 0.4 : 1;
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, pillW, pillH, pillH / 2);
+    ctx.globalAlpha = flash * 0.18;
+    ctx.fillStyle = meta.color;
+    ctx.fill();
+    ctx.globalAlpha = flash * 0.85;
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = meta.color;
+    ctx.stroke();
+
+    ctx.globalAlpha = flash;
+    ctx.fillStyle = meta.color;
+    ctx.fillText(meta.glyph, x + pillW / 2, y + pillH / 2 + 1);
+
+    x += pillW + gap;
+  }
+  ctx.restore();
+}
+
 function draw(now) {
   drawBackground(now);
   drawEffects();
   drawPointerGuide();
 
+  // Orbs sit with the hazards layer, before shards and bullets.
+  for (const orb of powerups) {
+    drawPowerup(orb, now);
+  }
   for (const shard of shards) {
     drawShard(shard);
   }
 
   drawBullets();
   drawPlayer(now);
+  drawBuffPills(now);
 }
 
 function loop(now) {
