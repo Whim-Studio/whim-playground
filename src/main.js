@@ -42,6 +42,22 @@ const COLORS = {
   danger: "#d4836c",
 };
 
+// Hazards cycle through a small, harmonious palette so the field reads as a
+// scatter of distinct asteroids while staying on the Whim blue surface. Stored
+// as RGB triples so drawShard can compose stroke/fill alpha per frame.
+const HAZARD_COLORS = [
+  [100, 205, 252], // Whim blue
+  [167, 139, 250], // amethyst
+  [110, 231, 183], // mint
+  [245, 200, 110], // amber
+  [244, 154, 194], // rose
+  [212, 131, 108], // terracotta
+];
+
+function rgba([r, g, b], alpha) {
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
 // per second; interval values are seconds. Start here for balancing changes.
 const GAME_CONFIG = {
@@ -382,6 +398,7 @@ function spawnShard() {
     angle: Math.random() * Math.PI * 2,
     spin: randomBetween(-1.3, 1.3),
     pulse: Math.random() * Math.PI * 2,
+    color: HAZARD_COLORS[Math.floor(Math.random() * HAZARD_COLORS.length)],
   });
 }
 
@@ -408,6 +425,7 @@ function createShardFragments(shard) {
       angle: Math.random() * Math.PI * 2,
       spin: randomBetween(-1.8, 1.8),
       pulse: Math.random() * Math.PI * 2,
+      color: shard.color, // fragments keep the parent rock's color
     };
   });
 }
@@ -639,9 +657,9 @@ function updateBullets(dt) {
         // Large shards break apart instead of vanishing. Fragments are pushed
         // past maxShardCount on purpose; only edge spawns respect that cap.
         shards.push(...createShardFragments(shard));
-        createBurst(shard.x, shard.y, 10, COLORS.face);
+        createBurst(shard.x, shard.y, 10, rgba(shard.color, 1));
       } else {
-        createBurst(shard.x, shard.y, 14, COLORS.face);
+        createBurst(shard.x, shard.y, 14, rgba(shard.color, 1));
       }
       break;
     }
@@ -722,8 +740,8 @@ function drawShard(shard) {
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
   ctx.lineWidth = 1.25;
-  ctx.strokeStyle = `rgba(100, 205, 252, ${0.32 + alpha * 0.12})`;
-  ctx.fillStyle = "rgba(100, 205, 252, 0.045)";
+  ctx.strokeStyle = rgba(shard.color, 0.32 + alpha * 0.12);
+  ctx.fillStyle = rgba(shard.color, 0.07);
   ctx.beginPath();
   shard.points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y);
