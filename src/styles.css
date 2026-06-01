@@ -113,6 +113,21 @@ button {
   line-height: 1;
 }
 
+/* Combo multiplier readout. Idle sits muted at ×1; an active streak (≥×2)
+   brightens to Whim blue and the badge pops via the Web Animations API. */
+.stat--combo strong {
+  display: inline-block;
+  color: var(--muted);
+  transition:
+    color 160ms ease,
+    text-shadow 160ms ease;
+}
+
+.stat--combo strong.is-active {
+  color: var(--blue);
+  text-shadow: 0 0 12px rgba(100, 205, 252, 0.55);
+}
+
 .game-shell {
   position: relative;
   min-height: 0;

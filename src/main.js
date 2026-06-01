@@ -18,6 +18,7 @@ const gameShell = document.querySelector(".game-shell");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const timeEl = document.querySelector("#time");
+const multiplierEl = document.querySelector("#multiplier");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -59,6 +60,10 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Consecutive shard kills within comboWindow seconds stack a score
+  // multiplier, capped at comboMax. Tune feel here before touching the loop.
+  comboWindow: 2.2,
+  comboMax: 6,
 };
 
 const ARROW_KEYS = new Set([
@@ -110,6 +115,9 @@ let state = GAME_STATE.INTRO;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
+let combo = 0;
+let comboExpireAt = 0;
+let shownMultiplier = 1;
 let best = readBestScore();
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
@@ -167,9 +175,34 @@ function writeBestScore(value) {
   }
 }
 
+function currentMultiplier() {
+  // combo is the raw consecutive-kill count; the applied/displayed multiplier
+  // is clamped so a long streak cannot run the score away.
+  return clamp(combo, 1, GAME_CONFIG.comboMax);
+}
+
+function updateMultiplierHud() {
+  const multiplier = currentMultiplier();
+  multiplierEl.textContent = `×${multiplier}`;
+  multiplierEl.classList.toggle("is-active", multiplier > 1);
+  if (multiplier > shownMultiplier) {
+    // Pop the badge only when the streak climbs, not every frame it holds.
+    multiplierEl.animate?.(
+      [
+        { transform: "scale(1)" },
+        { transform: "scale(1.3)" },
+        { transform: "scale(1)" },
+      ],
+      { duration: 260, easing: "ease-out" },
+    );
+  }
+  shownMultiplier = multiplier;
+}
+
 function updateHud() {
   scoreEl.textContent = formatScore(score);
   timeEl.textContent = formatTime(elapsed);
+  updateMultiplierHud();
 }
 
 function showIntroOverlay() {
@@ -177,7 +210,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Chain quick shots to stack a score multiplier.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateHud();
@@ -262,6 +295,9 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  combo = 0;
+  comboExpireAt = 0;
+  shownMultiplier = 1;
   spawnTimer = 0.45;
   trailTimer = 0;
   lastShotAt = -Infinity;
@@ -571,8 +607,15 @@ function updateBullets(dt) {
 
       bullets.splice(bulletIndex, 1);
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, COLORS.face);
+
+      // Hits chained inside comboWindow stack a multiplier. Each kill refreshes
+      // the window; update() drops the combo back to x1 once it lapses.
+      combo = combo > 0 && elapsed <= comboExpireAt ? combo + 1 : 1;
+      comboExpireAt = elapsed + GAME_CONFIG.comboWindow;
+      const multiplier = currentMultiplier();
+      clearScore += GAME_CONFIG.shardClearScore * multiplier;
+
+      createBurst(shard.x, shard.y, 12 + (multiplier - 1) * 4, COLORS.face);
       break;
     }
   }
@@ -597,6 +640,9 @@ function updateEffects(dt) {
 function update(dt, now) {
   if (state === GAME_STATE.PLAYING) {
     elapsed += dt;
+    if (combo > 0 && elapsed > comboExpireAt) {
+      combo = 0;
+    }
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
     updateShards(dt);
