@@ -59,6 +59,13 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Shot shards break into smaller, faster fragments until they fall below the
+  // minimum size, then they are destroyed outright.
+  shardMinSplitRadius: 15,
+  shardSplitScale: 0.62,
+  shardSplitCount: 2,
+  shardSplitSpread: 0.72,
+  shardSplitSpeedBoost: 1.16,
 };
 
 const ARROW_KEYS = new Set([
@@ -355,6 +362,35 @@ function spawnShard() {
   });
 }
 
+function splitShard(shard) {
+  // Classic Asteroids feel: a destroyed shard sheds smaller, faster fragments
+  // that fan out from the parent's heading. Once a fragment would fall below
+  // the minimum size it is simply not spawned, so shards eventually clear.
+  const childRadius = shard.radius * GAME_CONFIG.shardSplitScale;
+  if (childRadius < GAME_CONFIG.shardMinSplitRadius) return;
+
+  const parentHeading = Math.atan2(shard.vy, shard.vx);
+  const speed = Math.hypot(shard.vx, shard.vy) * GAME_CONFIG.shardSplitSpeedBoost;
+  const offset = childRadius * 0.6;
+
+  for (let i = 0; i < GAME_CONFIG.shardSplitCount; i += 1) {
+    const spread =
+      (i - (GAME_CONFIG.shardSplitCount - 1) / 2) * GAME_CONFIG.shardSplitSpread;
+    const heading = parentHeading + spread + randomBetween(-0.18, 0.18);
+    shards.push({
+      x: shard.x + Math.cos(heading) * offset,
+      y: shard.y + Math.sin(heading) * offset,
+      vx: Math.cos(heading) * speed,
+      vy: Math.sin(heading) * speed,
+      radius: childRadius,
+      points: createShardPoints(childRadius),
+      angle: Math.random() * Math.PI * 2,
+      spin: randomBetween(-1.6, 1.6),
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
 function maxShardCount() {
   const areaBonus = clamp((width * height) / 150000, 0, 5);
   return Math.floor(6 + areaBonus + getDifficulty() * 8);
@@ -573,6 +609,7 @@ function updateBullets(dt) {
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
+      splitShard(shard);
       break;
     }
   }
