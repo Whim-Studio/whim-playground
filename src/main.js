@@ -18,6 +18,8 @@ const gameShell = document.querySelector(".game-shell");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const timeEl = document.querySelector("#time");
+const comboEl = document.querySelector("#combo");
+const multiplierEl = document.querySelector("#multiplier");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -66,6 +68,10 @@ const GAME_CONFIG = {
   shardSplitCount: 2,
   shardSplitSpread: 1.1,
   shardSplitSpeedBoost: 1.15,
+  // Combo multiplier: each shard cleared within comboWindow seconds of the last
+  // raises the multiplier (capped at maxMultiplier); a lapse resets it to x1.
+  comboWindow: 2,
+  maxMultiplier: 5,
 };
 
 const ARROW_KEYS = new Set([
@@ -117,6 +123,9 @@ let state = GAME_STATE.INTRO;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
+let multiplier = 1;
+let comboTimer = 0;
+let lastShownMultiplier = -1;
 let best = readBestScore();
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
@@ -177,6 +186,18 @@ function writeBestScore(value) {
 function updateHud() {
   scoreEl.textContent = formatScore(score);
   timeEl.textContent = formatTime(elapsed);
+  // Only touch the combo DOM when the multiplier actually changes so the pop
+  // animation is retriggered on increments rather than on every frame.
+  if (multiplier !== lastShownMultiplier) {
+    multiplierEl.textContent = `x${multiplier}`;
+    comboEl.classList.toggle("is-active", multiplier > 1);
+    if (multiplier > lastShownMultiplier && multiplier > 1) {
+      comboEl.classList.remove("combo-pop");
+      void comboEl.offsetWidth; // Force reflow to restart the pop animation.
+      comboEl.classList.add("combo-pop");
+    }
+    lastShownMultiplier = multiplier;
+  }
 }
 
 function showIntroOverlay() {
@@ -184,7 +205,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards fast to chain a score combo.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateHud();
@@ -269,6 +290,8 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  multiplier = 1;
+  comboTimer = 0;
   spawnTimer = 0.45;
   trailTimer = 0;
   lastShotAt = -Infinity;
@@ -605,7 +628,12 @@ function updateBullets(dt) {
 
       bullets.splice(bulletIndex, 1);
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
+      // Rapid clears chain the combo; a lapse (comboTimer hit 0) restarts at x1.
+      multiplier = comboTimer > 0
+        ? Math.min(multiplier + 1, GAME_CONFIG.maxMultiplier)
+        : 1;
+      comboTimer = GAME_CONFIG.comboWindow;
+      clearScore += GAME_CONFIG.shardClearScore * multiplier;
 
       if (shard.radius >= GAME_CONFIG.shardMinSplitRadius) {
         // Large shards break apart instead of vanishing. Fragments are pushed
@@ -639,6 +667,12 @@ function updateEffects(dt) {
 function update(dt, now) {
   if (state === GAME_STATE.PLAYING) {
     elapsed += dt;
+    if (comboTimer > 0) {
+      comboTimer = Math.max(0, comboTimer - dt);
+      if (comboTimer === 0) {
+        multiplier = 1;
+      }
+    }
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
     updateShards(dt);
