@@ -126,6 +126,16 @@ button {
   text-shadow: 0 0 12px rgba(100, 205, 252, 0.42);
 }
 
+/* Weapon stat keeps the Whim-blue accent at all times since a weapon slot is
+   always active, mirroring the lit multiplier treatment above. */
+#weapon {
+  color: var(--blue);
+  text-shadow: 0 0 12px rgba(100, 205, 252, 0.42);
+  transition:
+    color 200ms ease,
+    text-shadow 200ms ease;
+}
+
 .game-shell {
   position: relative;
   min-height: 0;
@@ -179,6 +189,55 @@ button {
 }
 
 .shoot-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+
+/* Compact weapon switcher, mirroring the shoot button's coarse-pointer chrome.
+   Sits just left of the round fire button and cycles weapons on tap. */
+.weapon-button {
+  position: absolute;
+  right: calc(max(18px, env(safe-area-inset-right)) + 84px);
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 3;
+  display: none;
+  gap: 3px;
+  place-items: center;
+  min-width: 64px;
+  padding: 10px 14px;
+  border: 1px solid rgba(100, 205, 252, 0.38);
+  border-radius: 12px;
+  background: rgba(30, 51, 85, 0.68);
+  box-shadow:
+    0 14px 42px rgba(3, 9, 18, 0.28),
+    inset 0 1px 0 rgba(232, 228, 222, 0.08);
+  cursor: pointer;
+  touch-action: manipulation;
+  backdrop-filter: blur(16px);
+}
+
+.weapon-button__eyebrow {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.weapon-button__name {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.weapon-button:active {
+  transform: scale(0.96);
+}
+
+.weapon-button:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 4px;
 }
@@ -273,6 +332,10 @@ button {
   .shoot-button {
     display: grid;
   }
+
+  .weapon-button {
+    display: grid;
+  }
 }
 
 @media (max-width: 640px) {
@@ -351,5 +414,11 @@ button {
     box-shadow:
       0 0 0 6px rgba(100, 205, 252, 0.08),
       0 0 18px rgba(100, 205, 252, 0.28);
+  }
+
+  .weapon-button {
+    right: calc(max(18px, env(safe-area-inset-right)) + 72px);
+    padding: 8px 12px;
+    min-width: 56px;
   }
 }

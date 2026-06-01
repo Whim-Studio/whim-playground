@@ -31,6 +31,10 @@
             <span class="stat__label">Multiplier</span>
             <strong id="multiplier">×1.0</strong>
           </span>
+          <span class="stat">
+            <span class="stat__label">Weapon</span>
+            <strong id="weapon">Pulse</strong>
+          </span>
         </div>
         <canvas
           id="gameCanvas"
@@ -44,13 +48,22 @@
         >
           <span aria-hidden="true"></span>
         </button>
+        <button
+          id="weaponButton"
+          class="weapon-button"
+          type="button"
+          aria-label="Switch weapon"
+        >
+          <span class="weapon-button__eyebrow" aria-hidden="true">WPN</span>
+          <span class="weapon-button__name" id="weaponName">Pulse</span>
+        </button>
         <div id="gameOverlay" class="game-overlay" hidden>
           <div class="game-overlay__panel">
             <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>
             <strong id="overlayTitle">Whim Asteroids</strong>
             <p id="overlayCopy" class="game-overlay__copy">
-              Arrow keys or drag to move. Space shoots. Clear shards and keep
-              the face moving.
+              Arrow keys or drag to move. Space shoots. Switch weapons with
+              1/2/3 or the weapon button. Clear shards and keep the face moving.
             </p>
             <button id="restartButton" type="button">Start</button>
           </div>
