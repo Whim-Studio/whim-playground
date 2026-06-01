@@ -43,6 +43,8 @@ missing titles. Completed or archived todos are still treated as already seeded.
 - Arrow keys move the Whim face.
 - Pointer drag or touch moves toward the target point.
 - Space shoots on keyboard.
+- Keys 1/2/3 switch weapons (Pulse, Spread, Lance); on mobile use the weapon
+  button beside the fire button.
 - The glowing round button starts/restarts and shoots on mobile/coarse-pointer
   screens.
 - After a collision, press Enter, Space, any arrow key, or Restart.

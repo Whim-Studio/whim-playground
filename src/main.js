@@ -19,12 +19,15 @@ const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const timeEl = document.querySelector("#time");
 const multiplierEl = document.querySelector("#multiplier");
+const weaponEl = document.querySelector("#weapon");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
 const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
+const weaponButton = document.querySelector("#weaponButton");
+const weaponNameEl = document.querySelector("#weaponName");
 
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
@@ -38,6 +41,9 @@ const COLORS = {
   face: "#64CDFC",
   faceSoft: "rgba(100, 205, 252, 0.14)",
   faceLine: "rgba(100, 205, 252, 0.52)",
+  // Lance bolts read hotter than the default face-blue bullet to telegraph the
+  // piercing weapon while staying inside the Whim blue family.
+  lance: "#bfeaff",
   danger: "#d4836c",
 };
 
@@ -55,10 +61,8 @@ const GAME_CONFIG = {
   minPlayerSize: 48,
   maxPlayerSize: 72,
   safeSpawnDistance: 180,
-  bulletSpeed: 620,
-  bulletLife: 0.82,
-  bulletRadius: 4,
-  shootCooldownMs: 190,
+  // Per-weapon bullet tuning (speed, life, radius, cooldown, recoil) lives in
+  // the WEAPONS registry below.
   shardClearScore: 35,
   // Combo multiplier: each shard cleared within comboWindow seconds of the last
   // bumps the multiplier by multiplierStep (capped at maxMultiplier). The combo
@@ -66,6 +70,56 @@ const GAME_CONFIG = {
   comboWindow: 2.2,
   multiplierStep: 0.5,
   maxMultiplier: 5,
+};
+
+// Weapon arsenal. Each entry is self-describing so shoot() and updateBullets()
+// stay weapon-agnostic: `pattern` lists per-bolt angle offsets (radians) around
+// the aim, `pierce` is how many shards a bolt passes through before it despawns
+// (0 = the original despawn-on-first-hit bolt), and `color` is optional (falls
+// back to COLORS.face). Tune weapon feel here, not in the loop.
+const WEAPONS = [
+  {
+    name: "Pulse",
+    cooldownMs: 190,
+    bulletSpeed: 620,
+    bulletLife: 0.82,
+    bulletRadius: 4,
+    recoil: 34,
+    muzzleCount: 6,
+    pattern: [0],
+    pierce: 0,
+  },
+  {
+    name: "Spread",
+    cooldownMs: 340,
+    bulletSpeed: 560,
+    bulletLife: 0.5,
+    bulletRadius: 4,
+    recoil: 70,
+    muzzleCount: 5,
+    pattern: [-0.28, 0, 0.28], // ~±16° fan: shorter range, heavier recoil
+    pierce: 0,
+  },
+  {
+    name: "Lance",
+    cooldownMs: 300,
+    bulletSpeed: 900,
+    bulletLife: 1.05,
+    bulletRadius: 4,
+    recoil: 14,
+    muzzleCount: 7,
+    pattern: [0],
+    pierce: 3, // passes through up to 3 shards, despawning on the next hit
+    color: COLORS.lance,
+  },
+];
+
+// Desktop number-row keys select weapon slots directly. Handled at the top of
+// handleKeyDown so they never fall through to movement, fire, or round start.
+const WEAPON_KEYS = {
+  Digit1: 0,
+  Digit2: 1,
+  Digit3: 2,
 };
 
 const ARROW_KEYS = new Set([
@@ -126,6 +180,8 @@ let spawnTimer = 0.4;
 let trailTimer = 0;
 let lastShotAt = -Infinity;
 let lastShootButtonPointerAt = -Infinity;
+let lastWeaponButtonPointerAt = -Infinity;
+let activeWeapon = 0; // persists across rounds; intentionally not reset by resetRound
 let shotFrameUntil = 0;
 let aimAngle = -Math.PI / 2;
 let idleFrame = "default";
@@ -181,6 +237,9 @@ function updateHud() {
   timeEl.textContent = formatTime(elapsed);
   multiplierEl.textContent = `×${multiplier.toFixed(1)}`;
   multiplierEl.classList.toggle("is-combo", multiplier > 1);
+  const weaponName = WEAPONS[activeWeapon].name;
+  weaponEl.textContent = weaponName;
+  weaponNameEl.textContent = weaponName;
 }
 
 function showIntroOverlay() {
@@ -188,7 +247,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys or drag to move. Space shoots. Switch weapons with 1/2/3 or the mobile weapon button. On mobile, tap the glowing round button to fire. Clear shards and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateHud();
@@ -406,7 +465,8 @@ function getFireAngle() {
 
 function shoot(now = performance.now()) {
   if (state !== GAME_STATE.PLAYING) return;
-  if (now - lastShotAt < GAME_CONFIG.shootCooldownMs) return;
+  const weapon = WEAPONS[activeWeapon];
+  if (now - lastShotAt < weapon.cooldownMs) return;
 
   const angle = getFireAngle();
   const muzzleDistance = player.radius * 1.25;
@@ -416,19 +476,42 @@ function shoot(now = performance.now()) {
   aimAngle = angle;
   lastShotAt = now;
   shotFrameUntil = now + 180;
-  bullets.push({
-    x: muzzleX,
-    y: muzzleY,
-    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
-    age: 0,
-    life: GAME_CONFIG.bulletLife,
-    radius: GAME_CONFIG.bulletRadius,
-  });
 
-  player.vx -= Math.cos(angle) * 34;
-  player.vy -= Math.sin(angle) * 34;
-  createBurst(muzzleX, muzzleY, 6, COLORS.face);
+  // Emit the active weapon's pattern: one bolt per angle offset around the aim.
+  // Each bolt carries its own motion, pierce budget, and color so updateBullets
+  // stays weapon-agnostic and reuses one shared shard-clear path.
+  for (const offset of weapon.pattern) {
+    const shotAngle = angle + offset;
+    bullets.push({
+      x: muzzleX,
+      y: muzzleY,
+      vx: Math.cos(shotAngle) * weapon.bulletSpeed + player.vx * 0.18,
+      vy: Math.sin(shotAngle) * weapon.bulletSpeed + player.vy * 0.18,
+      age: 0,
+      life: weapon.bulletLife,
+      radius: weapon.bulletRadius,
+      pierce: weapon.pierce,
+      color: weapon.color,
+    });
+  }
+
+  player.vx -= Math.cos(angle) * weapon.recoil;
+  player.vy -= Math.sin(angle) * weapon.recoil;
+  createBurst(muzzleX, muzzleY, weapon.muzzleCount, weapon.color ?? COLORS.face);
+}
+
+function selectWeapon(index) {
+  // Direct selection (number keys / future bindings). Ignore out-of-range or
+  // no-op selections so the active slot can't desync.
+  if (index < 0 || index >= WEAPONS.length || index === activeWeapon) return;
+  activeWeapon = index;
+  updateHud();
+}
+
+function cycleWeapon() {
+  // Tap-to-cycle for the mobile weapon button.
+  activeWeapon = (activeWeapon + 1) % WEAPONS.length;
+  updateHud();
 }
 
 function getInputVector() {
@@ -615,11 +698,11 @@ function updateBullets(dt) {
         continue;
       }
 
-      bullets.splice(bulletIndex, 1);
+      // Shared shard-clear path for every weapon: split, build the combo (bump
+      // the multiplier one capped step and refresh the combo window), award the
+      // shard at the boosted multiplier, then spark a burst.
       splitShard(shard);
       shards.splice(shardIndex, 1);
-      // Build the combo: bump the multiplier one step (capped), refresh the
-      // combo window, then award the shard at the boosted multiplier.
       multiplier = Math.min(
         GAME_CONFIG.maxMultiplier,
         multiplier + GAME_CONFIG.multiplierStep,
@@ -627,7 +710,15 @@ function updateBullets(dt) {
       comboTimer = GAME_CONFIG.comboWindow;
       clearScore += Math.round(GAME_CONFIG.shardClearScore * multiplier);
       createBurst(shard.x, shard.y, 12, COLORS.face);
-      break;
+
+      // Piercing bolts spend one pierce per shard and keep flying; plain bolts
+      // (pierce 0) despawn on first contact, exactly like the original bullet.
+      if (bullet.pierce > 0) {
+        bullet.pierce -= 1;
+      } else {
+        bullets.splice(bulletIndex, 1);
+        break;
+      }
     }
   }
 }
@@ -732,7 +823,7 @@ function drawBullets() {
     ctx.save();
     ctx.globalAlpha = 1 - progress * 0.45;
     ctx.strokeStyle = "rgba(100, 205, 252, 0.72)";
-    ctx.fillStyle = COLORS.face;
+    ctx.fillStyle = bullet.color ?? COLORS.face;
     ctx.lineWidth = 1.4;
     ctx.shadowColor = "rgba(100, 205, 252, 0.38)";
     ctx.shadowBlur = 12;
@@ -889,6 +980,15 @@ function loop(now) {
 }
 
 function handleKeyDown(event) {
+  const weaponIndex = WEAPON_KEYS[event.code];
+  if (weaponIndex !== undefined) {
+    // Weapon select works in any state (including the intro/over overlays) and
+    // must not fall through to movement, fire, or round start.
+    event.preventDefault();
+    selectWeapon(weaponIndex);
+    return;
+  }
+
   const isArrow = ARROW_KEYS.has(event.key);
   const isFire = FIRE_KEYS.has(event.code);
   if (!isArrow && !isFire && event.key !== "Enter") return;
@@ -964,11 +1064,29 @@ function handleShootButtonClick(event) {
   triggerShootButton();
 }
 
+function handleWeaponButtonPointerDown(event) {
+  event.preventDefault();
+  lastWeaponButtonPointerAt = performance.now();
+  cycleWeapon();
+}
+
+function handleWeaponButtonClick(event) {
+  event.preventDefault();
+  // Mirror the shoot-button dedupe: a pointer tap also emits a click, so skip
+  // the click that immediately follows it while keeping keyboard/SR clicks.
+  if (performance.now() - lastWeaponButtonPointerAt < 450) return;
+  cycleWeapon();
+}
+
 restartButton.addEventListener("click", resetRound);
 shootButton.addEventListener("pointerdown", handleShootButtonPointerDown, {
   passive: false,
 });
 shootButton.addEventListener("click", handleShootButtonClick);
+weaponButton.addEventListener("pointerdown", handleWeaponButtonPointerDown, {
+  passive: false,
+});
+weaponButton.addEventListener("click", handleWeaponButtonClick);
 canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
 canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
 canvas.addEventListener("pointerup", clearPointerTarget);
