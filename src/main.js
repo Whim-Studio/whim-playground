@@ -64,6 +64,10 @@ const GAME_CONFIG = {
   // multiplier, capped at comboMax. Tune feel here before touching the loop.
   comboWindow: 2.2,
   comboMax: 6,
+  // Gun strength multiplier: starts at 1.0 and scales with asteroids destroyed.
+  // Each kill increases the bullet size and speed. Peak multiplier at gunMaxKills.
+  gunKillsPerMultiplier: 8,
+  gunMaxMultiplier: 2.4,
 };
 
 const ARROW_KEYS = new Set([
@@ -130,6 +134,7 @@ let aimAngle = -Math.PI / 2;
 let idleFrame = "default";
 let idleFrameUntil = 0;
 let nextIdleFrameAt = 1600;
+let asteroidsDestroyed = 0;
 let shards = [];
 let bullets = [];
 let trails = [];
@@ -179,6 +184,13 @@ function currentMultiplier() {
   // combo is the raw consecutive-kill count; the applied/displayed multiplier
   // is clamped so a long streak cannot run the score away.
   return clamp(combo, 1, GAME_CONFIG.comboMax);
+}
+
+function getGunMultiplier() {
+  // Gun strength increases with asteroids destroyed. Each kill beyond a
+  // threshold adds to the multiplier, scaling bullet damage and size.
+  const gunLevel = asteroidsDestroyed / GAME_CONFIG.gunKillsPerMultiplier;
+  return clamp(1 + gunLevel * 0.4, 1, GAME_CONFIG.gunMaxMultiplier);
 }
 
 function updateMultiplierHud() {
@@ -298,6 +310,7 @@ function resetRound() {
   combo = 0;
   comboExpireAt = 0;
   shownMultiplier = 1;
+  asteroidsDestroyed = 0;
   spawnTimer = 0.45;
   trailTimer = 0;
   lastShotAt = -Infinity;
@@ -439,14 +452,15 @@ function shoot(now = performance.now()) {
   aimAngle = angle;
   lastShotAt = now;
   shotFrameUntil = now + 180;
+  const gunMult = getGunMultiplier();
   bullets.push({
     x: muzzleX,
     y: muzzleY,
-    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
+    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed * gunMult + player.vx * 0.18,
+    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed * gunMult + player.vy * 0.18,
     age: 0,
     life: GAME_CONFIG.bulletLife,
-    radius: GAME_CONFIG.bulletRadius,
+    radius: GAME_CONFIG.bulletRadius * gunMult,
   });
 
   player.vx -= Math.cos(angle) * 34;
@@ -607,6 +621,7 @@ function updateBullets(dt) {
 
       bullets.splice(bulletIndex, 1);
       shards.splice(shardIndex, 1);
+      asteroidsDestroyed += 1;
 
       // Hits chained inside comboWindow stack a multiplier. Each kill refreshes
       // the window; update() drops the combo back to x1 once it lapses.
