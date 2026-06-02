@@ -18,15 +18,13 @@ const gameShell = document.querySelector(".game-shell");
 const scorebar = document.querySelector(".scorebar");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
-const bestEl = document.querySelector("#best");
-const roundStateEl = document.querySelector("#roundState");
+const roundTimeEl = document.querySelector("#roundTime");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
 const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
-const previewHintEl = document.querySelector("#previewHint");
 
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
@@ -110,11 +108,9 @@ let width = 1;
 let height = 1;
 let dpr = 1;
 let state = GAME_STATE.INTRO;
-let hasShownPreviewHint = false;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
-let best = readBestScore();
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
 let spawnTimer = 0.4;
@@ -131,8 +127,6 @@ let bullets = [];
 let trails = [];
 let burstParticles = [];
 let starField = [];
-let previewHintTimer = null;
-let previewHintHideTimer = null;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -150,31 +144,16 @@ function formatScore(value) {
   return String(Math.max(0, Math.floor(value))).padStart(6, "0");
 }
 
-function readBestScore() {
-  try {
-    return Number(localStorage.getItem("whim-asteroids-best") ?? 0) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeBestScore(value) {
-  try {
-    localStorage.setItem("whim-asteroids-best", String(Math.floor(value)));
-  } catch {
-    // Score persistence is optional; the game should keep running without it.
-  }
+function formatTime(value) {
+  const totalSeconds = Math.max(0, Math.floor(value));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function updateScorebar() {
   scoreEl.textContent = formatScore(score);
-  bestEl.textContent = formatScore(best);
-  roundStateEl.textContent = state === GAME_STATE.INTRO
-    ? "Ready"
-    : state === GAME_STATE.PLAYING
-      ? "Live"
-      : "Ended";
-  roundStateEl.classList.toggle("is-over", state === GAME_STATE.OVER);
+  roundTimeEl.textContent = formatTime(elapsed);
 }
 
 function showIntroOverlay() {
@@ -186,36 +165,6 @@ function showIntroOverlay() {
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateScorebar();
-}
-
-function isPreviewActive() {
-  const rect = gameShell.getBoundingClientRect();
-  return (
-    document.visibilityState !== "hidden" &&
-    rect.width > 0 &&
-    rect.height > 0
-  );
-}
-
-function hidePreviewHint() {
-  previewHintEl.classList.add("is-hiding");
-  previewHintHideTimer = window.setTimeout(() => {
-    previewHintEl.hidden = true;
-    previewHintEl.classList.remove("is-hiding");
-  }, 220);
-}
-
-function showPreviewHintWhenActive() {
-  // Only the Whim-preview guidance waits for preview activation. The gameplay
-  // tutorial still appears immediately when the workspace loads.
-  if (hasShownPreviewHint || !isPreviewActive()) return;
-
-  hasShownPreviewHint = true;
-  window.clearTimeout(previewHintTimer);
-  window.clearTimeout(previewHintHideTimer);
-  previewHintEl.classList.remove("is-hiding");
-  previewHintEl.hidden = false;
-  previewHintTimer = window.setTimeout(hidePreviewHint, 5200);
 }
 
 function showGameOverOverlay() {
@@ -292,8 +241,6 @@ function wrap(value, max) {
 }
 
 function resetRound() {
-  // Reset only round-local state. Best score persists across rounds and should
-  // remain outside this function unless a future UI explicitly clears it.
   state = GAME_STATE.PLAYING;
   elapsed = 0;
   score = 0;
@@ -317,8 +264,6 @@ function resetRound() {
 
 function endRound() {
   state = GAME_STATE.OVER;
-  best = Math.max(best, score);
-  writeBestScore(best);
   showGameOverOverlay();
   createBurst(player.x, player.y, 26, COLORS.danger);
   updateScorebar();
@@ -956,32 +901,17 @@ window.addEventListener("blur", () => {
   clearPointerTarget();
 });
 window.addEventListener("resize", resizeCanvas);
-window.addEventListener("focus", showPreviewHintWhenActive);
-document.addEventListener("visibilitychange", showPreviewHintWhenActive);
 if ("ResizeObserver" in window) {
   // The game row can change height independently from the viewport on mobile
   // when browser UI appears/disappears, so observe the actual playfield.
   new ResizeObserver(resizeCanvas).observe(gameShell);
 }
-if ("IntersectionObserver" in window) {
-  const previewObserver = new IntersectionObserver((entries) => {
-    if (entries.some((entry) => entry.isIntersecting)) {
-      showPreviewHintWhenActive();
-    }
-    if (hasShownPreviewHint) {
-      previewObserver.disconnect();
-    }
-  });
-  previewObserver.observe(gameShell);
-}
 
 resizeCanvas();
 showIntroOverlay();
-showPreviewHintWhenActive();
 updateScorebar();
 requestAnimationFrame((now) => {
   resizeCanvas();
-  showPreviewHintWhenActive();
   lastTime = now;
   requestAnimationFrame(loop);
 });

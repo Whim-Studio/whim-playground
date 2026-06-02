@@ -17,25 +17,16 @@
   </head>
   <body>
     <div id="app" class="app-shell">
-      <header class="scorebar" aria-label="Score">
-        <div class="brand-lockup" aria-label="Whim">
-          <span class="brand-mark" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <i></i>
-          </span>
-          <span>WHIM</span>
-        </div>
+      <header class="scorebar" aria-label="Game stats">
         <div class="scorebar__stats">
           <span class="stat">
-            <span class="stat__label">Score</span>
+            <span class="stat__label">Points</span>
             <strong id="score">000000</strong>
           </span>
           <span class="stat">
-            <span class="stat__label">Best</span>
-            <strong id="best">000000</strong>
+            <span class="stat__label">Time</span>
+            <strong id="roundTime">00:00</strong>
           </span>
-          <span id="roundState" class="round-state">Live</span>
         </div>
       </header>
 
@@ -52,16 +43,6 @@
         >
           <span aria-hidden="true"></span>
         </button>
-        <div
-          id="previewHint"
-          class="preview-hint"
-          role="status"
-          aria-live="polite"
-          hidden
-        >
-          <span>Live preview</span>
-          <strong>This is where changes appear.</strong>
-        </div>
         <div id="gameOverlay" class="game-overlay" hidden>
           <div class="game-overlay__panel">
             <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>

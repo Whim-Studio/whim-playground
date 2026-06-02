@@ -50,8 +50,8 @@ npm run build
   Avoid burying new constants inside update or draw functions.
 - Keep the v1 render order clear: background, effects, pointer guide, hazards,
   bullets, player. New layers should be added deliberately to `draw()`.
-- Best score is the only persisted state and uses `localStorage` key
-  `whim-asteroids-best`.
+- The HUD intentionally stays minimal: only current points and elapsed time are
+  shown above the canvas.
 - Run `npm run build` after changes. For visual changes, also open the dev URL
   and check desktop, phone portrait, and phone landscape widths.
 - Keep `node_modules/` and `dist/` out of reviews and commits; they are ignored
