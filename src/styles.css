@@ -49,10 +49,7 @@ button {
 }
 
 .app-shell {
-  /* Use an explicit viewport height so the canvas row has a concrete size in
-     browsers and headless screenshot tools; min-height alone can collapse. */
-  display: grid;
-  grid-template-rows: auto 1fr;
+  position: relative;
   height: 100vh;
   height: 100dvh;
   min-height: 100vh;
@@ -64,18 +61,22 @@ button {
 }
 
 .scorebar {
-  position: relative;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 18px;
-  min-height: 64px;
   padding: 14px clamp(16px, 4vw, 44px);
-  border-bottom: 1px solid rgba(100, 205, 252, 0.18);
-  background: rgba(23, 42, 69, 0.82);
-  box-shadow: 0 18px 40px var(--shadow);
-  backdrop-filter: blur(18px);
+  pointer-events: none;
+  background: transparent;
+}
+
+.scorebar > * {
+  pointer-events: auto;
 }
 
 .scorebar__stats {
@@ -119,8 +120,8 @@ button {
 }
 
 .game-shell {
-  position: relative;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
 }
 
