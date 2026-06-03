@@ -63,6 +63,10 @@ const GAME_CONFIG = {
   shardSplitThreshold: 12,
   shardSplitCount: 2,
   shardSplitSpeedBoost: 1.4,
+  powerUpSpawnChance: 0.3,
+  powerUpDuration: 10,
+  rapidFireCooldownMs: 70,
+  shardSlowFactor: 0.55,
 };
 
 const ARROW_KEYS = new Set([
@@ -130,6 +134,12 @@ let bullets = [];
 let trails = [];
 let burstParticles = [];
 let starField = [];
+let powerUps = [];
+let activePowerUps = {
+  rapidFire: { active: false, expiresAt: 0 },
+  slowShards: { active: false, expiresAt: 0 },
+  shield: { active: false, expiresAt: 0 },
+};
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -260,6 +270,12 @@ function resetRound() {
   bullets = [];
   trails = [];
   burstParticles = [];
+  powerUps = [];
+  activePowerUps = {
+    rapidFire: { active: false, expiresAt: 0 },
+    slowShards: { active: false, expiresAt: 0 },
+    shield: { active: false, expiresAt: 0 },
+  };
   centerPlayer();
   overlayEl.hidden = true;
   updateScorebar();
@@ -390,7 +406,12 @@ function getFireAngle() {
 
 function shoot(now = performance.now()) {
   if (state !== GAME_STATE.PLAYING) return;
-  if (now - lastShotAt < GAME_CONFIG.shootCooldownMs) return;
+
+  const cooldown = activePowerUps.rapidFire.active
+    ? GAME_CONFIG.rapidFireCooldownMs
+    : GAME_CONFIG.shootCooldownMs;
+
+  if (now - lastShotAt < cooldown) return;
 
   const angle = getFireAngle();
   const muzzleDistance = player.radius * 1.25;
@@ -530,9 +551,11 @@ function updateShards(dt) {
     spawnTimer = interval * randomBetween(0.72, 1.2);
   }
 
+  const slowFactor = activePowerUps.slowShards.active ? GAME_CONFIG.shardSlowFactor : 1;
+
   for (const shard of shards) {
-    shard.x = wrap(shard.x + shard.vx * dt, width);
-    shard.y = wrap(shard.y + shard.vy * dt, height);
+    shard.x = wrap(shard.x + shard.vx * dt * slowFactor, width);
+    shard.y = wrap(shard.y + shard.vy * dt * slowFactor, height);
     shard.angle += shard.spin * dt;
     shard.pulse += dt * 2;
   }
@@ -542,10 +565,36 @@ function updateShards(dt) {
   for (const shard of shards) {
     const hitRadius = player.radius + shard.radius * 0.72;
     if (Math.hypot(player.x - shard.x, player.y - shard.y) <= hitRadius) {
-      endRound();
+      if (activePowerUps.shield.active) {
+        activePowerUps.shield.active = false;
+        createBurst(player.x, player.y, 16, COLORS.face);
+      } else {
+        endRound();
+      }
       break;
     }
   }
+}
+
+function spawnPowerUp(x, y) {
+  const types = ["rapidFire", "slowShards", "shield"];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  powerUps.push({
+    x,
+    y,
+    type,
+    vx: randomBetween(-60, 60),
+    vy: randomBetween(-60, 60),
+    radius: 10,
+    age: 0,
+    collected: false,
+  });
+}
+
+function activatePowerUp(type, now) {
+  activePowerUps[type].active = true;
+  activePowerUps[type].expiresAt = now + GAME_CONFIG.powerUpDuration;
 }
 
 function splitShard(shard) {
@@ -565,6 +614,10 @@ function splitShard(shard) {
     const vy = Math.sin(angle) * boostedSpeed;
 
     spawnShard(shard.x, shard.y, vx, vy);
+  }
+
+  if (Math.random() < GAME_CONFIG.powerUpSpawnChance) {
+    spawnPowerUp(shard.x, shard.y);
   }
 }
 
@@ -596,6 +649,35 @@ function updateBullets(dt) {
   }
 }
 
+function updatePowerUps(dt, now) {
+  for (const powerUp of powerUps) {
+    powerUp.x = wrap(powerUp.x + powerUp.vx * dt, width);
+    powerUp.y = wrap(powerUp.y + powerUp.vy * dt, height);
+    powerUp.vy += 80 * dt;
+  }
+
+  if (state !== GAME_STATE.PLAYING) return;
+
+  for (let i = powerUps.length - 1; i >= 0; i -= 1) {
+    const powerUp = powerUps[i];
+    const hitRadius = player.radius + powerUp.radius;
+
+    if (Math.hypot(player.x - powerUp.x, player.y - powerUp.y) <= hitRadius) {
+      activatePowerUp(powerUp.type, now);
+      createBurst(powerUp.x, powerUp.y, 8, COLORS.face);
+      powerUps.splice(i, 1);
+    }
+  }
+}
+
+function updateActivePowerUps(now) {
+  for (const [type, power] of Object.entries(activePowerUps)) {
+    if (power.active && now >= power.expiresAt) {
+      power.active = false;
+    }
+  }
+}
+
 function updateEffects(dt) {
   for (const trail of trails) {
     trail.age += dt;
@@ -619,8 +701,10 @@ function update(dt, now) {
     updatePlayer(dt, now);
     updateShards(dt);
     updateBullets(dt);
+    updatePowerUps(dt, now);
   }
 
+  updateActivePowerUps(now);
   updateEffects(dt);
   updateScorebar();
 }
@@ -801,6 +885,79 @@ function drawEffects() {
   ctx.globalAlpha = 1;
 }
 
+function drawPowerUp(powerUp, now) {
+  const glow = 0.5 + Math.sin(now * 0.008 + powerUp.x) * 0.5;
+  const colors = {
+    rapidFire: "#FFD700",
+    slowShards: "#87CEEB",
+    shield: "#FF69B4",
+  };
+  const color = colors[powerUp.type];
+
+  ctx.save();
+  ctx.translate(powerUp.x, powerUp.y);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 16 * glow;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, powerUp.radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = `rgba(255, 255, 255, ${glow * 0.4})`;
+  ctx.beginPath();
+  ctx.arc(0, 0, powerUp.radius * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPowerUpIndicators(now) {
+  const padding = 16;
+  const indicatorSize = 14;
+  const indicatorSpacing = 20;
+  let x = padding;
+  const y = padding;
+
+  const types = ["rapidFire", "slowShards", "shield"];
+  const colors = {
+    rapidFire: "#FFD700",
+    slowShards: "#87CEEB",
+    shield: "#FF69B4",
+  };
+
+  for (const type of types) {
+    const power = activePowerUps[type];
+
+    ctx.save();
+    if (power.active) {
+      ctx.shadowColor = colors[type];
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = colors[type];
+      ctx.globalAlpha = 0.8;
+    } else {
+      ctx.fillStyle = COLORS.muted;
+      ctx.globalAlpha = 0.25;
+    }
+
+    ctx.beginPath();
+    ctx.arc(x, y, indicatorSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (power.active) {
+      const remaining = Math.max(0, power.expiresAt - now);
+      const progress = remaining / GAME_CONFIG.powerUpDuration;
+      ctx.strokeStyle = colors[type];
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, indicatorSize / 2 + 1, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    x += indicatorSpacing;
+  }
+}
+
 function drawPointerGuide() {
   if (!pointerTarget.active || state !== GAME_STATE.PLAYING) return;
 
@@ -832,8 +989,13 @@ function draw(now) {
     drawShard(shard);
   }
 
+  for (const powerUp of powerUps) {
+    drawPowerUp(powerUp, now);
+  }
+
   drawBullets();
   drawPlayer(now);
+  drawPowerUpIndicators(now);
 }
 
 function loop(now) {
