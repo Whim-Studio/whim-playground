@@ -60,6 +60,9 @@ const GAME_CONFIG = {
   bulletRadius: 4,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  shardSplitThreshold: 12,
+  shardSplitCount: 2,
+  shardSplitSpeedBoost: 1.4,
 };
 
 const ARROW_KEYS = new Set([
@@ -288,46 +291,59 @@ function createShardPoints(radius) {
   });
 }
 
-function spawnShard() {
+function spawnShard(x, y, vx, vy) {
   // Hazards spawn just offscreen, then aim roughly toward the playfield center
   // with jitter. This feels intentional without requiring pathfinding.
-  const margin = 70;
-  const edge = Math.floor(Math.random() * 4);
-  let x;
-  let y;
+  // When x/y/vx/vy are provided, this is a split from a destroyed shard.
+  const isSpawned = x === undefined;
 
-  if (edge === 0) {
-    x = randomBetween(0, width);
-    y = -margin;
-  } else if (edge === 1) {
-    x = width + margin;
-    y = randomBetween(0, height);
-  } else if (edge === 2) {
-    x = randomBetween(0, width);
-    y = height + margin;
-  } else {
-    x = -margin;
-    y = randomBetween(0, height);
-  }
+  let startX = x;
+  let startY = y;
+  let startVx = vx;
+  let startVy = vy;
 
-  const distanceToPlayer = Math.hypot(x - player.x, y - player.y);
-  if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
-    x += Math.sign(x - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
-    y += Math.sign(y - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
+  if (isSpawned) {
+    const margin = 70;
+    const edge = Math.floor(Math.random() * 4);
+
+    if (edge === 0) {
+      startX = randomBetween(0, width);
+      startY = -margin;
+    } else if (edge === 1) {
+      startX = width + margin;
+      startY = randomBetween(0, height);
+    } else if (edge === 2) {
+      startX = randomBetween(0, width);
+      startY = height + margin;
+    } else {
+      startX = -margin;
+      startY = randomBetween(0, height);
+    }
+
+    const distanceToPlayer = Math.hypot(startX - player.x, startY - player.y);
+    if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
+      startX += Math.sign(startX - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
+      startY += Math.sign(startY - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
+    }
+
+    const difficulty = getDifficulty();
+    const targetX = randomBetween(width * 0.15, width * 0.85);
+    const targetY = randomBetween(height * 0.15, height * 0.85);
+    const heading = Math.atan2(targetY - startY, targetX - startX) + randomBetween(-0.42, 0.42);
+    const speed = randomBetween(54, 108) + difficulty * 82;
+
+    startVx = Math.cos(heading) * speed;
+    startVy = Math.sin(heading) * speed;
   }
 
   const difficulty = getDifficulty();
   const radius = randomBetween(18, 38 + difficulty * 12);
-  const targetX = randomBetween(width * 0.15, width * 0.85);
-  const targetY = randomBetween(height * 0.15, height * 0.85);
-  const heading = Math.atan2(targetY - y, targetX - x) + randomBetween(-0.42, 0.42);
-  const speed = randomBetween(54, 108) + difficulty * 82;
 
   shards.push({
-    x,
-    y,
-    vx: Math.cos(heading) * speed,
-    vy: Math.sin(heading) * speed,
+    x: startX,
+    y: startY,
+    vx: startVx,
+    vy: startVy,
     radius,
     points: createShardPoints(radius),
     angle: Math.random() * Math.PI * 2,
@@ -532,6 +548,26 @@ function updateShards(dt) {
   }
 }
 
+function splitShard(shard) {
+  // Split a shard into smaller pieces when destroyed
+  if (shard.radius < GAME_CONFIG.shardSplitThreshold) {
+    return;
+  }
+
+  const newRadius = shard.radius * 0.62;
+  const speedBoost = GAME_CONFIG.shardSplitSpeedBoost;
+  const baseSpeed = Math.hypot(shard.vx, shard.vy);
+  const boostedSpeed = baseSpeed * speedBoost;
+
+  for (let i = 0; i < GAME_CONFIG.shardSplitCount; i += 1) {
+    const angle = (i / GAME_CONFIG.shardSplitCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
+    const vx = Math.cos(angle) * boostedSpeed;
+    const vy = Math.sin(angle) * boostedSpeed;
+
+    spawnShard(shard.x, shard.y, vx, vy);
+  }
+}
+
 function updateBullets(dt) {
   for (const bullet of bullets) {
     bullet.age += dt;
@@ -551,6 +587,7 @@ function updateBullets(dt) {
       }
 
       bullets.splice(bulletIndex, 1);
+      splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
       createBurst(shard.x, shard.y, 12, COLORS.face);
