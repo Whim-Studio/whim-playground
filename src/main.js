@@ -19,6 +19,7 @@ const scorebar = document.querySelector(".scorebar");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const roundTimeEl = document.querySelector("#roundTime");
+const livesEl = document.querySelector("#lives");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -63,6 +64,8 @@ const GAME_CONFIG = {
   shardSplitThreshold: 12,
   shardSplitCount: 2,
   shardSplitSpeedBoost: 1.4,
+  startingLives: 3,
+  hitInvulnerabilityTime: 2.2,
   powerUpSpawnChance: 0.3,
   powerUpDuration: 10,
   rapidFireCooldownMs: 70,
@@ -136,6 +139,8 @@ let aimAngle = -Math.PI / 2;
 let idleFrame = "default";
 let idleFrameUntil = 0;
 let nextIdleFrameAt = 1600;
+let lives = GAME_CONFIG.startingLives;
+let invulnerableTimer = 0;
 let shards = [];
 let bullets = [];
 let trails = [];
@@ -174,6 +179,7 @@ function formatTime(value) {
 function updateScorebar() {
   scoreEl.textContent = formatScore(score);
   roundTimeEl.textContent = formatTime(elapsed);
+  livesEl.textContent = "♥".repeat(Math.max(0, lives)) || "—";
 }
 
 function showIntroOverlay() {
@@ -265,6 +271,8 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  lives = GAME_CONFIG.startingLives;
+  invulnerableTimer = 0;
   spawnTimer = 0.45;
   trailTimer = 0;
   lastShotAt = -Infinity;
@@ -567,7 +575,9 @@ function updateShards(dt) {
     shard.pulse += dt * 2;
   }
 
-  if (state !== GAME_STATE.PLAYING || elapsed < 0.65) return;
+  if (state !== GAME_STATE.PLAYING || elapsed < 0.65 || invulnerableTimer > 0) {
+    return;
+  }
 
   for (const shard of shards) {
     const hitRadius = player.radius + shard.radius * 0.72;
@@ -576,11 +586,24 @@ function updateShards(dt) {
         activePowerUps.shield.active = false;
         createBurst(player.x, player.y, 16, COLORS.face);
       } else {
-        endRound();
+        loseLife();
       }
       break;
     }
   }
+}
+
+function loseLife() {
+  lives -= 1;
+  if (lives <= 0) {
+    endRound();
+    return;
+  }
+
+  createBurst(player.x, player.y, 22, COLORS.danger);
+  centerPlayer();
+  invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
+  updateScorebar();
 }
 
 function spawnPowerUp(x, y) {
@@ -704,6 +727,7 @@ function updateEffects(dt) {
 function update(dt, now) {
   if (state === GAME_STATE.PLAYING) {
     elapsed += dt;
+    invulnerableTimer = Math.max(0, invulnerableTimer - dt);
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
     updateShards(dt);
@@ -818,6 +842,12 @@ function drawPlayer(now) {
   const frame = getFaceFrame(now, moving);
   const shotPulse = clamp((shotFrameUntil - now) / 180, 0, 1);
 
+  // Flicker during the post-hit grace period so the player can see they are
+  // temporarily safe after losing a life.
+  if (invulnerableTimer > 0) {
+    ctx.globalAlpha = Math.floor(now / 110) % 2 === 0 ? 0.35 : 0.85;
+  }
+
   ctx.save();
   ctx.translate(player.x, player.y);
   ctx.rotate(player.rotation);
@@ -860,6 +890,7 @@ function drawPlayer(now) {
     1,
   );
   ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 function drawEffects() {
