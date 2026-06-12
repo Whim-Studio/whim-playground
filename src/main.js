@@ -804,10 +804,10 @@ function drawBullets() {
     const progress = bullet.age / bullet.life;
     ctx.save();
     ctx.globalAlpha = 1 - progress * 0.45;
-    ctx.strokeStyle = "rgba(100, 205, 252, 0.72)";
+    ctx.strokeStyle = "rgba(255, 64, 200, 0.72)";
     ctx.fillStyle = COLORS.face;
     ctx.lineWidth = 1.4;
-    ctx.shadowColor = "rgba(100, 205, 252, 0.38)";
+    ctx.shadowColor = "rgba(255, 64, 200, 0.38)";
     ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
