@@ -76,6 +76,17 @@ const ARROW_KEYS = new Set([
   "ArrowDown",
 ]);
 const FIRE_KEYS = new Set(["Space"]);
+// Keyed by event.code so WASD stays in place on non-QWERTY layouts.
+const WASD_KEYS = new Map([
+  ["KeyA", "ArrowLeft"],
+  ["KeyD", "ArrowRight"],
+  ["KeyW", "ArrowUp"],
+  ["KeyS", "ArrowDown"],
+]);
+
+function movementKey(event) {
+  return ARROW_KEYS.has(event.key) ? event.key : WASD_KEYS.get(event.code);
+}
 
 const GAME_STATE = Object.freeze({
   INTRO: "intro",
@@ -174,7 +185,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys, WASD, or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateScorebar();
@@ -184,7 +195,7 @@ function showGameOverOverlay() {
   overlayEyebrowEl.textContent = "Round complete";
   overlayTitleEl.textContent = formatScore(score);
   overlayCopyEl.textContent =
-    "Press Enter, Space, any arrow key, the round button, or Restart.";
+    "Press Enter, Space, any movement key, the round button, or Restart.";
   restartButton.textContent = "Restart";
   overlayEl.hidden = false;
 }
@@ -1009,17 +1020,17 @@ function loop(now) {
 }
 
 function handleKeyDown(event) {
-  const isArrow = ARROW_KEYS.has(event.key);
+  const moveKey = movementKey(event);
   const isFire = FIRE_KEYS.has(event.code);
-  if (!isArrow && !isFire && event.key !== "Enter") return;
+  if (!moveKey && !isFire && event.key !== "Enter") return;
   event.preventDefault();
 
   if (state !== GAME_STATE.PLAYING) {
     resetRound();
   }
 
-  if (isArrow) {
-    keys.add(event.key);
+  if (moveKey) {
+    keys.add(moveKey);
   }
   if (isFire) {
     shoot(event.timeStamp);
@@ -1027,9 +1038,10 @@ function handleKeyDown(event) {
 }
 
 function handleKeyUp(event) {
-  if (ARROW_KEYS.has(event.key)) {
+  const moveKey = movementKey(event);
+  if (moveKey) {
     event.preventDefault();
-    keys.delete(event.key);
+    keys.delete(moveKey);
   }
 }
 
