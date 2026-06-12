@@ -75,6 +75,13 @@ const ARROW_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
 ]);
+// WASD aliases keyed by event.code so they work regardless of keyboard layout.
+const WASD_TO_ARROW = {
+  KeyW: "ArrowUp",
+  KeyA: "ArrowLeft",
+  KeyS: "ArrowDown",
+  KeyD: "ArrowRight",
+};
 const FIRE_KEYS = new Set(["Space"]);
 
 const GAME_STATE = Object.freeze({
@@ -174,7 +181,7 @@ function showIntroOverlay() {
   overlayEyebrowEl.textContent = "Ready";
   overlayTitleEl.textContent = "Whim Asteroids";
   overlayCopyEl.textContent =
-    "Arrow keys or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
+    "Arrow keys or WASD or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
   updateScorebar();
@@ -1008,18 +1015,23 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+function moveKeyFor(event) {
+  if (ARROW_KEYS.has(event.key)) return event.key;
+  return WASD_TO_ARROW[event.code] ?? null;
+}
+
 function handleKeyDown(event) {
-  const isArrow = ARROW_KEYS.has(event.key);
+  const moveKey = moveKeyFor(event);
   const isFire = FIRE_KEYS.has(event.code);
-  if (!isArrow && !isFire && event.key !== "Enter") return;
+  if (!moveKey && !isFire && event.key !== "Enter") return;
   event.preventDefault();
 
   if (state !== GAME_STATE.PLAYING) {
     resetRound();
   }
 
-  if (isArrow) {
-    keys.add(event.key);
+  if (moveKey) {
+    keys.add(moveKey);
   }
   if (isFire) {
     shoot(event.timeStamp);
@@ -1027,9 +1039,10 @@ function handleKeyDown(event) {
 }
 
 function handleKeyUp(event) {
-  if (ARROW_KEYS.has(event.key)) {
+  const moveKey = moveKeyFor(event);
+  if (moveKey) {
     event.preventDefault();
-    keys.delete(event.key);
+    keys.delete(moveKey);
   }
 }
 
