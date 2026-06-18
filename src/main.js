@@ -860,6 +860,19 @@ function drawPlayer(now) {
   ctx.stroke();
   ctx.restore();
 
+  // Draw shield if active
+  if (activePowerUps.shield.active) {
+    const shieldPulse = (Math.sin(now / 120) + 1) / 2;
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.strokeStyle = `rgba(255, 105, 180, ${0.4 + shieldPulse * 0.3})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius * 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if (shotPulse > 0) {
     ctx.save();
     ctx.translate(player.x, player.y);
