@@ -4,16 +4,20 @@ Guidance for Claude agents working in this repo.
 
 ## Project Purpose
 
-This is a small Whim demo game. Its job is to show Whim's collaborative coding
+This is a small Whim demo. Its job is to show Whim's collaborative coding
 workflow and general product feel through a fun, polished artifact that remains
 easy for future agents and demo users to understand.
 
 GitHub repo: https://github.com/Whim-Studio/whim-playground
 
-Keep the project a simple HTML5 canvas game built with vanilla JavaScript. Vite
-is only the dev/build shell. Do not introduce React, TypeScript, a game engine,
-state libraries, asset pipelines, or broad tooling unless the user explicitly
-asks and the task truly needs it.
+The demo is **WhimCode**: a Duolingo-style game that teaches JavaScript basics
+through bite-sized, lesson-based exercises (a lesson path, hearts, XP, streaks,
+instant feedback, and a progress bar).
+
+Keep the project a single-page HTML app built with vanilla JavaScript. Vite is
+only the dev/build shell. Do not introduce React, TypeScript, frameworks, state
+libraries, asset pipelines, or broad tooling unless the user explicitly asks and
+the task truly needs it.
 
 ## Working Style
 
@@ -25,29 +29,33 @@ asks and the task truly needs it.
   findings briefly, and avoid large rewrites when a focused edit is enough.
 - Ignore generated/dependency output such as `node_modules/` and `dist/` unless
   the task is specifically about build artifacts.
-- Do not optimize for a theoretical full game yet. This repo is a base for demo
-  tasks, iteration, and collaborative handoff.
 
 ## Code Map
 
-- `src/main.js`: game loop, input, scoring, spawning, collision, and canvas
-  rendering.
-- `src/whimFaceFrames.js`: embedded Whim face path data extracted from nearby
-  Whim assets. Treat this file as the canonical art copy for the demo.
-- `src/styles.css`: scorebar, overlay, responsive page layout, and Whim color
-  tokens.
-- `index.html`: minimal document shell. Add durable UI here only when it should
-  live outside the canvas scene.
+- `src/main.js`: the whole app. Holds the `LESSONS` content data structure and
+  the `CONFIG` constants, plus screen renderers (home path, exercise,
+  lesson-complete, lesson-failed), scoring/hearts/streak mechanics, and
+  `localStorage` persistence. Screens are plain functions building DOM into
+  `#app`.
+- `src/styles.css`: page chrome — path nodes, exercise card, code blocks,
+  feedback footer, result cards, responsive layout, and the Whim color tokens.
+- `index.html`: minimal document shell — just the `#app` mount and module
+  script. Add durable UI in JS, not here.
+- `src/whimFaceFrames.js`: leftover art from the previous Asteroids demo, no
+  longer imported. Leave or remove as a task sees fit.
 
 ## Extension Rules
 
-- Keep simulation units in CSS pixels. `resizeCanvas()` handles DPR scaling.
-- Start gameplay tuning in `GAME_CONFIG` and visual tuning in `COLORS`.
-- Keep draw order intentional: background, effects, pointer guide, hazards,
-  bullets, player.
-- Keep gameplay instructions available on first entry, and keep the separate
-  live-preview hint tied to preview activation so demo users know where changes
-  appear.
+- Lessons and exercises are pure data. Add content by appending to `LESSONS`;
+  no rendering code should need to change. Each exercise `type` is one of
+  `choice`, `blank`, `blocks`, or `bug` and carries an `explain` string.
+- Tune mechanics (hearts, XP, streak bonus) in `CONFIG`. Don't bury new tuning
+  constants inside renderers.
+- Keep questions genuinely correct and beginner-appropriate. Render code in the
+  monospace `.code-block`.
+- Keep the "Change the game" CTA (to https://whim.run/) visible on the home
+  screen.
+- Bump `STORAGE_KEY` if you change the persisted progress shape.
 - Add comments only where they help the next agent safely modify behavior.
 - Keep documentation minimal but current. Update `README.md` or this file when
   the architecture, run commands, or collaboration expectations change.
@@ -56,11 +64,10 @@ asks and the task truly needs it.
 
 Use Node `>=20.19.0`. Run `npm run build` after code changes. For visual or
 gameplay changes, also open the dev server and check desktop, phone portrait,
-and phone landscape widths.
+and phone landscape widths, and play through at least one full lesson.
 
 After any change that affects the demo, ensure the live Vite server is running
 before finishing so the shared Whim preview updates automatically. Prefer
-`npm run dev`; if a server is already running, reuse it instead of starting a
-duplicate. Confirm the preview responds and include the local URL in the final
-handoff. Use `npm run preview` only when specifically checking production build
-output.
+`npm run dev` (host `0.0.0.0`); if a server is already running, reuse it instead
+of starting a duplicate. Confirm the preview responds and include the local URL
+in the final handoff. Use `npm run preview` only when checking production output.
