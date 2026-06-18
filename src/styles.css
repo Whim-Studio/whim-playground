@@ -137,6 +137,45 @@ button {
   line-height: 1;
 }
 
+/* Absolutely positioned so it centers on the viewport regardless of the
+   scorebar's flex-end justification, and doesn't fight the stats for space. */
+.change-game-cta {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 9px 16px;
+  border: 1px solid rgba(100, 205, 252, 0.5);
+  border-radius: 7px;
+  background: rgba(100, 205, 252, 0.12);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.change-game-cta:hover {
+  border-color: var(--blue);
+  background: rgba(100, 205, 252, 0.2);
+}
+
+.change-game-cta:active {
+  transform: translate(-50%, calc(-50% + 1px));
+}
+
+.change-game-cta:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
 .game-shell {
   position: absolute;
   inset: 0;
@@ -289,6 +328,8 @@ button {
 @media (max-width: 640px) {
   .scorebar {
     min-height: 64px;
+    flex-wrap: wrap;
+    row-gap: 10px;
   }
 
   .scorebar__stats {
@@ -298,6 +339,20 @@ button {
 
   .stat {
     min-width: 62px;
+  }
+
+  /* On narrow widths the stats span full width, so drop absolute centering
+     and let the CTA flow on its own row above them. */
+  .change-game-cta {
+    position: static;
+    transform: none;
+    align-self: center;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .change-game-cta:active {
+    transform: translateY(1px);
   }
 
   .game-overlay__panel {
@@ -334,6 +389,11 @@ button {
 
   .stat strong {
     font-size: 16px;
+  }
+
+  .change-game-cta {
+    padding: 7px 12px;
+    font-size: 10px;
   }
 
   .game-overlay {
