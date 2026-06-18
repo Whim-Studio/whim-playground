@@ -93,6 +93,24 @@ button {
   min-width: 72px;
 }
 
+.health-bar {
+  height: 6px;
+  width: 100%;
+  background: rgba(100, 205, 252, 0.12);
+  border: 1px solid rgba(100, 205, 252, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 72px;
+}
+
+.health-bar__fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #FF69B4, #64CDFC);
+  border-radius: 1px;
+  transition: width 0.2s ease;
+}
+
 .stat__label,
 .game-overlay__eyebrow {
   color: var(--muted);
