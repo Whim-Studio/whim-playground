@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Whim Asteroids</title>
+    <title>WhimCode — learn to code</title>
     <meta
       name="description"
-      content="A minimal Whim-themed HTML5 canvas asteroid game."
+      content="WhimCode: a minimal Whim-themed, Duolingo-style game that teaches JavaScript basics."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,64 +16,8 @@
     />
   </head>
   <body>
-    <div id="app" class="app-shell">
-      <header class="scorebar" aria-label="Game stats">
-        <a
-          class="change-game-cta"
-          href="https://whim.run/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Change the game
-        </a>
-        <div class="scorebar__stats">
-          <span class="stat">
-            <span class="stat__label">Points</span>
-            <strong id="score">000000</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Time</span>
-            <strong id="roundTime">00:00</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Lives</span>
-            <strong id="lives">&#9829;&#9829;&#9829;</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Health</span>
-            <div id="healthBar" class="health-bar" aria-label="Player health">
-              <div class="health-bar__fill" id="healthBarFill"></div>
-            </div>
-          </span>
-        </div>
-      </header>
-
-      <main class="game-shell" aria-label="Whim Asteroids game">
-        <canvas
-          id="gameCanvas"
-          aria-label="Whim Asteroids canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot."
-        ></canvas>
-        <button
-          id="shootButton"
-          class="shoot-button"
-          type="button"
-          aria-label="Shoot"
-        >
-          <span aria-hidden="true"></span>
-        </button>
-        <div id="gameOverlay" class="game-overlay" hidden>
-          <div class="game-overlay__panel">
-            <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>
-            <strong id="overlayTitle">Whim Asteroids</strong>
-            <p id="overlayCopy" class="game-overlay__copy">
-              Arrow keys or drag to move. Space shoots. Clear shards and keep
-              the face moving.
-            </p>
-            <button id="restartButton" type="button">Start</button>
-          </div>
-        </div>
-      </main>
-    </div>
+    <!-- WhimCode renders its screens into #app from src/main.js. -->
+    <div id="app" class="app-shell" aria-label="WhimCode"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

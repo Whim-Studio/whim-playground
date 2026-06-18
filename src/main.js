@@ -1,1193 +1,740 @@
 import "./styles.css";
-import {
-  FACE_FRAMES,
-  FACE_VIEW_BOX,
-  MOTION_SEQUENCE,
-} from "./whimFaceFrames.js";
 
 /*
- * Whim Asteroids is intentionally a small, dependency-free canvas loop.
+ * WhimCode — a Duolingo-style game that teaches JavaScript basics.
  *
- * Future agents: keep simulation units in CSS pixels, let resizeCanvas handle
- * device-pixel-ratio scaling, and prefer adding new tuning knobs to
- * GAME_CONFIG/COLORS before scattering magic numbers through the loop.
+ * The whole app is data-driven. Lessons live in LESSONS below: an array of
+ * lesson objects, each holding an array of exercises. To add content, append
+ * a lesson or an exercise — no rendering code needs to change.
+ *
+ * Screens (home path, exercise, lesson-complete, lesson-failed) are plain
+ * functions that build DOM into #app. State lives in `progress` (persisted to
+ * localStorage) and `session` (per-lesson, in-memory).
  */
 
-const canvas = document.querySelector("#gameCanvas");
-const gameShell = document.querySelector(".game-shell");
-const scorebar = document.querySelector(".scorebar");
-const ctx = canvas.getContext("2d");
-const scoreEl = document.querySelector("#score");
-const roundTimeEl = document.querySelector("#roundTime");
-const livesEl = document.querySelector("#lives");
-const healthBarFillEl = document.querySelector("#healthBarFill");
-const overlayEl = document.querySelector("#gameOverlay");
-const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
-const overlayTitleEl = document.querySelector("#overlayTitle");
-const overlayCopyEl = document.querySelector("#overlayCopy");
-const restartButton = document.querySelector("#restartButton");
-const shootButton = document.querySelector("#shootButton");
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
 
-// Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
-// only as an end-state accent. Canvas art and CSS chrome should stay aligned.
-const COLORS = {
-  background: "#172a45",
-  surface: "#1e3355",
-  surfaceHover: "#243d62",
-  border: "#2a4a6e",
-  foreground: "#e8e4de",
-  muted: "#8eaac4",
-  face: "#64CDFC",
-  faceSoft: "rgba(100, 205, 252, 0.14)",
-  faceLine: "rgba(100, 205, 252, 0.52)",
-  danger: "#d4836c",
+const CONFIG = {
+  hearts: 5, // lives per lesson attempt
+  xpPerCorrect: 10, // base XP for a correct answer
+  streakBonusEvery: 3, // every Nth consecutive correct answer grants a bonus
+  streakBonusXp: 5, // extra XP for hitting a streak milestone
 };
 
-// Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
-// per second; interval values are seconds. Start here for balancing changes.
-const GAME_CONFIG = {
-  acceleration: 820,
-  maxSpeed: 360,
-  activeDamping: 0.945,
-  idleDamping: 0.86,
-  scoreRate: 14,
-  spawnIntervalStart: 0.92,
-  spawnIntervalEnd: 0.42,
-  maxDifficultyTime: 52,
-  minPlayerSize: 48,
-  maxPlayerSize: 72,
-  safeSpawnDistance: 180,
-  bulletSpeed: 900,
-  bulletLife: 0.82,
-  bulletRadius: 6,
-  shootCooldownMs: 190,
-  shardClearScore: 35,
-  shardSplitThreshold: 12,
-  shardSplitCount: 2,
-  shardSplitSpeedBoost: 1.4,
-  startingLives: 3,
-  hitInvulnerabilityTime: 2.2,
-  powerUpSpawnChance: 0.3,
-  powerUpDuration: 10,
-  rapidFireCooldownMs: 70,
-  shardSlowFactor: 0.55,
-  maxHealth: 100,
-  healthDamage: 25,
-};
+const STORAGE_KEY = "whimcode.progress.v1";
 
-const ARROW_KEYS = new Set([
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "ArrowDown",
-]);
-// WASD aliases keyed by event.code so they work regardless of keyboard layout.
-const WASD_TO_ARROW = {
-  KeyW: "ArrowUp",
-  KeyA: "ArrowLeft",
-  KeyS: "ArrowDown",
-  KeyD: "ArrowRight",
-};
-const FIRE_KEYS = new Set(["Space"]);
+// ---------------------------------------------------------------------------
+// Lesson + exercise content
+//
+// Exercise types:
+//   "choice"  — multiple choice. options: string[], answer: index.
+//   "blocks"  — tap tokens in order to form `solution` (array of tokens).
+//               pool may add distractor tokens; defaults to the solution.
+//   "blank"   — fill the blank. code uses ___ ; options: string[], answer: index.
+//   "bug"     — spot the broken line. lines: string[], answer: index (buggy line).
+// Every exercise has an `explain` shown after answering.
+// ---------------------------------------------------------------------------
 
-const GAME_STATE = Object.freeze({
-  INTRO: "intro",
-  PLAYING: "playing",
-  OVER: "over",
-});
+const LESSONS = [
+  {
+    id: "variables",
+    title: "Variables",
+    icon: "📦",
+    blurb: "Store and name values with let and const.",
+    exercises: [
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: "let score = 5;\nscore = score + 3;\nconsole.log(score);",
+        options: ["5", "8", "53", "undefined"],
+        answer: 1,
+        explain: "score starts at 5, then we reassign it to 5 + 3, which is 8.",
+      },
+      {
+        type: "blank",
+        prompt: "Pick the keyword to declare a value that never changes.",
+        code: "___ PI = 3.14;",
+        options: ["const", "let", "var", "fixed"],
+        answer: 0,
+        explain: "const declares a constant — it can't be reassigned later.",
+      },
+      {
+        type: "blocks",
+        prompt: "Arrange the tokens into a valid variable declaration.",
+        solution: ["let", "name", "=", '"Ada"', ";"],
+        explain: 'let name = "Ada"; declares a variable and assigns a string.',
+      },
+      {
+        type: "bug",
+        prompt: "Which line has the bug?",
+        lines: ["let count = 0;", "count = count + 1;", "const count = 2;"],
+        answer: 2,
+        explain: "count is already declared, so re-declaring it with const throws an error.",
+      },
+      {
+        type: "choice",
+        prompt: "What is the value of total?",
+        code: 'const a = 4;\nconst b = "4";\nconst total = a + b;',
+        options: ["8", '"44"', '"8"', "44"],
+        answer: 1,
+        explain: 'Adding a number and a string joins them as text, so 4 + "4" is "44".',
+      },
+    ],
+  },
+  {
+    id: "strings",
+    title: "Strings",
+    icon: "🔤",
+    blurb: "Join, measure, and read text.",
+    exercises: [
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: 'const name = "Sky";\nconsole.log("Hi " + name + "!");',
+        options: ["Hi Sky!", "Hi + name!", "HiSky", "Hi name!"],
+        answer: 0,
+        explain: 'The + operator joins strings, building "Hi Sky!".',
+      },
+      {
+        type: "blank",
+        prompt: "Fill the blank to read the text length.",
+        code: 'const word = "code";\nconsole.log(word.___);',
+        options: ["length", "size", "count", "len"],
+        answer: 0,
+        explain: 'Strings expose a .length property — "code".length is 4.',
+      },
+      {
+        type: "blocks",
+        prompt: "Build a template literal that greets the user.",
+        solution: ["`Hello", "${user}", "`"],
+        pool: ["`Hello", "${user}", "`", '"user"'],
+        explain: "Backticks make a template literal; ${user} inserts the variable.",
+      },
+      {
+        type: "bug",
+        prompt: "Which line is broken?",
+        lines: ['let a = "hi";', "let b = 'bye';", 'let c = "oops;'],
+        answer: 2,
+        explain: 'The last string is missing its closing quote: "oops;.',
+      },
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: 'console.log("abc".toUpperCase());',
+        options: ["abc", "ABC", "Abc", "error"],
+        answer: 1,
+        explain: "toUpperCase() returns a new string with every letter capitalized.",
+      },
+    ],
+  },
+  {
+    id: "conditionals",
+    title: "Conditionals",
+    icon: "🔀",
+    blurb: "Make decisions with if and else.",
+    exercises: [
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: 'const n = 7;\nif (n > 5) {\n  console.log("big");\n} else {\n  console.log("small");\n}',
+        options: ["big", "small", "7", "nothing"],
+        answer: 0,
+        explain: '7 > 5 is true, so the if branch runs and prints "big".',
+      },
+      {
+        type: "blank",
+        prompt: "Pick the operator that checks for equal value and type.",
+        code: 'if (age ___ 18) {\n  console.log("exact");\n}',
+        options: ["===", "=", "=>", "<>"],
+        answer: 0,
+        explain: "=== is strict equality. A single = assigns instead of comparing.",
+      },
+      {
+        type: "bug",
+        prompt: "Which line has the bug?",
+        lines: ["if (x = 5) {", '  console.log("five");', "}"],
+        answer: 0,
+        explain: "x = 5 assigns 5 instead of comparing. Use === to compare.",
+      },
+      {
+        type: "blocks",
+        prompt: "Arrange a condition that runs when ready is true.",
+        solution: ["if", "(", "ready", ")", "{"],
+        explain: "if (ready) { ... } runs the block when ready is truthy.",
+      },
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: 'const score = 3;\nconsole.log(score >= 5 ? "pass" : "fail");',
+        options: ["pass", "fail", "3", "true"],
+        answer: 1,
+        explain: '3 >= 5 is false, so the ternary returns the second value, "fail".',
+      },
+    ],
+  },
+  {
+    id: "loops",
+    title: "Loops",
+    icon: "🔁",
+    blurb: "Repeat work with for and while.",
+    exercises: [
+      {
+        type: "choice",
+        prompt: "How many times does this print?",
+        code: "for (let i = 0; i < 3; i++) {\n  console.log(i);\n}",
+        options: ["2 times", "3 times", "4 times", "forever"],
+        answer: 1,
+        explain: "i runs 0, 1, 2 — three iterations — then stops when i reaches 3.",
+      },
+      {
+        type: "blank",
+        prompt: "Fill the blank so the loop counts up.",
+        code: "for (let i = 0; i < 5; ___) {\n  console.log(i);\n}",
+        options: ["i++", "i--", "i", "i + 1"],
+        answer: 0,
+        explain: "i++ increases i by 1 each pass so the loop eventually ends.",
+      },
+      {
+        type: "bug",
+        prompt: "Which line causes an infinite loop?",
+        lines: ["let i = 0;", "while (i < 3) {", "  console.log(i);", "}"],
+        answer: 3,
+        explain: "i is never increased inside the loop, so i < 3 stays true forever.",
+      },
+      {
+        type: "blocks",
+        prompt: "Build the start of a for loop.",
+        solution: ["for", "(", "let", "i", "=", "0", ";"],
+        explain: "A for loop begins with an initializer: for (let i = 0; ...).",
+      },
+      {
+        type: "choice",
+        prompt: "What is the last value printed?",
+        code: "for (let i = 1; i <= 3; i++) {\n  console.log(i * 2);\n}",
+        options: ["3", "4", "6", "8"],
+        answer: 2,
+        explain: "The loop prints 2, 4, 6. The last value is 3 * 2 = 6.",
+      },
+    ],
+  },
+  {
+    id: "functions",
+    title: "Functions",
+    icon: "⚙️",
+    blurb: "Package logic you can reuse.",
+    exercises: [
+      {
+        type: "choice",
+        prompt: "What does this print?",
+        code: "function add(a, b) {\n  return a + b;\n}\nconsole.log(add(2, 4));",
+        options: ["2", "4", "6", "24"],
+        answer: 2,
+        explain: "add(2, 4) returns 2 + 4, so console.log prints 6.",
+      },
+      {
+        type: "blank",
+        prompt: "Pick the keyword that sends a value back from a function.",
+        code: "function double(n) {\n  ___ n * 2;\n}",
+        options: ["return", "give", "out", "send"],
+        answer: 0,
+        explain: "return hands a value back to whoever called the function.",
+      },
+      {
+        type: "blocks",
+        prompt: "Arrange a one-line arrow function.",
+        solution: ["const", "square", "=", "n", "=>", "n * n", ";"],
+        explain: "Arrow functions are compact: const square = n => n * n;",
+      },
+      {
+        type: "bug",
+        prompt: "Which line has the bug?",
+        lines: ["function greet(name) {", '  console.log("Hi " + name)', "}", "greet;"],
+        answer: 3,
+        explain: "greet; references the function but never calls it. Use greet().",
+      },
+      {
+        type: "choice",
+        prompt: "What does add() print here?",
+        code: "function add(a, b = 1) {\n  return a + b;\n}\nconsole.log(add(5));",
+        options: ["5", "6", "1", "NaN"],
+        answer: 1,
+        explain: "b defaults to 1 when no second argument is passed, so 5 + 1 is 6.",
+      },
+    ],
+  },
+];
 
-// Convert SVG path data once up front. Recreating Path2D instances per frame
-// is unnecessary work and makes animation changes harder to reason about.
-const facePathCache = Object.fromEntries(
-  Object.entries(FACE_FRAMES).map(([frame, paths]) => [
-    frame,
-    paths.map((d) => new Path2D(d)),
-  ]),
-);
+// ---------------------------------------------------------------------------
+// Persistent progress
+// ---------------------------------------------------------------------------
 
-// Mutable simulation state lives in this module. For future features, prefer
-// adding small state arrays/objects near these declarations over hidden globals.
-const keys = new Set();
-const pointerTarget = {
-  active: false,
-  x: 0,
-  y: 0,
-  pointerId: null,
-};
-const player = {
-  x: 0,
-  y: 0,
-  vx: 0,
-  vy: 0,
-  size: 62,
-  radius: 24,
-  rotation: 0,
-  health: GAME_CONFIG.maxHealth,
-};
-
-let width = 1;
-let height = 1;
-let dpr = 1;
-let state = GAME_STATE.INTRO;
-let elapsed = 0;
-let score = 0;
-let clearScore = 0;
-let lastTime = performance.now();
-let hasPlacedPlayer = false;
-let spawnTimer = 0.4;
-let trailTimer = 0;
-let lastShotAt = -Infinity;
-let lastShootButtonPointerAt = -Infinity;
-let shotFrameUntil = 0;
-let aimAngle = -Math.PI / 2;
-let idleFrame = "default";
-let idleFrameUntil = 0;
-let nextIdleFrameAt = 1600;
-let lives = GAME_CONFIG.startingLives;
-let invulnerableTimer = 0;
-let shards = [];
-let bullets = [];
-let trails = [];
-let burstParticles = [];
-let starField = [];
-let powerUps = [];
-let activePowerUps = {
-  rapidFire: { active: false, expiresAt: 0 },
-  slowShards: { active: false, expiresAt: 0 },
-  shield: { active: false, expiresAt: 0 },
-};
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function defaultProgress() {
+  return { completed: [], totalXp: 0 };
 }
 
-function lerp(start, end, amount) {
-  return start + (end - start) * amount;
-}
-
-function randomBetween(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-function formatScore(value) {
-  return String(Math.max(0, Math.floor(value))).padStart(6, "0");
-}
-
-function formatTime(value) {
-  const totalSeconds = Math.max(0, Math.floor(value));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-function updateScorebar() {
-  scoreEl.textContent = formatScore(score);
-  roundTimeEl.textContent = formatTime(elapsed);
-  livesEl.textContent = "♥".repeat(Math.max(0, lives)) || "—";
-  const healthPercent = Math.max(0, Math.min(100, (player.health / GAME_CONFIG.maxHealth) * 100));
-  healthBarFillEl.style.width = `${healthPercent}%`;
-}
-
-function showIntroOverlay() {
-  state = GAME_STATE.INTRO;
-  overlayEyebrowEl.textContent = "Ready";
-  overlayTitleEl.textContent = "Whim Asteroids";
-  overlayCopyEl.textContent =
-    "Arrow keys or WASD or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
-  restartButton.textContent = "Start";
-  overlayEl.hidden = false;
-  updateScorebar();
-}
-
-function showGameOverOverlay() {
-  overlayEyebrowEl.textContent = "Round complete";
-  overlayTitleEl.textContent = formatScore(score);
-  overlayCopyEl.textContent =
-    "Press Enter, Space, any arrow key, the round button, or Restart.";
-  restartButton.textContent = "Restart";
-  overlayEl.hidden = false;
-}
-
-function resizeCanvas() {
-  // Canvas dimensions are tracked in CSS pixels, then scaled into the backing
-  // store with dpr. Prefer the measured game pane so embedded Whim workspaces
-  // do not simulate outside the visible canvas; use viewport values only while
-  // early layout is still reporting zero-sized elements.
-  const rect = canvas.getBoundingClientRect();
-  const shellRect = gameShell.getBoundingClientRect();
-  const scorebarHeight = scorebar.getBoundingClientRect().height;
-  const measuredWidth = shellRect.width || rect.width;
-  const measuredHeight = shellRect.height || rect.height;
-  const fallbackHeight = Math.max(1, window.innerHeight - scorebarHeight);
-  const nextWidth = Math.max(1, measuredWidth || window.innerWidth);
-  const nextHeight = Math.max(1, measuredHeight || fallbackHeight);
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  width = nextWidth;
-  height = nextHeight;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  player.size = clamp(
-    width * 0.075,
-    GAME_CONFIG.minPlayerSize,
-    GAME_CONFIG.maxPlayerSize,
-  );
-  player.radius = player.size * 0.38;
-  if (!hasPlacedPlayer || !Number.isFinite(player.x)) {
-    centerPlayer();
-  } else {
-    player.x = wrap(player.x, width);
-    player.y = wrap(player.y, height);
-  }
-
-  createStarField();
-}
-
-function centerPlayer() {
-  player.x = width / 2;
-  player.y = height / 2;
-  player.vx = 0;
-  player.vy = 0;
-  player.rotation = 0;
-  hasPlacedPlayer = true;
-}
-
-function createStarField() {
-  const count = clamp(Math.floor((width * height) / 9000), 36, 112);
-  starField = Array.from({ length: count }, () => ({
-    x: Math.random() * width,
-    y: Math.random() * height,
-    r: randomBetween(0.6, 1.7),
-    alpha: randomBetween(0.12, 0.48),
-    drift: randomBetween(0.05, 0.18),
-  }));
-}
-
-function wrap(value, max) {
-  // Keep wrapping slightly outside the visible area so large shards and the
-  // face enter naturally instead of snapping at the exact edge.
-  if (value < -80) return max + 80;
-  if (value > max + 80) return -80;
-  return value;
-}
-
-function resetRound() {
-  state = GAME_STATE.PLAYING;
-  elapsed = 0;
-  score = 0;
-  clearScore = 0;
-  lives = GAME_CONFIG.startingLives;
-  player.health = GAME_CONFIG.maxHealth;
-  invulnerableTimer = 0;
-  spawnTimer = 0.45;
-  trailTimer = 0;
-  lastShotAt = -Infinity;
-  shotFrameUntil = 0;
-  aimAngle = -Math.PI / 2;
-  idleFrame = "default";
-  idleFrameUntil = 0;
-  nextIdleFrameAt = performance.now() + 1600;
-  shards = [];
-  bullets = [];
-  trails = [];
-  burstParticles = [];
-  powerUps = [];
-  activePowerUps = {
-    rapidFire: { active: false, expiresAt: 0 },
-    slowShards: { active: false, expiresAt: 0 },
-    shield: { active: false, expiresAt: 0 },
-  };
-  centerPlayer();
-  overlayEl.hidden = true;
-  updateScorebar();
-}
-
-function endRound() {
-  state = GAME_STATE.OVER;
-  showGameOverOverlay();
-  createBurst(player.x, player.y, 26, COLORS.danger);
-  updateScorebar();
-}
-
-function getDifficulty() {
-  // One normalized scalar drives spawn pressure and shard speed. This keeps the
-  // v1 difficulty curve easy to replace with levels or scripted waves later.
-  return clamp(elapsed / GAME_CONFIG.maxDifficultyTime, 0, 1);
-}
-
-function createShardPoints(radius) {
-  const sides = Math.floor(randomBetween(5, 8.999));
-  const offset = Math.random() * Math.PI * 2;
-  return Array.from({ length: sides }, (_, index) => {
-    const angle = offset + (index / sides) * Math.PI * 2;
-    const pointRadius = radius * randomBetween(0.58, 1.08);
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultProgress();
+    const parsed = JSON.parse(raw);
     return {
-      x: Math.cos(angle) * pointRadius,
-      y: Math.sin(angle) * pointRadius,
+      completed: Array.isArray(parsed.completed) ? parsed.completed : [],
+      totalXp: Number.isFinite(parsed.totalXp) ? parsed.totalXp : 0,
     };
-  });
+  } catch {
+    return defaultProgress();
+  }
 }
 
-function spawnShard(x, y, vx, vy) {
-  // Hazards spawn just offscreen, then aim roughly toward the playfield center
-  // with jitter. This feels intentional without requiring pathfinding.
-  // When x/y/vx/vy are provided, this is a split from a destroyed shard.
-  const isSpawned = x === undefined;
+function saveProgress() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    /* storage unavailable — progress simply won't persist */
+  }
+}
 
-  let startX = x;
-  let startY = y;
-  let startVx = vx;
-  let startVy = vy;
+let progress = loadProgress();
 
-  if (isSpawned) {
-    const margin = 70;
-    const edge = Math.floor(Math.random() * 4);
+// Per-lesson session state, set up when a lesson starts.
+let session = null;
 
-    if (edge === 0) {
-      startX = randomBetween(0, width);
-      startY = -margin;
-    } else if (edge === 1) {
-      startX = width + margin;
-      startY = randomBetween(0, height);
-    } else if (edge === 2) {
-      startX = randomBetween(0, width);
-      startY = height + margin;
-    } else {
-      startX = -margin;
-      startY = randomBetween(0, height);
+// ---------------------------------------------------------------------------
+// Lesson state helpers
+// ---------------------------------------------------------------------------
+
+function lessonState(index) {
+  const lesson = LESSONS[index];
+  if (progress.completed.includes(lesson.id)) return "completed";
+  if (index === 0) return "unlocked";
+  const prev = LESSONS[index - 1];
+  return progress.completed.includes(prev.id) ? "unlocked" : "locked";
+}
+
+// ---------------------------------------------------------------------------
+// Small DOM helpers
+// ---------------------------------------------------------------------------
+
+const app = document.getElementById("app");
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function clear(node) {
+  node.replaceChildren();
+}
+
+function shuffle(items) {
+  const out = items.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function changeGameCta() {
+  const cta = el("a", "change-game-cta", "Change the game");
+  cta.href = "https://whim.run/";
+  cta.target = "_blank";
+  cta.rel = "noopener noreferrer";
+  return cta;
+}
+
+// ---------------------------------------------------------------------------
+// Home / lesson path screen
+// ---------------------------------------------------------------------------
+
+function renderHome() {
+  session = null;
+  clear(app);
+
+  const shell = el("div", "screen screen--home");
+
+  const top = el("header", "topbar");
+  top.append(changeGameCta());
+  const xpPill = el("div", "xp-pill");
+  xpPill.append(
+    el("span", "xp-pill__icon", "✦"),
+    el("strong", null, String(progress.totalXp)),
+    el("span", "xp-pill__label", "XP"),
+  );
+  top.append(xpPill);
+  shell.append(top);
+
+  const hero = el("div", "hero");
+  hero.append(el("h1", "hero__title", "WhimCode"));
+  hero.append(el("p", "hero__subtitle", "Learn JavaScript one bite at a time."));
+  shell.append(hero);
+
+  const path = el("ol", "path");
+  LESSONS.forEach((lesson, index) => {
+    const state = lessonState(index);
+    const node = el("li", `path-node path-node--${state}`);
+
+    const badge = el("div", "path-node__badge");
+    badge.textContent = state === "locked" ? "🔒" : state === "completed" ? "✓" : lesson.icon;
+    node.append(badge);
+
+    const body = el("div", "path-node__body");
+    body.append(el("span", "path-node__title", lesson.title));
+    body.append(el("span", "path-node__blurb", lesson.blurb));
+    const meta = el("span", "path-node__meta");
+    meta.textContent =
+      state === "completed"
+        ? `Completed · ${lesson.exercises.length} exercises`
+        : state === "locked"
+          ? "Locked"
+          : `${lesson.exercises.length} exercises`;
+    body.append(meta);
+    node.append(body);
+
+    if (state !== "locked") {
+      const btn = el("button", "path-node__cta", state === "completed" ? "Review" : "Start");
+      btn.type = "button";
+      btn.addEventListener("click", () => startLesson(index));
+      node.append(btn);
+      node.classList.add("path-node--clickable");
     }
 
-    const distanceToPlayer = Math.hypot(startX - player.x, startY - player.y);
-    if (distanceToPlayer < GAME_CONFIG.safeSpawnDistance) {
-      startX += Math.sign(startX - player.x || 1) * GAME_CONFIG.safeSpawnDistance;
-      startY += Math.sign(startY - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
-    }
+    path.append(node);
+  });
+  shell.append(path);
 
-    const difficulty = getDifficulty();
-    const targetX = randomBetween(width * 0.15, width * 0.85);
-    const targetY = randomBetween(height * 0.15, height * 0.85);
-    const heading = Math.atan2(targetY - startY, targetX - startX) + randomBetween(-0.42, 0.42);
-    const speed = randomBetween(54, 108) + difficulty * 82;
+  app.append(shell);
+}
 
-    startVx = Math.cos(heading) * speed;
-    startVy = Math.sin(heading) * speed;
+// ---------------------------------------------------------------------------
+// Lesson session + exercise screen
+// ---------------------------------------------------------------------------
+
+function startLesson(index) {
+  const lesson = LESSONS[index];
+  session = {
+    lessonIndex: index,
+    lesson,
+    exerciseIndex: 0,
+    hearts: CONFIG.hearts,
+    xpEarned: 0,
+    streak: 0,
+    correctCount: 0,
+    answered: 0,
+  };
+  renderExercise();
+}
+
+function renderExercise() {
+  clear(app);
+  const { lesson, exerciseIndex } = session;
+  const exercise = lesson.exercises[exerciseIndex];
+
+  const shell = el("div", "screen screen--exercise");
+
+  // Header: quit, progress bar, hearts.
+  const head = el("header", "ex-head");
+  const quit = el("button", "icon-btn", "✕");
+  quit.type = "button";
+  quit.setAttribute("aria-label", "Quit lesson");
+  quit.addEventListener("click", renderHome);
+  head.append(quit);
+
+  const bar = el("div", "progress");
+  const fill = el("div", "progress__fill");
+  fill.style.width = `${(exerciseIndex / lesson.exercises.length) * 100}%`;
+  bar.append(fill);
+  head.append(bar);
+
+  const hearts = el("div", "hearts");
+  hearts.append(el("span", "hearts__icon", "❤"), el("strong", null, String(session.hearts)));
+  head.append(hearts);
+  shell.append(head);
+
+  // Prompt + body.
+  const card = el("div", "ex-card");
+  card.append(
+    el("span", "ex-card__kicker", `${lesson.title} · ${exerciseIndex + 1}/${lesson.exercises.length}`),
+  );
+  card.append(el("h2", "ex-card__prompt", exercise.prompt));
+  if (exercise.code) {
+    const pre = el("pre", "code-block");
+    pre.append(el("code", null, exercise.code));
+    card.append(pre);
   }
 
-  const difficulty = getDifficulty();
-  const radius = randomBetween(18, 38 + difficulty * 12);
+  const interactive = el("div", "ex-card__interactive");
+  card.append(interactive);
+  shell.append(card);
 
-  shards.push({
-    x: startX,
-    y: startY,
-    vx: startVx,
-    vy: startVy,
-    radius,
-    points: createShardPoints(radius),
-    angle: Math.random() * Math.PI * 2,
-    spin: randomBetween(-1.3, 1.3),
-    pulse: Math.random() * Math.PI * 2,
+  // Feedback footer (hidden until answered).
+  const footer = el("div", "ex-foot");
+  footer.hidden = true;
+  shell.append(footer);
+
+  app.append(shell);
+
+  const handlers = {
+    choice: renderChoice,
+    blank: renderChoice, // blank reuses the option-button UI
+    bug: renderBug,
+    blocks: renderBlocks,
+  };
+  (handlers[exercise.type] || renderChoice)(interactive, exercise, footer);
+}
+
+// Multiple choice & fill-in-the-blank share an option-button list.
+function renderChoice(container, exercise, footer) {
+  const options = el("div", "options");
+  exercise.options.forEach((label, i) => {
+    const btn = el("button", "option", label);
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      const correct = i === exercise.answer;
+      [...options.children].forEach((child, idx) => {
+        child.disabled = true;
+        if (idx === exercise.answer) child.classList.add("is-correct");
+        else if (child === btn) child.classList.add("is-wrong");
+      });
+      finishExercise(correct, exercise, footer);
+    });
+    options.append(btn);
   });
+  container.append(options);
 }
 
-function maxShardCount() {
-  const areaBonus = clamp((width * height) / 150000, 0, 5);
-  return Math.floor(6 + areaBonus + getDifficulty() * 8);
+function renderBug(container, exercise, footer) {
+  const list = el("div", "bug-lines");
+  exercise.lines.forEach((line, i) => {
+    const btn = el("button", "bug-line");
+    btn.type = "button";
+    btn.append(el("span", "bug-line__num", String(i + 1)));
+    btn.append(el("code", "bug-line__code", line));
+    btn.addEventListener("click", () => {
+      const correct = i === exercise.answer;
+      [...list.children].forEach((child, idx) => {
+        child.disabled = true;
+        if (idx === exercise.answer) child.classList.add("is-correct");
+        else if (idx === i) child.classList.add("is-wrong");
+      });
+      finishExercise(correct, exercise, footer);
+    });
+    list.append(btn);
+  });
+  container.append(list);
 }
 
-function createBurst(x, y, count, color) {
-  for (let i = 0; i < count; i += 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = randomBetween(70, 250);
-    burstParticles.push({
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      size: randomBetween(3, 8),
-      age: 0,
-      life: randomBetween(0.35, 0.85),
-      color,
+function renderBlocks(container, exercise, footer) {
+  const solution = exercise.solution;
+  const pool = shuffle(exercise.pool || solution);
+
+  const answer = el("div", "blocks-answer");
+  const placeholder = el("span", "blocks-answer__hint", "Tap tokens to build the line");
+  answer.append(placeholder);
+
+  const tray = el("div", "blocks-tray");
+  const picked = []; // { label, source } in chosen order
+
+  function refreshAnswer() {
+    clear(answer);
+    if (picked.length === 0) {
+      answer.append(placeholder);
+      return;
+    }
+    picked.forEach((entry) => {
+      const chip = el("button", "token token--picked", entry.label);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        entry.source.disabled = false;
+        picked.splice(picked.indexOf(entry), 1);
+        refreshAnswer();
+        updateCheck();
+      });
+      answer.append(chip);
     });
   }
-}
 
-function getFireAngle() {
-  if (pointerTarget.active) {
-    const dx = pointerTarget.x - player.x;
-    const dy = pointerTarget.y - player.y;
-    if (Math.hypot(dx, dy) > player.radius) {
-      return Math.atan2(dy, dx);
-    }
-  }
-
-  const speed = Math.hypot(player.vx, player.vy);
-  if (speed > 24) return Math.atan2(player.vy, player.vx);
-  return aimAngle;
-}
-
-function shoot(now = performance.now()) {
-  if (state !== GAME_STATE.PLAYING) return;
-
-  const cooldown = activePowerUps.rapidFire.active
-    ? GAME_CONFIG.rapidFireCooldownMs
-    : GAME_CONFIG.shootCooldownMs;
-
-  if (now - lastShotAt < cooldown) return;
-
-  const angle = getFireAngle();
-  const muzzleDistance = player.radius * 1.25;
-  const muzzleX = player.x + Math.cos(angle) * muzzleDistance;
-  const muzzleY = player.y + Math.sin(angle) * muzzleDistance;
-
-  aimAngle = angle;
-  lastShotAt = now;
-  shotFrameUntil = now + 180;
-  bullets.push({
-    x: muzzleX,
-    y: muzzleY,
-    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
-    age: 0,
-    life: GAME_CONFIG.bulletLife,
-    radius: GAME_CONFIG.bulletRadius,
+  pool.forEach((label) => {
+    const chip = el("button", "token", label);
+    chip.type = "button";
+    chip.addEventListener("click", () => {
+      chip.disabled = true;
+      picked.push({ label, source: chip });
+      refreshAnswer();
+      updateCheck();
+    });
+    tray.append(chip);
   });
 
-  player.vx -= Math.cos(angle) * 34;
-  player.vy -= Math.sin(angle) * 34;
-  createBurst(muzzleX, muzzleY, 6, COLORS.face);
-}
-
-function getInputVector() {
-  let x = 0;
-  let y = 0;
-  if (keys.has("ArrowLeft")) x -= 1;
-  if (keys.has("ArrowRight")) x += 1;
-  if (keys.has("ArrowUp")) y -= 1;
-  if (keys.has("ArrowDown")) y += 1;
-
-  if (pointerTarget.active) {
-    const dx = pointerTarget.x - player.x;
-    const dy = pointerTarget.y - player.y;
-    const distance = Math.hypot(dx, dy);
-    if (distance > player.radius * 0.35) {
-      const pull = clamp(distance / 140, 0, 1);
-      x += (dx / distance) * pull;
-      y += (dy / distance) * pull;
+  const check = el("button", "check-btn", "Check");
+  check.type = "button";
+  check.disabled = true;
+  function updateCheck() {
+    check.disabled = picked.length !== solution.length;
+  }
+  check.addEventListener("click", () => {
+    const built = picked.map((p) => p.label);
+    const correct = built.length === solution.length && built.every((t, i) => t === solution[i]);
+    [...tray.children].forEach((c) => (c.disabled = true));
+    [...answer.children].forEach((c) => (c.disabled = true));
+    check.hidden = true;
+    answer.classList.add(correct ? "is-correct" : "is-wrong");
+    if (!correct) {
+      const sol = el("div", "blocks-solution");
+      sol.append(el("span", "blocks-solution__label", "Answer:"), el("code", null, solution.join(" ")));
+      container.append(sol);
     }
-  }
+    finishExercise(correct, exercise, footer);
+  });
 
-  const magnitude = Math.hypot(x, y);
-  if (magnitude > 1) {
-    x /= magnitude;
-    y /= magnitude;
-    return { x, y, magnitude: 1 };
-  }
-
-  return { x, y, magnitude };
+  container.append(answer, tray, check);
 }
 
-function updatePlayer(dt, now) {
-  // Movement is acceleration-based rather than direct position control. That
-  // gives the arrow keys a soft Asteroids feel while staying approachable.
-  const input = getInputVector();
-  if (pointerTarget.active) {
-    aimAngle = getFireAngle();
-  } else if (input.magnitude > 0.05) {
-    aimAngle = Math.atan2(input.y, input.x);
-  }
-  const damping = input.magnitude > 0
-    ? GAME_CONFIG.activeDamping
-    : GAME_CONFIG.idleDamping;
+// ---------------------------------------------------------------------------
+// Scoring + feedback
+// ---------------------------------------------------------------------------
 
-  player.vx += input.x * GAME_CONFIG.acceleration * dt;
-  player.vy += input.y * GAME_CONFIG.acceleration * dt;
+function finishExercise(correct, exercise, footer) {
+  session.answered += 1;
 
-  const speed = Math.hypot(player.vx, player.vy);
-  if (speed > GAME_CONFIG.maxSpeed) {
-    const scale = GAME_CONFIG.maxSpeed / speed;
-    player.vx *= scale;
-    player.vy *= scale;
-  }
-
-  const frameDamping = damping ** (dt * 60);
-  player.vx *= frameDamping;
-  player.vy *= frameDamping;
-
-  player.x = wrap(player.x + player.vx * dt, width);
-  player.y = wrap(player.y + player.vy * dt, height);
-  player.rotation = lerp(
-    player.rotation,
-    clamp(player.vx / GAME_CONFIG.maxSpeed, -1, 1) * 0.22,
-    1 - 0.001 ** dt,
-  );
-
-  trailTimer -= dt;
-  if (speed > 70 && trailTimer <= 0) {
-    trails.push({
-      x: player.x,
-      y: player.y,
-      size: player.size * randomBetween(0.74, 0.9),
-      rotation: player.rotation,
-      frame: getFaceFrame(now, true),
-      age: 0,
-      life: 0.42,
-    });
-    trailTimer = 0.055;
-  }
-}
-
-function getFaceFrame(now, moving) {
-  // Animation policy for the Whim face: motion frames while moving, occasional
-  // blink/smile while idle, smile during shots, blink on game over.
-  if (state === GAME_STATE.OVER) return "blink";
-  if (state === GAME_STATE.INTRO) return "default";
-  if (now < shotFrameUntil) return "smile";
-  if (moving) {
-    return MOTION_SEQUENCE[Math.floor(now / 96) % MOTION_SEQUENCE.length];
-  }
-
-  if (now >= nextIdleFrameAt && now >= idleFrameUntil) {
-    idleFrame = Math.random() < 0.68 ? "blink" : "smile";
-    idleFrameUntil = now + (idleFrame === "blink" ? 260 : 560);
-    nextIdleFrameAt = now + randomBetween(2600, 7600);
-  }
-
-  if (now < idleFrameUntil) return idleFrame;
-  return "default";
-}
-
-function updateShards(dt) {
-  // Shard lifecycle, spawn pacing, and collision detection are intentionally
-  // coupled for v1. Split this only when hazards gain distinct behaviors.
-  const difficulty = getDifficulty();
-  spawnTimer -= dt;
-  const interval = lerp(
-    GAME_CONFIG.spawnIntervalStart,
-    GAME_CONFIG.spawnIntervalEnd,
-    difficulty,
-  );
-
-  if (spawnTimer <= 0 && shards.length < maxShardCount()) {
-    spawnShard();
-    spawnTimer = interval * randomBetween(0.72, 1.2);
-  }
-
-  const slowFactor = activePowerUps.slowShards.active ? GAME_CONFIG.shardSlowFactor : 1;
-
-  for (const shard of shards) {
-    shard.x = wrap(shard.x + shard.vx * dt * slowFactor, width);
-    shard.y = wrap(shard.y + shard.vy * dt * slowFactor, height);
-    shard.angle += shard.spin * dt;
-    shard.pulse += dt * 2;
-  }
-
-  if (state !== GAME_STATE.PLAYING || elapsed < 0.65 || invulnerableTimer > 0) {
-    return;
-  }
-
-  for (const shard of shards) {
-    const hitRadius = player.radius + shard.radius * 0.72;
-    if (Math.hypot(player.x - shard.x, player.y - shard.y) <= hitRadius) {
-      if (activePowerUps.shield.active) {
-        activePowerUps.shield.active = false;
-        createBurst(player.x, player.y, 16, COLORS.face);
-      } else {
-        takeDamage();
-      }
-      break;
-    }
-  }
-}
-
-function takeDamage() {
-  player.health = Math.max(0, player.health - GAME_CONFIG.healthDamage);
-  createBurst(player.x, player.y, 14, COLORS.danger);
-  invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
-
-  if (player.health <= 0) {
-    loseLife();
+  if (correct) {
+    session.streak += 1;
+    session.correctCount += 1;
+    let gained = CONFIG.xpPerCorrect;
+    const milestone = session.streak % CONFIG.streakBonusEvery === 0;
+    if (milestone) gained += CONFIG.streakBonusXp;
+    session.xpEarned += gained;
+    showFeedback(footer, true, exercise.explain, gained, milestone);
   } else {
-    updateScorebar();
+    session.streak = 0;
+    session.hearts -= 1;
+    showFeedback(footer, false, exercise.explain, 0, false);
   }
 }
 
-function loseLife() {
-  lives -= 1;
-  if (lives <= 0) {
-    endRound();
+function showFeedback(footer, correct, explain, gained, milestone) {
+  footer.hidden = false;
+  footer.className = `ex-foot ex-foot--${correct ? "correct" : "wrong"}`;
+  clear(footer);
+
+  const head = el("div", "ex-foot__head");
+  head.append(el("span", "ex-foot__icon", correct ? "✓" : "✕"));
+  const headText = el("div", "ex-foot__headtext");
+  headText.append(el("strong", null, correct ? "Correct!" : "Not quite"));
+  if (correct && gained > 0) {
+    const note = milestone ? ` · 🔥 ${session.streak} streak` : "";
+    headText.append(el("span", "ex-foot__xp", `+${gained} XP${note}`));
+  }
+  head.append(headText);
+  footer.append(head);
+
+  footer.append(el("p", "ex-foot__explain", explain));
+
+  const cont = el("button", "continue-btn", "Continue");
+  cont.type = "button";
+  cont.addEventListener("click", advance);
+  footer.append(cont);
+  cont.focus();
+}
+
+function advance() {
+  if (session.hearts <= 0) {
+    renderFailed();
     return;
   }
-
-  createBurst(player.x, player.y, 22, COLORS.danger);
-  centerPlayer();
-  player.health = GAME_CONFIG.maxHealth;
-  invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
-  updateScorebar();
-}
-
-function spawnPowerUp(x, y) {
-  const types = ["rapidFire", "slowShards", "shield"];
-  const type = types[Math.floor(Math.random() * types.length)];
-
-  powerUps.push({
-    x,
-    y,
-    type,
-    vx: randomBetween(-60, 60),
-    vy: randomBetween(-60, 60),
-    radius: 10,
-    age: 0,
-    collected: false,
-  });
-}
-
-function activatePowerUp(type, now) {
-  activePowerUps[type].active = true;
-  activePowerUps[type].expiresAt = now + GAME_CONFIG.powerUpDuration;
-}
-
-function splitShard(shard) {
-  // Split a shard into smaller pieces when destroyed
-  if (shard.radius < GAME_CONFIG.shardSplitThreshold) {
+  session.exerciseIndex += 1;
+  if (session.exerciseIndex >= session.lesson.exercises.length) {
+    completeLesson();
     return;
   }
-
-  const newRadius = shard.radius * 0.62;
-  const speedBoost = GAME_CONFIG.shardSplitSpeedBoost;
-  const baseSpeed = Math.hypot(shard.vx, shard.vy);
-  const boostedSpeed = baseSpeed * speedBoost;
-
-  for (let i = 0; i < GAME_CONFIG.shardSplitCount; i += 1) {
-    const angle = (i / GAME_CONFIG.shardSplitCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
-    const vx = Math.cos(angle) * boostedSpeed;
-    const vy = Math.sin(angle) * boostedSpeed;
-
-    spawnShard(shard.x, shard.y, vx, vy);
-  }
-
-  if (Math.random() < GAME_CONFIG.powerUpSpawnChance) {
-    spawnPowerUp(shard.x, shard.y);
-  }
+  renderExercise();
 }
 
-function updateBullets(dt) {
-  for (const bullet of bullets) {
-    bullet.age += dt;
-    bullet.x = wrap(bullet.x + bullet.vx * dt, width);
-    bullet.y = wrap(bullet.y + bullet.vy * dt, height);
+// ---------------------------------------------------------------------------
+// Completion + failure screens
+// ---------------------------------------------------------------------------
+
+function completeLesson() {
+  const { lesson } = session;
+  if (!progress.completed.includes(lesson.id)) {
+    progress.completed.push(lesson.id);
+  }
+  progress.totalXp += session.xpEarned;
+  saveProgress();
+
+  const accuracy = Math.round((session.correctCount / session.answered) * 100);
+
+  clear(app);
+  const shell = el("div", "screen screen--result");
+  const panel = el("div", "result-card");
+
+  panel.append(el("div", "result-card__emoji", "🎉"));
+  panel.append(el("h2", "result-card__title", "Lesson complete!"));
+  panel.append(el("p", "result-card__sub", `${lesson.title} cleared`));
+
+  const stats = el("div", "result-stats");
+  stats.append(statTile("XP earned", `+${session.xpEarned}`));
+  stats.append(statTile("Accuracy", `${accuracy}%`));
+  stats.append(statTile("Correct", `${session.correctCount}/${session.answered}`));
+  panel.append(stats);
+
+  const nextIndex = session.lessonIndex + 1;
+  const hasNext = nextIndex < LESSONS.length;
+  const cta = el("button", "primary-btn", hasNext ? "Back to path" : "Finish");
+  cta.type = "button";
+  cta.addEventListener("click", renderHome);
+  panel.append(cta);
+
+  if (hasNext) {
+    panel.append(el("p", "result-card__note", `Next up: ${LESSONS[nextIndex].title} is now unlocked.`));
   }
 
-  bullets = bullets.filter((bullet) => bullet.age < bullet.life);
-
-  for (let bulletIndex = bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
-    const bullet = bullets[bulletIndex];
-    for (let shardIndex = shards.length - 1; shardIndex >= 0; shardIndex -= 1) {
-      const shard = shards[shardIndex];
-      const hitRadius = bullet.radius + shard.radius * 0.78;
-      if (Math.hypot(bullet.x - shard.x, bullet.y - shard.y) > hitRadius) {
-        continue;
-      }
-
-      bullets.splice(bulletIndex, 1);
-      splitShard(shard);
-      shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, COLORS.face);
-      break;
-    }
-  }
+  shell.append(panel);
+  app.append(shell);
 }
 
-function updatePowerUps(dt, now) {
-  for (const powerUp of powerUps) {
-    powerUp.x = wrap(powerUp.x + powerUp.vx * dt, width);
-    powerUp.y = wrap(powerUp.y + powerUp.vy * dt, height);
-    powerUp.vy += 80 * dt;
-  }
+function renderFailed() {
+  const { lesson } = session;
+  clear(app);
+  const shell = el("div", "screen screen--result");
+  const panel = el("div", "result-card");
 
-  if (state !== GAME_STATE.PLAYING) return;
+  panel.append(el("div", "result-card__emoji", "💔"));
+  panel.append(el("h2", "result-card__title", "Out of hearts"));
+  panel.append(el("p", "result-card__sub", `You ran out on ${lesson.title}. Give it another go!`));
 
-  for (let i = powerUps.length - 1; i >= 0; i -= 1) {
-    const powerUp = powerUps[i];
-    const hitRadius = player.radius + powerUp.radius;
+  const stats = el("div", "result-stats");
+  stats.append(statTile("Reached", `${session.exerciseIndex + 1}/${lesson.exercises.length}`));
+  stats.append(statTile("Correct", String(session.correctCount)));
+  panel.append(stats);
 
-    if (Math.hypot(player.x - powerUp.x, player.y - powerUp.y) <= hitRadius) {
-      activatePowerUp(powerUp.type, now);
-      createBurst(powerUp.x, powerUp.y, 8, COLORS.face);
-      powerUps.splice(i, 1);
-    }
-  }
+  const retry = el("button", "primary-btn", "Retry lesson");
+  retry.type = "button";
+  retry.addEventListener("click", () => startLesson(session.lessonIndex));
+  panel.append(retry);
+
+  const back = el("button", "ghost-btn", "Back to path");
+  back.type = "button";
+  back.addEventListener("click", renderHome);
+  panel.append(back);
+
+  shell.append(panel);
+  app.append(shell);
 }
 
-function updateActivePowerUps(now) {
-  for (const [type, power] of Object.entries(activePowerUps)) {
-    if (power.active && now >= power.expiresAt) {
-      power.active = false;
-    }
-  }
+function statTile(label, value) {
+  const tile = el("div", "stat-tile");
+  tile.append(el("strong", "stat-tile__value", value));
+  tile.append(el("span", "stat-tile__label", label));
+  return tile;
 }
 
-function updateEffects(dt) {
-  for (const trail of trails) {
-    trail.age += dt;
-  }
-  trails = trails.filter((trail) => trail.age < trail.life);
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
 
-  for (const particle of burstParticles) {
-    particle.age += dt;
-    particle.vx *= 0.985 ** (dt * 60);
-    particle.vy *= 0.985 ** (dt * 60);
-    particle.x += particle.vx * dt;
-    particle.y += particle.vy * dt;
-  }
-  burstParticles = burstParticles.filter((particle) => particle.age < particle.life);
-}
-
-function update(dt, now) {
-  if (state === GAME_STATE.PLAYING) {
-    elapsed += dt;
-    invulnerableTimer = Math.max(0, invulnerableTimer - dt);
-    score = elapsed * GAME_CONFIG.scoreRate + clearScore;
-    updatePlayer(dt, now);
-    updateShards(dt);
-    updateBullets(dt);
-    updatePowerUps(dt, now);
-  }
-
-  updateActivePowerUps(now);
-  updateEffects(dt);
-  updateScorebar();
-}
-
-function drawBackground(now) {
-  // The game scene is painted entirely on canvas; CSS owns only the header and
-  // overlay chrome. Keep decorative canvas work cheap and low contrast.
-  ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, width, height);
-
-  const grid = 40;
-  const offset = (now * 0.012) % grid;
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(232, 228, 222, 0.028)";
-  ctx.beginPath();
-  for (let x = -grid + offset; x <= width + grid; x += grid) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-  }
-  for (let y = -grid + offset; y <= height + grid; y += grid) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-  }
-  ctx.stroke();
-
-  for (const star of starField) {
-    const twinkle = 0.65 + Math.sin(now * star.drift + star.x) * 0.35;
-    ctx.globalAlpha = star.alpha * twinkle;
-    ctx.fillStyle = COLORS.foreground;
-    ctx.beginPath();
-    ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawShard(shard) {
-  const alpha = 0.7 + Math.sin(shard.pulse) * 0.12;
-
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-  ctx.rotate(shard.angle);
-  ctx.lineWidth = 1.25;
-  ctx.strokeStyle = `rgba(0, 255, 0, ${0.32 + alpha * 0.12})`;
-  ctx.fillStyle = "rgba(0, 255, 0, 0.045)";
-  ctx.beginPath();
-  shard.points.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(232, 228, 222, 0.12)";
-  ctx.beginPath();
-  ctx.moveTo(shard.points[0].x * 0.28, shard.points[0].y * 0.28);
-  const opposite = shard.points[Math.floor(shard.points.length / 2)];
-  ctx.lineTo(opposite.x * 0.62, opposite.y * 0.62);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawBullets() {
-  for (const bullet of bullets) {
-    const progress = bullet.age / bullet.life;
-    ctx.save();
-    ctx.globalAlpha = 1 - progress * 0.45;
-    ctx.strokeStyle = "rgba(255, 64, 200, 0.72)";
-    ctx.fillStyle = COLORS.face;
-    ctx.lineWidth = 1.4;
-    ctx.shadowColor = "rgba(255, 64, 200, 0.38)";
-    ctx.shadowBlur = 12;
-    ctx.beginPath();
-    ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
-function drawFace(frame, x, y, size, rotation, alpha = 1, color = COLORS.face) {
-  // All Whim-face rendering goes through this helper so future agents can swap
-  // the art source, tint, or scaling policy in one place.
-  const paths = facePathCache[frame] ?? facePathCache.default;
-  const scale = size / FACE_VIEW_BOX.width;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rotation);
-  ctx.scale(scale, scale);
-  ctx.translate(-FACE_VIEW_BOX.width / 2, -FACE_VIEW_BOX.height / 2);
-  ctx.globalAlpha *= alpha;
-  ctx.fillStyle = color;
-  for (const path of paths) {
-    ctx.fill(path);
-  }
-  ctx.restore();
-}
-
-function drawPlayer(now) {
-  const speed = Math.hypot(player.vx, player.vy);
-  const moving = state === GAME_STATE.PLAYING && speed > 42;
-  const frame = getFaceFrame(now, moving);
-  const shotPulse = clamp((shotFrameUntil - now) / 180, 0, 1);
-
-  // Flicker during the post-hit grace period so the player can see they are
-  // temporarily safe after losing a life.
-  if (invulnerableTimer > 0) {
-    ctx.globalAlpha = Math.floor(now / 110) % 2 === 0 ? 0.35 : 0.85;
-  }
-
-  ctx.save();
-  ctx.translate(player.x, player.y);
-  ctx.rotate(player.rotation);
-  ctx.fillStyle = "rgba(100, 205, 252, 0.055)";
-  ctx.strokeStyle = "rgba(100, 205, 252, 0.18)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, player.size * 0.62, player.size * 0.46, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-
-  // Draw shield if active
-  if (activePowerUps.shield.active) {
-    const shieldPulse = (Math.sin(now / 120) + 1) / 2;
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.strokeStyle = `rgba(255, 105, 180, ${0.4 + shieldPulse * 0.3})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, player.radius * 1.6, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  if (shotPulse > 0) {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.rotate(aimAngle);
-    ctx.strokeStyle = `rgba(100, 205, 252, ${shotPulse * 0.5})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(
-      player.radius * 1.1,
-      0,
-      player.size * (0.22 + (1 - shotPulse) * 0.16),
-      0,
-      Math.PI * 2,
-    );
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  ctx.save();
-  ctx.shadowColor = "rgba(100, 205, 252, 0.34)";
-  ctx.shadowBlur = 22;
-  drawFace(
-    frame,
-    player.x,
-    player.y,
-    player.size * (1 + shotPulse * 0.04),
-    player.rotation,
-    1,
-  );
-  ctx.restore();
-  ctx.globalAlpha = 1;
-}
-
-function drawEffects() {
-  for (const trail of trails) {
-    const progress = trail.age / trail.life;
-    drawFace(
-      trail.frame,
-      trail.x,
-      trail.y,
-      trail.size * (1 + progress * 0.12),
-      trail.rotation,
-      (1 - progress) * 0.18,
-      COLORS.face,
-    );
-  }
-
-  for (const particle of burstParticles) {
-    const progress = particle.age / particle.life;
-    ctx.globalAlpha = (1 - progress) * 0.78;
-    ctx.strokeStyle = particle.color;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(particle.x, particle.y);
-    ctx.lineTo(
-      particle.x - particle.vx * 0.035,
-      particle.y - particle.vy * 0.035,
-    );
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawPowerUp(powerUp, now) {
-  const glow = 0.5 + Math.sin(now * 0.008 + powerUp.x) * 0.5;
-  const colors = {
-    rapidFire: "#FFD700",
-    slowShards: "#87CEEB",
-    shield: "#FF69B4",
-  };
-  const color = colors[powerUp.type];
-
-  ctx.save();
-  ctx.translate(powerUp.x, powerUp.y);
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 16 * glow;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.arc(0, 0, powerUp.radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = `rgba(255, 255, 255, ${glow * 0.4})`;
-  ctx.beginPath();
-  ctx.arc(0, 0, powerUp.radius * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawPowerUpIndicators(now) {
-  const padding = 16;
-  const indicatorSize = 14;
-  const indicatorSpacing = 20;
-  let x = padding;
-  const y = padding;
-
-  const types = ["rapidFire", "slowShards", "shield"];
-  const colors = {
-    rapidFire: "#FFD700",
-    slowShards: "#87CEEB",
-    shield: "#FF69B4",
-  };
-
-  for (const type of types) {
-    const power = activePowerUps[type];
-
-    ctx.save();
-    if (power.active) {
-      ctx.shadowColor = colors[type];
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = colors[type];
-      ctx.globalAlpha = 0.8;
-    } else {
-      ctx.fillStyle = COLORS.muted;
-      ctx.globalAlpha = 0.25;
-    }
-
-    ctx.beginPath();
-    ctx.arc(x, y, indicatorSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (power.active) {
-      const remaining = Math.max(0, power.expiresAt - now);
-      const progress = remaining / GAME_CONFIG.powerUpDuration;
-      ctx.strokeStyle = colors[type];
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(x, y, indicatorSize / 2 + 1, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-    x += indicatorSpacing;
-  }
-}
-
-function drawPointerGuide() {
-  if (!pointerTarget.active || state !== GAME_STATE.PLAYING) return;
-
-  const distance = Math.hypot(pointerTarget.x - player.x, pointerTarget.y - player.y);
-  const alpha = clamp(distance / 220, 0.12, 0.42);
-
-  ctx.save();
-  ctx.strokeStyle = `rgba(100, 205, 252, ${alpha})`;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 8]);
-  ctx.beginPath();
-  ctx.moveTo(player.x, player.y);
-  ctx.lineTo(pointerTarget.x, pointerTarget.y);
-  ctx.stroke();
-
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(pointerTarget.x, pointerTarget.y, 13, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function draw(now) {
-  drawBackground(now);
-  drawEffects();
-  drawPointerGuide();
-
-  for (const shard of shards) {
-    drawShard(shard);
-  }
-
-  for (const powerUp of powerUps) {
-    drawPowerUp(powerUp, now);
-  }
-
-  drawBullets();
-  drawPlayer(now);
-  drawPowerUpIndicators(now);
-}
-
-function loop(now) {
-  // Cap delta time so a hidden tab or paused debugger does not jump the player
-  // through hazards when animation resumes.
-  const dt = Math.min((now - lastTime) / 1000, 0.033);
-  lastTime = now;
-  update(dt, now);
-  draw(now);
-  requestAnimationFrame(loop);
-}
-
-function moveKeyFor(event) {
-  if (ARROW_KEYS.has(event.key)) return event.key;
-  return WASD_TO_ARROW[event.code] ?? null;
-}
-
-function handleKeyDown(event) {
-  const moveKey = moveKeyFor(event);
-  const isFire = FIRE_KEYS.has(event.code);
-  if (!moveKey && !isFire && event.key !== "Enter") return;
-  event.preventDefault();
-
-  if (state !== GAME_STATE.PLAYING) {
-    resetRound();
-  }
-
-  if (moveKey) {
-    keys.add(moveKey);
-  }
-  if (isFire) {
-    shoot(event.timeStamp);
-  }
-}
-
-function handleKeyUp(event) {
-  const moveKey = moveKeyFor(event);
-  if (moveKey) {
-    event.preventDefault();
-    keys.delete(moveKey);
-  }
-}
-
-function updatePointerTarget(event) {
-  const rect = canvas.getBoundingClientRect();
-  pointerTarget.x = clamp(event.clientX - rect.left, 0, width);
-  pointerTarget.y = clamp(event.clientY - rect.top, 0, height);
-}
-
-function handlePointerDown(event) {
-  if (event.button !== undefined && event.button !== 0) return;
-  event.preventDefault();
-
-  pointerTarget.active = true;
-  pointerTarget.pointerId = event.pointerId;
-  updatePointerTarget(event);
-  canvas.setPointerCapture?.(event.pointerId);
-}
-
-function handlePointerMove(event) {
-  if (!pointerTarget.active || event.pointerId !== pointerTarget.pointerId) return;
-  event.preventDefault();
-  updatePointerTarget(event);
-}
-
-function clearPointerTarget(event) {
-  if (event && event.pointerId !== pointerTarget.pointerId) return;
-  pointerTarget.active = false;
-  pointerTarget.pointerId = null;
-  if (event) canvas.releasePointerCapture?.(event.pointerId);
-}
-
-function triggerShootButton() {
-  if (state !== GAME_STATE.PLAYING) {
-    resetRound();
-    return;
-  }
-  shoot(performance.now());
-}
-
-function handleShootButtonPointerDown(event) {
-  event.preventDefault();
-  lastShootButtonPointerAt = performance.now();
-  triggerShootButton();
-}
-
-function handleShootButtonClick(event) {
-  event.preventDefault();
-  // Pointer activation also produces a click in most browsers. Keep the
-  // pointer path immediate, while preserving keyboard/screen-reader clicks.
-  if (performance.now() - lastShootButtonPointerAt < 450) return;
-  triggerShootButton();
-}
-
-restartButton.addEventListener("click", resetRound);
-shootButton.addEventListener("pointerdown", handleShootButtonPointerDown, {
-  passive: false,
-});
-shootButton.addEventListener("click", handleShootButtonClick);
-canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
-canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
-canvas.addEventListener("pointerup", clearPointerTarget);
-canvas.addEventListener("pointercancel", clearPointerTarget);
-window.addEventListener("keydown", handleKeyDown, { passive: false });
-window.addEventListener("keyup", handleKeyUp, { passive: false });
-window.addEventListener("blur", () => {
-  keys.clear();
-  clearPointerTarget();
-});
-window.addEventListener("resize", resizeCanvas);
-if ("ResizeObserver" in window) {
-  // The game row can change height independently from the viewport on mobile
-  // when browser UI appears/disappears, so observe the actual playfield.
-  new ResizeObserver(resizeCanvas).observe(gameShell);
-}
-
-resizeCanvas();
-showIntroOverlay();
-updateScorebar();
-requestAnimationFrame((now) => {
-  resizeCanvas();
-  lastTime = now;
-  requestAnimationFrame(loop);
-});
+renderHome();
