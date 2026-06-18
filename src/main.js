@@ -799,8 +799,8 @@ function drawShard(shard) {
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
   ctx.lineWidth = 1.25;
-  ctx.strokeStyle = `rgba(100, 205, 252, ${0.32 + alpha * 0.12})`;
-  ctx.fillStyle = "rgba(100, 205, 252, 0.045)";
+  ctx.strokeStyle = `rgba(255, 105, 180, ${0.32 + alpha * 0.12})`;
+  ctx.fillStyle = "rgba(255, 105, 180, 0.045)";
   ctx.beginPath();
   shard.points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y);
