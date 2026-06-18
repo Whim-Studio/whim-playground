@@ -20,6 +20,7 @@ const ctx = canvas.getContext("2d");
 const scoreEl = document.querySelector("#score");
 const roundTimeEl = document.querySelector("#roundTime");
 const livesEl = document.querySelector("#lives");
+const healthBarFillEl = document.querySelector("#healthBarFill");
 const overlayEl = document.querySelector("#gameOverlay");
 const overlayEyebrowEl = document.querySelector("#overlayEyebrow");
 const overlayTitleEl = document.querySelector("#overlayTitle");
@@ -70,6 +71,8 @@ const GAME_CONFIG = {
   powerUpDuration: 10,
   rapidFireCooldownMs: 70,
   shardSlowFactor: 0.55,
+  maxHealth: 100,
+  healthDamage: 25,
 };
 
 const ARROW_KEYS = new Set([
@@ -119,6 +122,7 @@ const player = {
   size: 62,
   radius: 24,
   rotation: 0,
+  health: GAME_CONFIG.maxHealth,
 };
 
 let width = 1;
@@ -180,6 +184,8 @@ function updateScorebar() {
   scoreEl.textContent = formatScore(score);
   roundTimeEl.textContent = formatTime(elapsed);
   livesEl.textContent = "♥".repeat(Math.max(0, lives)) || "—";
+  const healthPercent = Math.max(0, Math.min(100, (player.health / GAME_CONFIG.maxHealth) * 100));
+  healthBarFillEl.style.width = `${healthPercent}%`;
 }
 
 function showIntroOverlay() {
@@ -272,6 +278,7 @@ function resetRound() {
   score = 0;
   clearScore = 0;
   lives = GAME_CONFIG.startingLives;
+  player.health = GAME_CONFIG.maxHealth;
   invulnerableTimer = 0;
   spawnTimer = 0.45;
   trailTimer = 0;
@@ -586,10 +593,22 @@ function updateShards(dt) {
         activePowerUps.shield.active = false;
         createBurst(player.x, player.y, 16, COLORS.face);
       } else {
-        loseLife();
+        takeDamage();
       }
       break;
     }
+  }
+}
+
+function takeDamage() {
+  player.health = Math.max(0, player.health - GAME_CONFIG.healthDamage);
+  createBurst(player.x, player.y, 14, COLORS.danger);
+  invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
+
+  if (player.health <= 0) {
+    loseLife();
+  } else {
+    updateScorebar();
   }
 }
 
@@ -602,6 +621,7 @@ function loseLife() {
 
   createBurst(player.x, player.y, 22, COLORS.danger);
   centerPlayer();
+  player.health = GAME_CONFIG.maxHealth;
   invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
   updateScorebar();
 }
