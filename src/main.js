@@ -27,6 +27,7 @@ const overlayTitleEl = document.querySelector("#overlayTitle");
 const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
+const pauseButton = document.querySelector("#pauseButton");
 
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
@@ -154,6 +155,7 @@ const FIRE_KEYS = new Set(["Space"]);
 const GAME_STATE = Object.freeze({
   INTRO: "intro",
   PLAYING: "playing",
+  PAUSED: "paused",
   OVER: "over",
 });
 
@@ -195,6 +197,7 @@ let score = 0;
 let clearScore = 0;
 let comboCount = 0;
 let comboTimer = 0;
+let pauseStartedAt = 0;
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
 let spawnTimer = 0.4;
@@ -255,6 +258,7 @@ function showIntroOverlay() {
     "Arrow keys or WASD or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
   restartButton.textContent = "Start";
   overlayEl.hidden = false;
+  updatePauseButton();
   updateScorebar();
 }
 
@@ -357,12 +361,14 @@ function resetRound() {
   activePowerUps = createActivePowerUpState();
   centerPlayer();
   overlayEl.hidden = true;
+  updatePauseButton();
   updateScorebar();
 }
 
 function endRound() {
   state = GAME_STATE.OVER;
   showGameOverOverlay();
+  updatePauseButton();
   createBurst(player.x, player.y, 26, COLORS.danger);
   updateScorebar();
 }
@@ -895,7 +901,9 @@ function update(dt, now) {
     updatePowerUps(dt, now);
   }
 
-  updateActivePowerUps(now);
+  // Freeze power-up expiry while paused; togglePause() shifts the windows on
+  // resume so a break never drains an active power-up.
+  if (state !== GAME_STATE.PAUSED) updateActivePowerUps(now);
   updateEffects(dt);
   updateScorebar();
 }
@@ -1212,6 +1220,23 @@ function draw(now) {
   drawPlayer(now);
   drawPowerUpIndicators(now);
   drawComboMeter(now);
+  if (state === GAME_STATE.PAUSED) drawPauseOverlay();
+}
+
+// Dim the scene and show a centered PAUSED label while paused.
+function drawPauseOverlay() {
+  ctx.save();
+  ctx.fillStyle = "rgba(23, 42, 69, 0.62)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.foreground;
+  ctx.font = "700 34px system-ui, sans-serif";
+  ctx.fillText("Paused", width / 2, height / 2 - 8);
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "500 14px system-ui, sans-serif";
+  ctx.fillText("Press Esc or P, or tap Resume", width / 2, height / 2 + 22);
+  ctx.restore();
 }
 
 // Combo HUD: top-center multiplier with a draining timer bar. Only shows once a
@@ -1264,10 +1289,21 @@ function moveKeyFor(event) {
 }
 
 function handleKeyDown(event) {
+  // Escape / P toggle pause while a round is in progress.
+  if ((event.key === "Escape" || event.code === "KeyP") &&
+      (state === GAME_STATE.PLAYING || state === GAME_STATE.PAUSED)) {
+    event.preventDefault();
+    togglePause();
+    return;
+  }
+
   const moveKey = moveKeyFor(event);
   const isFire = FIRE_KEYS.has(event.code);
   if (!moveKey && !isFire && event.key !== "Enter") return;
   event.preventDefault();
+
+  // Ignore movement/fire input while paused so the break is truly inert.
+  if (state === GAME_STATE.PAUSED) return;
 
   if (state !== GAME_STATE.PLAYING) {
     resetRound();
@@ -1318,7 +1354,40 @@ function clearPointerTarget(event) {
   if (event) canvas.releasePointerCapture?.(event.pointerId);
 }
 
+// Keep the pause button visible only mid-round and reflect the current state.
+function updatePauseButton() {
+  const inRound = state === GAME_STATE.PLAYING || state === GAME_STATE.PAUSED;
+  pauseButton.hidden = !inRound;
+  const paused = state === GAME_STATE.PAUSED;
+  pauseButton.textContent = paused ? "Resume" : "Pause";
+  pauseButton.setAttribute("aria-label", paused ? "Resume" : "Pause");
+  pauseButton.classList.toggle("is-paused", paused);
+}
+
+function togglePause() {
+  if (state === GAME_STATE.PLAYING) {
+    state = GAME_STATE.PAUSED;
+    pauseStartedAt = performance.now();
+    // Drop held inputs so the player doesn't drift or auto-fire on resume.
+    keys.clear();
+    clearPointerTarget();
+  } else if (state === GAME_STATE.PAUSED) {
+    // Shift absolute timers forward by the paused span so the break doesn't
+    // burn the fire cooldown or active power-up windows.
+    const pausedFor = performance.now() - pauseStartedAt;
+    lastShotAt += pausedFor;
+    for (const id of POWERUP_IDS) {
+      if (activePowerUps[id].active) activePowerUps[id].expiresAt += pausedFor;
+    }
+    state = GAME_STATE.PLAYING;
+  } else {
+    return;
+  }
+  updatePauseButton();
+}
+
 function triggerShootButton() {
+  if (state === GAME_STATE.PAUSED) return;
   if (state !== GAME_STATE.PLAYING) {
     resetRound();
     return;
@@ -1341,6 +1410,7 @@ function handleShootButtonClick(event) {
 }
 
 restartButton.addEventListener("click", resetRound);
+pauseButton.addEventListener("click", togglePause);
 shootButton.addEventListener("pointerdown", handleShootButtonPointerDown, {
   passive: false,
 });

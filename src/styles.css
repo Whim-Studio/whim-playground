@@ -176,6 +176,50 @@ button {
   outline-offset: 3px;
 }
 
+/* Pause toggle sits at the scorebar's right edge, matching the CTA chip look. */
+.pause-button {
+  padding: 9px 16px;
+  border: 1px solid rgba(100, 205, 252, 0.5);
+  border-radius: 7px;
+  background: rgba(100, 205, 252, 0.12);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.pause-button[hidden] {
+  display: none;
+}
+
+.pause-button:hover {
+  border-color: var(--blue);
+  background: rgba(100, 205, 252, 0.2);
+}
+
+.pause-button:active {
+  transform: translateY(1px);
+}
+
+.pause-button.is-paused {
+  border-color: var(--blue);
+  background: rgba(100, 205, 252, 0.24);
+}
+
+.pause-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
 .game-shell {
   position: absolute;
   inset: 0;
