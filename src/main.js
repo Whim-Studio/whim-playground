@@ -4,6 +4,17 @@ import {
   FACE_VIEW_BOX,
   MOTION_SEQUENCE,
 } from "./whimFaceFrames.js";
+import {
+  resumeAudio,
+  shoot as playShoot,
+  explode,
+  powerup,
+  hit,
+  gameOver,
+  startMusic,
+  stopMusic,
+  toggleMute,
+} from "./audio.js";
 
 /*
  * Whim Asteroids is intentionally a small, dependency-free canvas loop.
@@ -28,19 +39,38 @@ const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
 
-// Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
-// only as an end-state accent. Canvas art and CSS chrome should stay aligned.
+// "Deep-space ember": a single Whim-red world. A vertical plum-to-crimson void,
+// warm-tinted stars, ember hazards, and red-forward chrome — with a few accent
+// hues reserved exclusively for power-ups so they stay legible against the red.
+// Canvas art (this object) and CSS chrome (:root tokens) must stay in sync.
 const COLORS = {
-  background: "#2a0e14",
+  // Background gradient stops (top is the darkest void, bottom is warm crimson).
+  backgroundTop: "#1a060c",
+  background: "#2a0a12",
+  backgroundBottom: "#3d0d18",
   surface: "#3a141d",
   surfaceHover: "#4a1a25",
   border: "#5a2530",
-  foreground: "#e8e4de",
-  muted: "#8eaac4",
-  face: "#FF4D4D",
+  foreground: "#f3ece6",
+  muted: "#c79aa2",
+  // The hot Whim red and its translucent derivatives, used for the player glow,
+  // base bullets, pointer guide, grid, and most particle bursts.
+  face: "#ff4d4d",
   faceSoft: "rgba(255, 77, 77, 0.14)",
   faceLine: "rgba(255, 77, 77, 0.52)",
-  danger: "#d4836c",
+  faceGlow: "rgba(255, 42, 36, 0.85)",
+  // Star tint — a faint warm rose so the field reads as part of the red world.
+  star: "#ffd9c2",
+  // Hazards: jagged asteroids glow as cool embers; basketballs keep their orange.
+  hazard: "#ff7a59",
+  hazardSoft: "rgba(255, 122, 89, 0.07)",
+  hazardLine: "rgba(255, 122, 89, 0.5)",
+  ballHi: "#ff9d5c",
+  ballLo: "#c2461b",
+  ballSeam: "rgba(26, 6, 8, 0.9)",
+  // Friendly helpers, tinted to belong to the same warm world.
+  squirrel: "#c2461b",
+  danger: "#e08a6f",
 };
 
 // Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
@@ -51,9 +81,9 @@ const GAME_CONFIG = {
   activeDamping: 0.945,
   idleDamping: 0.86,
   scoreRate: 14,
-  spawnIntervalStart: 0.92,
-  spawnIntervalEnd: 0.42,
-  maxDifficultyTime: 52,
+  spawnIntervalStart: 1.55,
+  spawnIntervalEnd: 0.48,
+  maxDifficultyTime: 80,
   minPlayerSize: 48,
   maxPlayerSize: 72,
   safeSpawnDistance: 180,
@@ -64,7 +94,7 @@ const GAME_CONFIG = {
   shardClearScore: 35,
   shardSplitThreshold: 12,
   shardSplitCount: 2,
-  shardSplitSpeedBoost: 1.4,
+  shardSplitSpeedBoost: 1.25,
   startingLives: 3,
   hitInvulnerabilityTime: 2.2,
   powerUpSpawnChance: 0.3,
@@ -119,7 +149,7 @@ const POWERUPS = {
   strongShots: {
     id: "strongShots",
     label: "Power shots",
-    color: "#FF8C42",
+    color: "#FFB020",
     duration: GAME_CONFIG.powerUpDuration,
     strongShots: true,
   },
@@ -231,6 +261,24 @@ function formatScore(value) {
   return String(Math.max(0, Math.floor(value))).padStart(6, "0");
 }
 
+const HIGH_SCORE_KEY = "whim-highscore";
+
+function readHighScore() {
+  try {
+    return Math.max(0, Math.floor(Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0));
+  } catch (_e) {
+    return 0;
+  }
+}
+
+function writeHighScore(value) {
+  try {
+    localStorage.setItem(HIGH_SCORE_KEY, String(value));
+  } catch (_e) {
+    /* no-op */
+  }
+}
+
 function formatTime(value) {
   const totalSeconds = Math.max(0, Math.floor(value));
   const minutes = Math.floor(totalSeconds / 60);
@@ -261,7 +309,7 @@ function showGameOverOverlay() {
   overlayEyebrowEl.textContent = "Round complete";
   overlayTitleEl.textContent = formatScore(score);
   overlayCopyEl.textContent =
-    "Press Enter, Space, any arrow key, the round button, or Restart.";
+    `Best: ${formatScore(readHighScore())}. Press Enter, Space, any arrow key, the round button, or Restart.`;
   restartButton.textContent = "Restart";
   overlayEl.hidden = false;
 }
@@ -338,7 +386,7 @@ function resetRound() {
   lives = GAME_CONFIG.startingLives;
   player.health = GAME_CONFIG.maxHealth;
   invulnerableTimer = 0;
-  spawnTimer = 0.45;
+  spawnTimer = 1.2;
   trailTimer = 0;
   lastShotAt = -Infinity;
   shotFrameUntil = 0;
@@ -357,11 +405,17 @@ function resetRound() {
   dolphinTimer = randomBetween(7, 11);
   centerPlayer();
   overlayEl.hidden = true;
+  startMusic();
   updateScorebar();
 }
 
 function endRound() {
   state = GAME_STATE.OVER;
+  stopMusic();
+  gameOver();
+  if (Math.floor(score) > readHighScore()) {
+    writeHighScore(Math.floor(score));
+  }
   showGameOverOverlay();
   createBurst(player.x, player.y, 26, COLORS.danger);
   updateScorebar();
@@ -451,8 +505,11 @@ function spawnShard(x, y, vx, vy, kind = "asteroid") {
 }
 
 function maxShardCount() {
+  // Start with a calm field (just a few hazards) and grow with difficulty.
+  // Screen-area headroom is folded into the LATE-game cap, not the opening, so
+  // large screens aren't slammed at t=0.
   const areaBonus = clamp((width * height) / 150000, 0, 5);
-  return Math.floor(6 + areaBonus + getDifficulty() * 8);
+  return Math.floor(lerp(3, 9 + areaBonus, getDifficulty()));
 }
 
 function createBurst(x, y, count, color) {
@@ -512,6 +569,7 @@ function shoot(now = performance.now()) {
     pierce: strong ? GAME_CONFIG.strongShotPierce : 0,
     strong,
   });
+  playShoot();
 
   player.vx -= Math.cos(angle) * 34;
   player.vy -= Math.sin(angle) * 34;
@@ -661,6 +719,7 @@ function updateShards(dt) {
 }
 
 function takeDamage() {
+  hit();
   player.health = Math.max(0, player.health - GAME_CONFIG.healthDamage);
   createBurst(player.x, player.y, 14, COLORS.danger);
   invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
@@ -706,6 +765,7 @@ function spawnPowerUp(x, y) {
 function activatePowerUp(type, now) {
   const def = POWERUPS[type];
   if (!def) return;
+  powerup();
   activePowerUps[type].active = true;
   // Durations live in seconds (GAME_CONFIG convention); the loop clock is in
   // milliseconds, so convert here when stamping the expiry.
@@ -784,6 +844,11 @@ function splitShard(shard) {
   const boostedSpeed = baseSpeed * speedBoost;
 
   for (let i = 0; i < GAME_CONFIG.shardSplitCount; i += 1) {
+    // Splits bypass the spawn pacing, so honor the field cap here too. The
+    // parent shard is still counted at this point, so at the cap a destroyed
+    // shard yields zero pieces (net clear) instead of multiplying forever.
+    if (shards.length >= maxShardCount()) break;
+
     const angle = (i / GAME_CONFIG.shardSplitCount) * Math.PI * 2 + randomBetween(-0.3, 0.3);
     const vx = Math.cos(angle) * boostedSpeed;
     const vy = Math.sin(angle) * boostedSpeed;
@@ -818,6 +883,7 @@ function updateBullets(dt) {
       splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
+      explode();
       createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
 
       // Power shots punch through up to `pierce` extra hazards before being
@@ -926,7 +992,8 @@ function updateSquirrel(dt) {
       splitShard(shard);
       shards.splice(i, 1);
       clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, "#C8743C");
+      explode();
+      createBurst(shard.x, shard.y, 12, COLORS.squirrel);
     }
   }
 }
@@ -1196,13 +1263,29 @@ function update(dt, now) {
 function drawBackground(now) {
   // The game scene is painted entirely on canvas; CSS owns only the header and
   // overlay chrome. Keep decorative canvas work cheap and low contrast.
-  ctx.fillStyle = COLORS.background;
+  // Vertical plum-to-crimson void sets the mood for the whole red world.
+  const sky = ctx.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, COLORS.backgroundTop);
+  sky.addColorStop(0.55, COLORS.background);
+  sky.addColorStop(1, COLORS.backgroundBottom);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, width, height);
+
+  // A faint warm ember glow rising from the lower-center keeps the gradient from
+  // feeling flat and draws the eye toward the action.
+  const glow = ctx.createRadialGradient(
+    width / 2, height * 0.92, 0,
+    width / 2, height * 0.92, Math.max(width, height) * 0.85,
+  );
+  glow.addColorStop(0, "rgba(255, 77, 77, 0.10)");
+  glow.addColorStop(1, "rgba(255, 77, 77, 0)");
+  ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
 
   const grid = 40;
   const offset = (now * 0.012) % grid;
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(232, 228, 222, 0.028)";
+  ctx.strokeStyle = "rgba(255, 77, 77, 0.03)";
   ctx.beginPath();
   for (let x = -grid + offset; x <= width + grid; x += grid) {
     ctx.moveTo(x, 0);
@@ -1217,7 +1300,7 @@ function drawBackground(now) {
   for (const star of starField) {
     const twinkle = 0.65 + Math.sin(now * star.drift + star.x) * 0.35;
     ctx.globalAlpha = star.alpha * twinkle;
-    ctx.fillStyle = COLORS.foreground;
+    ctx.fillStyle = COLORS.star;
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
     ctx.fill();
@@ -1233,15 +1316,15 @@ function drawBasketball(shard) {
 
   // Orange ball body.
   const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-  grad.addColorStop(0, "#F39B5A");
-  grad.addColorStop(1, "#D2691E");
+  grad.addColorStop(0, COLORS.ballHi);
+  grad.addColorStop(1, COLORS.ballLo);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
 
   // Black seams: outline, the two great-circle lines, and the curved side seams.
-  ctx.strokeStyle = "rgba(20, 12, 6, 0.9)";
+  ctx.strokeStyle = COLORS.ballSeam;
   ctx.lineWidth = Math.max(1.2, r * 0.07);
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -1272,9 +1355,11 @@ function drawShard(shard) {
   ctx.save();
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
-  ctx.lineWidth = 1.25;
-  ctx.strokeStyle = `rgba(0, 255, 0, ${0.32 + alpha * 0.12})`;
-  ctx.fillStyle = "rgba(0, 255, 0, 0.045)";
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = `rgba(255, 122, 89, ${0.42 + alpha * 0.16})`;
+  ctx.fillStyle = COLORS.hazardSoft;
+  ctx.shadowColor = "rgba(255, 122, 89, 0.45)";
+  ctx.shadowBlur = 8;
   ctx.beginPath();
   shard.points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y);
@@ -1283,8 +1368,9 @@ function drawShard(shard) {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  ctx.strokeStyle = "rgba(232, 228, 222, 0.12)";
+  ctx.strokeStyle = "rgba(243, 236, 230, 0.14)";
   ctx.beginPath();
   ctx.moveTo(shard.points[0].x * 0.28, shard.points[0].y * 0.28);
   const opposite = shard.points[Math.floor(shard.points.length / 2)];
@@ -1307,10 +1393,10 @@ function drawBullets() {
       ctx.shadowColor = strongColor;
       ctx.shadowBlur = 20;
     } else {
-      ctx.strokeStyle = "rgba(255, 64, 200, 0.72)";
+      ctx.strokeStyle = "rgba(255, 180, 150, 0.85)";
       ctx.fillStyle = COLORS.face;
       ctx.lineWidth = 1.4;
-      ctx.shadowColor = "rgba(255, 64, 200, 0.38)";
+      ctx.shadowColor = COLORS.faceGlow;
       ctx.shadowBlur = 12;
     }
     ctx.beginPath();
@@ -1594,6 +1680,14 @@ function moveKeyFor(event) {
 }
 
 function handleKeyDown(event) {
+  resumeAudio();
+  // Mute toggle on 'M' — handle before the restart-on-any-key logic so it never
+  // starts or restarts a round.
+  if (event.code === "KeyM") {
+    event.preventDefault();
+    toggleMute();
+    return;
+  }
   const moveKey = moveKeyFor(event);
   const isFire = FIRE_KEYS.has(event.code);
   if (!moveKey && !isFire && event.key !== "Enter") return;
@@ -1627,6 +1721,7 @@ function updatePointerTarget(event) {
 
 function handlePointerDown(event) {
   if (event.button !== undefined && event.button !== 0) return;
+  resumeAudio();
   event.preventDefault();
 
   pointerTarget.active = true;
@@ -1657,6 +1752,7 @@ function triggerShootButton() {
 }
 
 function handleShootButtonPointerDown(event) {
+  resumeAudio();
   event.preventDefault();
   lastShootButtonPointerAt = performance.now();
   triggerShootButton();
