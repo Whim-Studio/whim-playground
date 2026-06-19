@@ -238,6 +238,17 @@ button {
   line-height: 1;
 }
 
+.game-overlay__eyebrow--victory {
+  color: #ffd700;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+.game-overlay__title--victory {
+  color: #ffd700;
+  font-size: 30px;
+  text-shadow: 0 0 18px rgba(255, 215, 0, 0.55);
+}
+
 .game-overlay__copy {
   max-width: 22rem;
   margin: 0;

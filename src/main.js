@@ -41,6 +41,12 @@ const COLORS = {
   faceSoft: "rgba(100, 205, 252, 0.14)",
   faceLine: "rgba(100, 205, 252, 0.52)",
   danger: "#d4836c",
+  // Battle-royale theming: the storm purples close in around a gold-ringed
+  // safe zone, enemies read hostile red.
+  storm: "#7b2ff7",
+  stormDeep: "#5a17c9",
+  gold: "#ffd700",
+  enemy: "#ff4655",
 };
 
 // Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
@@ -79,6 +85,16 @@ const GAME_CONFIG = {
   strongShotPierce: 2,
   maxHealth: 100,
   healthDamage: 25,
+  // The Storm (signature battle-royale mechanic). The safe zone shrinks from a
+  // diagonal-spanning radius down to safeZoneEndRadius over stormShrinkTime
+  // seconds while drifting toward a new center. Outside the circle the player
+  // drains stormDamagePerSec health. Surviving the full close wins the round.
+  stormShrinkTime: 80,
+  stormDamagePerSec: 9,
+  safeZoneStartRadiusFactor: 0.62, // × screen diagonal at round start
+  safeZoneEndRadius: 70, // CSS pixels at full close
+  stormDriftFactor: 0.18, // how far the eye drifts from center, × min dimension
+  eliminationTarget: 30, // alternate win: this many eliminations ends the round
 };
 
 // Extensible power-up framework. To add a new power-up, append one entry here
@@ -97,28 +113,28 @@ const GAME_CONFIG = {
 const POWERUPS = {
   rapidFire: {
     id: "rapidFire",
-    label: "Rapid fire",
+    label: "Minigun",
     color: "#FFD700",
     duration: GAME_CONFIG.powerUpDuration,
     shootCooldownMs: GAME_CONFIG.rapidFireCooldownMs,
   },
   slowShards: {
     id: "slowShards",
-    label: "Slow shards",
+    label: "Freeze Trap",
     color: "#87CEEB",
     duration: GAME_CONFIG.powerUpDuration,
     shardSpeedFactor: GAME_CONFIG.shardSlowFactor,
   },
   shield: {
     id: "shield",
-    label: "Shield",
+    label: "Chug Jug",
     color: "#FF69B4",
     duration: GAME_CONFIG.powerUpDuration,
     blocksAllHits: true,
   },
   strongShots: {
     id: "strongShots",
-    label: "Power shots",
+    label: "Heavy Sniper",
     color: "#FF8C42",
     duration: GAME_CONFIG.powerUpDuration,
     strongShots: true,
@@ -189,6 +205,11 @@ let state = GAME_STATE.INTRO;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
+let eliminations = 0;
+let won = false;
+// The Storm: cx/cy is the current eye center, tx/ty the drift target it eases
+// toward, radius the live safe-zone radius (shrinks over the round).
+const storm = { cx: 0, cy: 0, tx: 0, ty: 0, radius: 0 };
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
 let spawnTimer = 0.4;
@@ -233,9 +254,13 @@ function formatTime(value) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function stormTimeRemaining() {
+  return Math.max(0, GAME_CONFIG.stormShrinkTime - elapsed);
+}
+
 function updateScorebar() {
-  scoreEl.textContent = formatScore(score);
-  roundTimeEl.textContent = formatTime(elapsed);
+  scoreEl.textContent = String(eliminations).padStart(2, "0");
+  roundTimeEl.textContent = formatTime(stormTimeRemaining());
   livesEl.textContent = "♥".repeat(Math.max(0, lives)) || "—";
   const healthPercent = Math.max(0, Math.min(100, (player.health / GAME_CONFIG.maxHealth) * 100));
   healthBarFillEl.style.width = `${healthPercent}%`;
@@ -243,21 +268,36 @@ function updateScorebar() {
 
 function showIntroOverlay() {
   state = GAME_STATE.INTRO;
-  overlayEyebrowEl.textContent = "Ready";
-  overlayTitleEl.textContent = "Whim Asteroids";
+  overlayEyebrowEl.classList.remove("game-overlay__eyebrow--victory");
+  overlayTitleEl.classList.remove("game-overlay__title--victory");
+  overlayEyebrowEl.textContent = "Drop in";
+  overlayTitleEl.textContent = "Whim Royale";
   overlayCopyEl.textContent =
-    "Arrow keys or WASD or drag to move. Space shoots. On mobile, tap the glowing round button. Clear shards and keep the face moving.";
-  restartButton.textContent = "Start";
+    "Arrow keys / WASD / drag to move, Space to fire (tap the round button on mobile). Stay inside the eye of the storm — the purple closes in and chips your health. Eliminate husks and outlast the storm for the Victory Royale.";
+  restartButton.textContent = "Drop in";
   overlayEl.hidden = false;
   updateScorebar();
 }
 
 function showGameOverOverlay() {
-  overlayEyebrowEl.textContent = "Round complete";
-  overlayTitleEl.textContent = formatScore(score);
+  overlayEyebrowEl.classList.remove("game-overlay__eyebrow--victory");
+  overlayTitleEl.classList.remove("game-overlay__title--victory");
+  overlayEyebrowEl.textContent = "Eliminated";
+  overlayTitleEl.textContent = `${eliminations} elims`;
   overlayCopyEl.textContent =
-    "Press Enter, Space, any arrow key, the round button, or Restart.";
+    "The storm got you. Press Enter, Space, any arrow key, the round button, or Restart to drop again.";
   restartButton.textContent = "Restart";
+  overlayEl.hidden = false;
+}
+
+function showVictoryOverlay() {
+  overlayEyebrowEl.classList.add("game-overlay__eyebrow--victory");
+  overlayTitleEl.classList.add("game-overlay__title--victory");
+  overlayEyebrowEl.textContent = "#1";
+  overlayTitleEl.textContent = "VICTORY ROYALE";
+  overlayCopyEl.textContent =
+    `Last one standing with ${eliminations} eliminations. Press Enter, Space, any arrow key, the round button, or Restart.`;
+  restartButton.textContent = "Drop again";
   overlayEl.hidden = false;
 }
 
@@ -330,6 +370,9 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  eliminations = 0;
+  won = false;
+  initStorm();
   lives = GAME_CONFIG.startingLives;
   player.health = GAME_CONFIG.maxHealth;
   invulnerableTimer = 0;
@@ -354,9 +397,60 @@ function resetRound() {
 
 function endRound() {
   state = GAME_STATE.OVER;
+  won = false;
   showGameOverOverlay();
   createBurst(player.x, player.y, 26, COLORS.danger);
   updateScorebar();
+}
+
+function winRound() {
+  if (state !== GAME_STATE.PLAYING) return;
+  state = GAME_STATE.OVER;
+  won = true;
+  showVictoryOverlay();
+  createBurst(player.x, player.y, 40, COLORS.gold);
+  updateScorebar();
+}
+
+function initStorm() {
+  storm.cx = width / 2;
+  storm.cy = height / 2;
+  storm.radius = Math.hypot(width, height) * GAME_CONFIG.safeZoneStartRadiusFactor;
+  // Pick a drift target so the eye slides off-center as it closes.
+  const drift = Math.min(width, height) * GAME_CONFIG.stormDriftFactor;
+  const angle = Math.random() * Math.PI * 2;
+  storm.tx = clamp(width / 2 + Math.cos(angle) * drift, width * 0.3, width * 0.7);
+  storm.ty = clamp(height / 2 + Math.sin(angle) * drift, height * 0.3, height * 0.7);
+}
+
+function updateStorm(dt) {
+  const progress = clamp(elapsed / GAME_CONFIG.stormShrinkTime, 0, 1);
+  const startRadius =
+    Math.hypot(width, height) * GAME_CONFIG.safeZoneStartRadiusFactor;
+  storm.radius = lerp(startRadius, GAME_CONFIG.safeZoneEndRadius, progress);
+
+  // Ease the eye toward its drift target over the course of the round.
+  const ease = 1 - 0.6 ** dt;
+  storm.cx = lerp(storm.cx, storm.tx, ease);
+  storm.cy = lerp(storm.cy, storm.ty, ease);
+
+  // Storm damage: continuous health drain while outside the safe circle.
+  const outside =
+    Math.hypot(player.x - storm.cx, player.y - storm.cy) > storm.radius;
+  if (outside && invulnerableTimer <= 0 && !absorbHitWithPowerUp()) {
+    player.health = Math.max(
+      0,
+      player.health - GAME_CONFIG.stormDamagePerSec * dt,
+    );
+    if (player.health <= 0) {
+      loseLife();
+    }
+  }
+
+  // Victory Royale: outlast the storm or hit the elimination target.
+  if (progress >= 1 || eliminations >= GAME_CONFIG.eliminationTarget) {
+    winRound();
+  }
 }
 
 function getDifficulty() {
@@ -805,7 +899,8 @@ function updateBullets(dt) {
       splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
+      eliminations += 1;
+      createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.enemy);
 
       // Power shots punch through up to `pierce` extra hazards before being
       // consumed; base shots stop on the first hit.
@@ -873,6 +968,7 @@ function update(dt, now) {
     updateShards(dt);
     updateBullets(dt);
     updatePowerUps(dt, now);
+    updateStorm(dt);
   }
 
   updateActivePowerUps(now);
@@ -912,15 +1008,46 @@ function drawBackground(now) {
   ctx.globalAlpha = 1;
 }
 
+// The Storm: a translucent purple overlay covering everything outside the
+// safe circle, with a gold-glowing wall at the boundary. Drawn just above the
+// background so hazards, bullets, and the player still read on top.
+function drawStorm(now) {
+  ctx.save();
+
+  // Fill the playfield, then punch out the safe circle with an even-odd path so
+  // only the danger zone is tinted.
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  ctx.arc(storm.cx, storm.cy, Math.max(0, storm.radius), 0, Math.PI * 2, true);
+  const tint = ctx.createLinearGradient(0, 0, width, height);
+  tint.addColorStop(0, "rgba(123, 47, 247, 0.34)");
+  tint.addColorStop(1, "rgba(90, 23, 201, 0.42)");
+  ctx.fillStyle = tint;
+  ctx.fill("evenodd");
+
+  // Glowing storm wall along the safe-zone boundary.
+  const pulse = 0.5 + Math.sin(now * 0.004) * 0.5;
+  ctx.beginPath();
+  ctx.arc(storm.cx, storm.cy, Math.max(0, storm.radius), 0, Math.PI * 2);
+  ctx.shadowColor = COLORS.storm;
+  ctx.shadowBlur = 24;
+  ctx.strokeStyle = `rgba(207, 169, 255, ${0.55 + pulse * 0.35})`;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawShard(shard) {
   const alpha = 0.7 + Math.sin(shard.pulse) * 0.12;
 
   ctx.save();
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
-  ctx.lineWidth = 1.25;
-  ctx.strokeStyle = `rgba(0, 255, 0, ${0.32 + alpha * 0.12})`;
-  ctx.fillStyle = "rgba(0, 255, 0, 0.045)";
+  // Enemy combatant ("husk") marker: hostile red blip.
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = `rgba(255, 70, 85, ${0.55 + alpha * 0.18})`;
+  ctx.fillStyle = "rgba(255, 70, 85, 0.08)";
   ctx.beginPath();
   shard.points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y);
@@ -930,12 +1057,11 @@ function drawShard(shard) {
   ctx.fill();
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(232, 228, 222, 0.12)";
+  // Center targeting dot so husks read as marked opponents on a minimap.
+  ctx.fillStyle = `rgba(255, 215, 0, ${0.5 + alpha * 0.2})`;
   ctx.beginPath();
-  ctx.moveTo(shard.points[0].x * 0.28, shard.points[0].y * 0.28);
-  const opposite = shard.points[Math.floor(shard.points.length / 2)];
-  ctx.lineTo(opposite.x * 0.62, opposite.y * 0.62);
-  ctx.stroke();
+  ctx.arc(0, 0, Math.max(2, shard.radius * 0.16), 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1177,6 +1303,7 @@ function drawPointerGuide() {
 
 function draw(now) {
   drawBackground(now);
+  drawStorm(now);
   drawEffects();
   drawPointerGuide();
 
@@ -1308,6 +1435,7 @@ if ("ResizeObserver" in window) {
 }
 
 resizeCanvas();
+initStorm();
 showIntroOverlay();
 updateScorebar();
 requestAnimationFrame((now) => {
