@@ -191,6 +191,9 @@ button {
   text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -256,6 +259,10 @@ button {
   cursor: pointer;
   touch-action: manipulation;
   backdrop-filter: blur(16px);
+  /* Kill the mobile tap flash and accidental text selection on rapid taps. */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .shoot-button span {
@@ -366,6 +373,14 @@ button {
 @media (hover: none), (pointer: coarse), (max-width: 760px), (max-height: 520px) {
   .shoot-button {
     display: grid;
+    /* Larger, thumb-friendly target on touch devices. */
+    width: 76px;
+    height: 76px;
+  }
+
+  .shoot-button span {
+    width: 20px;
+    height: 20px;
   }
 }
 
@@ -397,6 +412,13 @@ button {
 
   .change-game-cta:active {
     transform: translateY(1px);
+  }
+
+  /* Keep the pause/mute chips compact so they share the row with the stats
+     instead of forcing extra wraps on narrow phones. */
+  .pause-button {
+    padding: 8px 12px;
+    font-size: 11px;
   }
 
   .game-overlay__panel {

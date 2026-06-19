@@ -286,6 +286,7 @@ let clearScore = 0;
 let comboCount = 0;
 let comboTimer = 0;
 let pauseStartedAt = 0;
+let shootHeld = false;
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
 let spawnTimer = 0.4;
@@ -988,6 +989,8 @@ function update(dt, now) {
       if (comboTimer === 0) comboCount = 0;
     }
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
+    // Auto-fire while the on-screen button is held (cooldown-gated in shoot()).
+    if (shootHeld) shoot(now);
     updatePlayer(dt, now);
     updateShards(dt);
     updateBullets(dt);
@@ -1515,7 +1518,16 @@ function triggerShootButton() {
 function handleShootButtonPointerDown(event) {
   event.preventDefault();
   lastShootButtonPointerAt = performance.now();
+  // Hold-to-fire: the first shot is immediate; the loop keeps firing
+  // (cooldown-gated) until the thumb lifts. Capture so we still get the release
+  // if the finger slides off the button.
+  shootHeld = true;
+  shootButton.setPointerCapture?.(event.pointerId);
   triggerShootButton();
+}
+
+function releaseShootButton() {
+  shootHeld = false;
 }
 
 function handleShootButtonClick(event) {
@@ -1533,6 +1545,9 @@ shootButton.addEventListener("pointerdown", handleShootButtonPointerDown, {
   passive: false,
 });
 shootButton.addEventListener("click", handleShootButtonClick);
+shootButton.addEventListener("pointerup", releaseShootButton);
+shootButton.addEventListener("pointercancel", releaseShootButton);
+shootButton.addEventListener("pointerleave", releaseShootButton);
 canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
 canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
 canvas.addEventListener("pointerup", clearPointerTarget);
@@ -1542,6 +1557,7 @@ window.addEventListener("keyup", handleKeyUp, { passive: false });
 window.addEventListener("blur", () => {
   keys.clear();
   clearPointerTarget();
+  releaseShootButton();
 });
 window.addEventListener("resize", resizeCanvas);
 if ("ResizeObserver" in window) {
