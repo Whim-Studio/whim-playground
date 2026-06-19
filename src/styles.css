@@ -12,14 +12,14 @@
 
   /* Whim landing/onboarding palette. Keep these tokens and COLORS in
      src/main.js in sync when changing the visual direction. */
-  --background: #2a0e14;
+  --background: #172a45;
   --foreground: #e8e4de;
-  --surface: #3a141d;
-  --surface-hover: #4a1a25;
-  --border: #5a2530;
-  --blue: #ff4d4d;
-  --blue-soft: rgba(255, 77, 77, 0.16);
-  --blue-line: rgba(255, 77, 77, 0.46);
+  --surface: #1e3355;
+  --surface-hover: #243d62;
+  --border: #2a4a6e;
+  --blue: #64cdfc;
+  --blue-soft: rgba(100, 205, 252, 0.16);
+  --blue-line: rgba(100, 205, 252, 0.46);
   --muted: #8eaac4;
   --danger: #d4836c;
   --shadow: rgba(4, 12, 24, 0.32);
@@ -96,8 +96,8 @@ button {
 .health-bar {
   height: 6px;
   width: 100%;
-  background: rgba(255, 77, 77, 0.12);
-  border: 1px solid rgba(255, 77, 77, 0.25);
+  background: rgba(100, 205, 252, 0.12);
+  border: 1px solid rgba(100, 205, 252, 0.25);
   border-radius: 2px;
   overflow: hidden;
   min-width: 72px;
@@ -106,7 +106,7 @@ button {
 .health-bar__fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #FF69B4, #FF4D4D);
+  background: linear-gradient(90deg, #FF69B4, #64CDFC);
   border-radius: 1px;
   transition: width 0.2s ease;
 }
@@ -145,9 +145,9 @@ button {
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 9px 16px;
-  border: 1px solid rgba(255, 77, 77, 0.5);
+  border: 1px solid rgba(100, 205, 252, 0.5);
   border-radius: 7px;
-  background: rgba(255, 77, 77, 0.12);
+  background: rgba(100, 205, 252, 0.12);
   color: var(--foreground);
   font-size: 12px;
   font-weight: 700;
@@ -164,7 +164,7 @@ button {
 
 .change-game-cta:hover {
   border-color: var(--blue);
-  background: rgba(255, 77, 77, 0.2);
+  background: rgba(100, 205, 252, 0.2);
 }
 
 .change-game-cta:active {
@@ -202,7 +202,7 @@ button {
   place-items: center;
   width: 68px;
   height: 68px;
-  border: 1px solid rgba(255, 77, 77, 0.38);
+  border: 1px solid rgba(100, 205, 252, 0.38);
   border-radius: 50%;
   background: rgba(30, 51, 85, 0.68);
   box-shadow:
@@ -220,8 +220,8 @@ button {
   border: 2px solid currentColor;
   border-radius: 50%;
   box-shadow:
-    0 0 0 8px rgba(255, 77, 77, 0.08),
-    0 0 22px rgba(255, 77, 77, 0.28);
+    0 0 0 8px rgba(100, 205, 252, 0.08),
+    0 0 22px rgba(100, 205, 252, 0.28);
 }
 
 .shoot-button:active {
@@ -254,7 +254,7 @@ button {
   gap: 14px;
   width: min(100%, 280px);
   padding: 26px 24px 24px;
-  border: 1px solid rgba(255, 77, 77, 0.24);
+  border: 1px solid rgba(100, 205, 252, 0.24);
   border-radius: 8px;
   background: rgba(30, 51, 85, 0.78);
   box-shadow:
@@ -290,9 +290,9 @@ button {
 .game-overlay__panel button {
   width: 100%;
   min-height: 42px;
-  border: 1px solid rgba(255, 77, 77, 0.5);
+  border: 1px solid rgba(100, 205, 252, 0.5);
   border-radius: 7px;
-  background: rgba(255, 77, 77, 0.12);
+  background: rgba(100, 205, 252, 0.12);
   color: var(--foreground);
   cursor: pointer;
   font-size: 13px;
@@ -307,7 +307,7 @@ button {
 
 .game-overlay__panel button:hover {
   border-color: var(--blue);
-  background: rgba(255, 77, 77, 0.2);
+  background: rgba(100, 205, 252, 0.2);
 }
 
 .game-overlay__panel button:active {
@@ -428,7 +428,7 @@ button {
     width: 14px;
     height: 14px;
     box-shadow:
-      0 0 0 6px rgba(255, 77, 77, 0.08),
-      0 0 18px rgba(255, 77, 77, 0.28);
+      0 0 0 6px rgba(100, 205, 252, 0.08),
+      0 0 18px rgba(100, 205, 252, 0.28);
   }
 }
