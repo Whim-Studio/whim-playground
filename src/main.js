@@ -75,6 +75,46 @@ const GAME_CONFIG = {
   healthDamage: 25,
 };
 
+// Extensible power-up framework. To add a new power-up, append one entry here
+// and nothing else needs to change: spawning, collection, expiry, collectible
+// drawing, and the HUD all iterate this registry. Each entry declares an id,
+// HUD label, color, and duration (seconds). Effects are expressed as optional
+// declarative hooks the loop reads:
+//   - shootCooldownMs: overrides the fire cooldown while active (smallest wins)
+//   - shardSpeedFactor: multiplies hazard speed while active
+//   - absorbsHit:       consumes the power-up to negate one incoming hit
+// rapidFire is the canonical sample proving the framework end-to-end.
+const POWERUPS = {
+  rapidFire: {
+    id: "rapidFire",
+    label: "Rapid fire",
+    color: "#FFD700",
+    duration: GAME_CONFIG.powerUpDuration,
+    shootCooldownMs: GAME_CONFIG.rapidFireCooldownMs,
+  },
+  slowShards: {
+    id: "slowShards",
+    label: "Slow shards",
+    color: "#87CEEB",
+    duration: GAME_CONFIG.powerUpDuration,
+    shardSpeedFactor: GAME_CONFIG.shardSlowFactor,
+  },
+  shield: {
+    id: "shield",
+    label: "Shield",
+    color: "#FF69B4",
+    duration: GAME_CONFIG.powerUpDuration,
+    absorbsHit: true,
+  },
+};
+const POWERUP_IDS = Object.keys(POWERUPS);
+
+function createActivePowerUpState() {
+  return Object.fromEntries(
+    POWERUP_IDS.map((id) => [id, { active: false, expiresAt: 0 }]),
+  );
+}
+
 const ARROW_KEYS = new Set([
   "ArrowLeft",
   "ArrowRight",
@@ -151,11 +191,7 @@ let trails = [];
 let burstParticles = [];
 let starField = [];
 let powerUps = [];
-let activePowerUps = {
-  rapidFire: { active: false, expiresAt: 0 },
-  slowShards: { active: false, expiresAt: 0 },
-  shield: { active: false, expiresAt: 0 },
-};
+let activePowerUps = createActivePowerUpState();
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -293,11 +329,7 @@ function resetRound() {
   trails = [];
   burstParticles = [];
   powerUps = [];
-  activePowerUps = {
-    rapidFire: { active: false, expiresAt: 0 },
-    slowShards: { active: false, expiresAt: 0 },
-    shield: { active: false, expiresAt: 0 },
-  };
+  activePowerUps = createActivePowerUpState();
   centerPlayer();
   overlayEl.hidden = true;
   updateScorebar();
@@ -429,11 +461,7 @@ function getFireAngle() {
 function shoot(now = performance.now()) {
   if (state !== GAME_STATE.PLAYING) return;
 
-  const cooldown = activePowerUps.rapidFire.active
-    ? GAME_CONFIG.rapidFireCooldownMs
-    : GAME_CONFIG.shootCooldownMs;
-
-  if (now - lastShotAt < cooldown) return;
+  if (now - lastShotAt < getShootCooldownMs()) return;
 
   const angle = getFireAngle();
   const muzzleDistance = player.radius * 1.25;
@@ -573,7 +601,7 @@ function updateShards(dt) {
     spawnTimer = interval * randomBetween(0.72, 1.2);
   }
 
-  const slowFactor = activePowerUps.slowShards.active ? GAME_CONFIG.shardSlowFactor : 1;
+  const slowFactor = getShardSpeedFactor();
 
   for (const shard of shards) {
     shard.x = wrap(shard.x + shard.vx * dt * slowFactor, width);
@@ -589,8 +617,7 @@ function updateShards(dt) {
   for (const shard of shards) {
     const hitRadius = player.radius + shard.radius * 0.72;
     if (Math.hypot(player.x - shard.x, player.y - shard.y) <= hitRadius) {
-      if (activePowerUps.shield.active) {
-        activePowerUps.shield.active = false;
+      if (absorbHitWithPowerUp()) {
         createBurst(player.x, player.y, 16, COLORS.face);
       } else {
         takeDamage();
@@ -627,8 +654,9 @@ function loseLife() {
 }
 
 function spawnPowerUp(x, y) {
-  const types = ["rapidFire", "slowShards", "shield"];
-  const type = types[Math.floor(Math.random() * types.length)];
+  // Pick a registered power-up at random so new POWERUPS entries enter the
+  // drop pool automatically.
+  const type = POWERUP_IDS[Math.floor(Math.random() * POWERUP_IDS.length)];
 
   powerUps.push({
     x,
@@ -643,8 +671,53 @@ function spawnPowerUp(x, y) {
 }
 
 function activatePowerUp(type, now) {
+  const def = POWERUPS[type];
+  if (!def) return;
   activePowerUps[type].active = true;
-  activePowerUps[type].expiresAt = now + GAME_CONFIG.powerUpDuration;
+  // Durations live in seconds (GAME_CONFIG convention); the loop clock is in
+  // milliseconds, so convert here when stamping the expiry.
+  activePowerUps[type].expiresAt = now + def.duration * 1000;
+}
+
+function isPowerUpActive(id) {
+  return activePowerUps[id]?.active === true;
+}
+
+// Fire cooldown is the smallest override contributed by an active power-up, or
+// the base cooldown when none apply.
+function getShootCooldownMs() {
+  let cooldown = GAME_CONFIG.shootCooldownMs;
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    if (def.shootCooldownMs !== undefined && isPowerUpActive(id)) {
+      cooldown = Math.min(cooldown, def.shootCooldownMs);
+    }
+  }
+  return cooldown;
+}
+
+// Hazard speed multiplier, compounding every active power-up that slows shards.
+function getShardSpeedFactor() {
+  let factor = 1;
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    if (def.shardSpeedFactor !== undefined && isPowerUpActive(id)) {
+      factor *= def.shardSpeedFactor;
+    }
+  }
+  return factor;
+}
+
+// Consume the first active hit-absorbing power-up; returns true if a hit was
+// negated so the caller can skip damage.
+function absorbHitWithPowerUp() {
+  for (const id of POWERUP_IDS) {
+    if (POWERUPS[id].absorbsHit && isPowerUpActive(id)) {
+      activePowerUps[id].active = false;
+      return true;
+    }
+  }
+  return false;
 }
 
 function splitShard(shard) {
@@ -881,7 +954,7 @@ function drawPlayer(now) {
   ctx.restore();
 
   // Draw shield if active
-  if (activePowerUps.shield.active) {
+  if (isPowerUpActive("shield")) {
     const shieldPulse = (Math.sin(now / 120) + 1) / 2;
     ctx.save();
     ctx.translate(player.x, player.y);
@@ -958,12 +1031,7 @@ function drawEffects() {
 
 function drawPowerUp(powerUp, now) {
   const glow = 0.5 + Math.sin(now * 0.008 + powerUp.x) * 0.5;
-  const colors = {
-    rapidFire: "#FFD700",
-    slowShards: "#87CEEB",
-    shield: "#FF69B4",
-  };
-  const color = colors[powerUp.type];
+  const color = POWERUPS[powerUp.type]?.color ?? COLORS.face;
 
   ctx.save();
   ctx.translate(powerUp.x, powerUp.y);
@@ -989,21 +1057,15 @@ function drawPowerUpIndicators(now) {
   let x = padding;
   const y = padding;
 
-  const types = ["rapidFire", "slowShards", "shield"];
-  const colors = {
-    rapidFire: "#FFD700",
-    slowShards: "#87CEEB",
-    shield: "#FF69B4",
-  };
-
-  for (const type of types) {
-    const power = activePowerUps[type];
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    const power = activePowerUps[id];
 
     ctx.save();
     if (power.active) {
-      ctx.shadowColor = colors[type];
+      ctx.shadowColor = def.color;
       ctx.shadowBlur = 12;
-      ctx.fillStyle = colors[type];
+      ctx.fillStyle = def.color;
       ctx.globalAlpha = 0.8;
     } else {
       ctx.fillStyle = COLORS.muted;
@@ -1016,8 +1078,8 @@ function drawPowerUpIndicators(now) {
 
     if (power.active) {
       const remaining = Math.max(0, power.expiresAt - now);
-      const progress = remaining / GAME_CONFIG.powerUpDuration;
-      ctx.strokeStyle = colors[type];
+      const progress = clamp(remaining / (def.duration * 1000), 0, 1);
+      ctx.strokeStyle = def.color;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(x, y, indicatorSize / 2 + 1, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
