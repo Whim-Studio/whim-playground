@@ -71,6 +71,12 @@ const GAME_CONFIG = {
   powerUpDuration: 10,
   rapidFireCooldownMs: 70,
   shardSlowFactor: 0.55,
+  // Power-shot tuning: bigger, faster bullets that pierce through extra hazards
+  // before being consumed. strongShotPierce is the number of additional shards a
+  // single bullet can punch through (0 = stops on first hit, like a base shot).
+  strongShotSpeed: 1180,
+  strongShotRadius: 11,
+  strongShotPierce: 2,
   maxHealth: 100,
   healthDamage: 25,
 };
@@ -85,6 +91,8 @@ const GAME_CONFIG = {
 //   - absorbsHit:       consumes the power-up to negate one incoming hit
 //   - blocksAllHits:    negates every incoming hit for the full duration
 //                       (timed invulnerability; not consumed per hit)
+//   - strongShots:      upgrades fired bullets (bigger, faster, piercing) using
+//                       the strongShot* tuning in GAME_CONFIG
 // rapidFire is the canonical sample proving the framework end-to-end.
 const POWERUPS = {
   rapidFire: {
@@ -107,6 +115,13 @@ const POWERUPS = {
     color: "#FF69B4",
     duration: GAME_CONFIG.powerUpDuration,
     blocksAllHits: true,
+  },
+  strongShots: {
+    id: "strongShots",
+    label: "Power shots",
+    color: "#FF8C42",
+    duration: GAME_CONFIG.powerUpDuration,
+    strongShots: true,
   },
 };
 const POWERUP_IDS = Object.keys(POWERUPS);
@@ -473,14 +488,18 @@ function shoot(now = performance.now()) {
   aimAngle = angle;
   lastShotAt = now;
   shotFrameUntil = now + 180;
+  const strong = getStrongShotsActive();
+  const bulletSpeed = strong ? GAME_CONFIG.strongShotSpeed : GAME_CONFIG.bulletSpeed;
   bullets.push({
     x: muzzleX,
     y: muzzleY,
-    vx: Math.cos(angle) * GAME_CONFIG.bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * GAME_CONFIG.bulletSpeed + player.vy * 0.18,
+    vx: Math.cos(angle) * bulletSpeed + player.vx * 0.18,
+    vy: Math.sin(angle) * bulletSpeed + player.vy * 0.18,
     age: 0,
     life: GAME_CONFIG.bulletLife,
-    radius: GAME_CONFIG.bulletRadius,
+    radius: strong ? GAME_CONFIG.strongShotRadius : GAME_CONFIG.bulletRadius,
+    pierce: strong ? GAME_CONFIG.strongShotPierce : 0,
+    strong,
   });
 
   player.vx -= Math.cos(angle) * 34;
@@ -710,6 +729,18 @@ function getShardSpeedFactor() {
   return factor;
 }
 
+// True while any active power-up upgrades the player's missiles. Read by shoot()
+// when stamping a new bullet, so a bullet keeps its strength for its whole flight
+// even if the power-up expires mid-air.
+function getStrongShotsActive() {
+  for (const id of POWERUP_IDS) {
+    if (POWERUPS[id].strongShots && isPowerUpActive(id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Negate an incoming hit using an active defensive power-up; returns true if the
 // hit was absorbed so the caller can skip damage. Timed blockers (blocksAllHits)
 // stay active for their full duration; one-shot absorbers (absorbsHit) are
@@ -771,11 +802,18 @@ function updateBullets(dt) {
         continue;
       }
 
-      bullets.splice(bulletIndex, 1);
       splitShard(shard);
       shards.splice(shardIndex, 1);
       clearScore += GAME_CONFIG.shardClearScore;
-      createBurst(shard.x, shard.y, 12, COLORS.face);
+      createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
+
+      // Power shots punch through up to `pierce` extra hazards before being
+      // consumed; base shots stop on the first hit.
+      if (bullet.pierce > 0) {
+        bullet.pierce -= 1;
+        continue;
+      }
+      bullets.splice(bulletIndex, 1);
       break;
     }
   }
@@ -906,11 +944,21 @@ function drawBullets() {
     const progress = bullet.age / bullet.life;
     ctx.save();
     ctx.globalAlpha = 1 - progress * 0.45;
-    ctx.strokeStyle = "rgba(255, 64, 200, 0.72)";
-    ctx.fillStyle = COLORS.face;
-    ctx.lineWidth = 1.4;
-    ctx.shadowColor = "rgba(255, 64, 200, 0.38)";
-    ctx.shadowBlur = 12;
+    if (bullet.strong) {
+      // Power shots read as hotter, heavier slugs than the base bullet.
+      const strongColor = POWERUPS.strongShots.color;
+      ctx.strokeStyle = strongColor;
+      ctx.fillStyle = "#FFE3C2";
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = strongColor;
+      ctx.shadowBlur = 20;
+    } else {
+      ctx.strokeStyle = "rgba(255, 64, 200, 0.72)";
+      ctx.fillStyle = COLORS.face;
+      ctx.lineWidth = 1.4;
+      ctx.shadowColor = "rgba(255, 64, 200, 0.38)";
+      ctx.shadowBlur = 12;
+    }
     ctx.beginPath();
     ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
     ctx.fill();
