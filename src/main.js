@@ -631,6 +631,8 @@ function updateShards(dt) {
     shard.pulse += dt * 2;
   }
 
+  resolveShardCollisions();
+
   if (state !== GAME_STATE.PLAYING || elapsed < 0.65 || invulnerableTimer > 0) {
     return;
   }
@@ -644,6 +646,51 @@ function updateShards(dt) {
         takeDamage();
       }
       break;
+    }
+  }
+}
+
+function resolveShardCollisions() {
+  // Treat each shard's mass as proportional to its area so larger rocks shove
+  // smaller ones convincingly. This is a simple equal-restitution elastic
+  // bounce along the contact normal — good enough for the arcade feel.
+  for (let i = 0; i < shards.length; i++) {
+    const a = shards[i];
+    for (let j = i + 1; j < shards.length; j++) {
+      const b = shards[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const minDist = a.radius + b.radius;
+      const distSq = dx * dx + dy * dy;
+      if (distSq >= minDist * minDist || distSq === 0) {
+        continue;
+      }
+
+      const dist = Math.sqrt(distSq);
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Push the pair apart so they stop overlapping.
+      const overlap = minDist - dist;
+      const massA = a.radius * a.radius;
+      const massB = b.radius * b.radius;
+      const totalMass = massA + massB;
+      a.x -= nx * overlap * (massB / totalMass);
+      a.y -= ny * overlap * (massB / totalMass);
+      b.x += nx * overlap * (massA / totalMass);
+      b.y += ny * overlap * (massA / totalMass);
+
+      // Only exchange momentum if they are approaching each other.
+      const relVel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (relVel >= 0) {
+        continue;
+      }
+
+      const impulse = (2 * relVel) / totalMass;
+      a.vx += impulse * massB * nx;
+      a.vy += impulse * massB * ny;
+      b.vx -= impulse * massA * nx;
+      b.vy -= impulse * massA * ny;
     }
   }
 }
