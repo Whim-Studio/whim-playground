@@ -28,6 +28,94 @@ const overlayCopyEl = document.querySelector("#overlayCopy");
 const restartButton = document.querySelector("#restartButton");
 const shootButton = document.querySelector("#shootButton");
 const pauseButton = document.querySelector("#pauseButton");
+const muteButton = document.querySelector("#muteButton");
+
+// Lightweight Web Audio SFX, synthesized on the fly so the demo ships no audio
+// assets. The context is created lazily and resumed on the first user gesture
+// (browsers block audio until then). Every cue is a short tone/noise envelope.
+const sound = (() => {
+  let ctx = null;
+  let muted = false;
+
+  function ensure() {
+    if (ctx) return ctx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    ctx = new Ctx();
+    return ctx;
+  }
+
+  function tone({ freq = 440, type = "sine", duration = 0.15, gain = 0.2, sweep = 0 }) {
+    if (muted) return;
+    const ac = ensure();
+    if (!ac) return;
+    if (ac.state === "suspended") ac.resume();
+    const now = ac.currentTime;
+    const osc = ac.createOscillator();
+    const env = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (sweep) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + sweep), now + duration);
+    }
+    env.gain.setValueAtTime(0.0001, now);
+    env.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+    env.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(env).connect(ac.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+
+  function noise({ duration = 0.2, gain = 0.25 }) {
+    if (muted) return;
+    const ac = ensure();
+    if (!ac) return;
+    if (ac.state === "suspended") ac.resume();
+    const now = ac.currentTime;
+    const frames = Math.floor(ac.sampleRate * duration);
+    const buffer = ac.createBuffer(1, frames, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    }
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    const env = ac.createGain();
+    env.gain.value = gain;
+    src.connect(env).connect(ac.destination);
+    src.start(now);
+  }
+
+  return {
+    get muted() {
+      return muted;
+    },
+    setMuted(value) {
+      muted = value;
+      if (!muted) ensure()?.resume?.();
+      return muted;
+    },
+    resume() {
+      ensure()?.resume?.();
+    },
+    shoot() {
+      tone({ freq: 620, type: "square", duration: 0.09, gain: 0.1, sweep: -260 });
+    },
+    explosion() {
+      noise({ duration: 0.22, gain: 0.16 });
+      tone({ freq: 190, type: "sawtooth", duration: 0.2, gain: 0.08, sweep: -90 });
+    },
+    power() {
+      tone({ freq: 520, type: "triangle", duration: 0.13, gain: 0.16, sweep: 360 });
+    },
+    hit() {
+      tone({ freq: 150, type: "sawtooth", duration: 0.25, gain: 0.2, sweep: -60 });
+    },
+    gameOver() {
+      tone({ freq: 320, type: "sawtooth", duration: 0.5, gain: 0.18, sweep: -200 });
+    },
+  };
+})();
 
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
@@ -369,6 +457,7 @@ function endRound() {
   state = GAME_STATE.OVER;
   showGameOverOverlay();
   updatePauseButton();
+  sound.gameOver();
   createBurst(player.x, player.y, 26, COLORS.danger);
   updateScorebar();
 }
@@ -521,6 +610,7 @@ function shoot(now = performance.now()) {
   player.vx -= Math.cos(angle) * 34;
   player.vy -= Math.sin(angle) * 34;
   createBurst(muzzleX, muzzleY, 6, COLORS.face);
+  sound.shoot();
 }
 
 function getInputVector() {
@@ -668,6 +758,7 @@ function takeDamage() {
   player.health = Math.max(0, player.health - GAME_CONFIG.healthDamage);
   createBurst(player.x, player.y, 14, COLORS.danger);
   invulnerableTimer = GAME_CONFIG.hitInvulnerabilityTime;
+  sound.hit();
 
   if (player.health <= 0) {
     loseLife();
@@ -714,6 +805,7 @@ function activatePowerUp(type, now) {
   // Durations live in seconds (GAME_CONFIG convention); the loop clock is in
   // milliseconds, so convert here when stamping the expiry.
   activePowerUps[type].expiresAt = now + def.duration * 1000;
+  sound.power();
 }
 
 function isPowerUpActive(id) {
@@ -827,6 +919,7 @@ function updateBullets(dt) {
       const comboMultiplier = Math.min(comboCount, GAME_CONFIG.comboMax);
       clearScore += GAME_CONFIG.shardClearScore * comboMultiplier;
       createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
+      sound.explosion();
 
       // Power shots punch through up to `pierce` extra hazards before being
       // consumed; base shots stop on the first hit.
@@ -1289,6 +1382,16 @@ function moveKeyFor(event) {
 }
 
 function handleKeyDown(event) {
+  // First keypress doubles as the gesture that unlocks audio playback.
+  sound.resume();
+
+  // M toggles mute from anywhere.
+  if (event.code === "KeyM") {
+    event.preventDefault();
+    toggleMute();
+    return;
+  }
+
   // Escape / P toggle pause while a round is in progress.
   if ((event.key === "Escape" || event.code === "KeyP") &&
       (state === GAME_STATE.PLAYING || state === GAME_STATE.PAUSED)) {
@@ -1334,6 +1437,7 @@ function updatePointerTarget(event) {
 function handlePointerDown(event) {
   if (event.button !== undefined && event.button !== 0) return;
   event.preventDefault();
+  sound.resume();
 
   pointerTarget.active = true;
   pointerTarget.pointerId = event.pointerId;
@@ -1386,7 +1490,20 @@ function togglePause() {
   updatePauseButton();
 }
 
+function updateMuteButton() {
+  const muted = sound.muted;
+  muteButton.textContent = muted ? "Sound: Off" : "Sound: On";
+  muteButton.setAttribute("aria-pressed", String(muted));
+  muteButton.classList.toggle("is-paused", muted);
+}
+
+function toggleMute() {
+  sound.setMuted(!sound.muted);
+  updateMuteButton();
+}
+
 function triggerShootButton() {
+  sound.resume();
   if (state === GAME_STATE.PAUSED) return;
   if (state !== GAME_STATE.PLAYING) {
     resetRound();
@@ -1411,6 +1528,7 @@ function handleShootButtonClick(event) {
 
 restartButton.addEventListener("click", resetRound);
 pauseButton.addEventListener("click", togglePause);
+muteButton.addEventListener("click", toggleMute);
 shootButton.addEventListener("pointerdown", handleShootButtonPointerDown, {
   passive: false,
 });
@@ -1434,6 +1552,7 @@ if ("ResizeObserver" in window) {
 
 resizeCanvas();
 showIntroOverlay();
+updateMuteButton();
 updateScorebar();
 requestAnimationFrame((now) => {
   resizeCanvas();
