@@ -62,6 +62,10 @@ const GAME_CONFIG = {
   bulletRadius: 6,
   shootCooldownMs: 190,
   shardClearScore: 35,
+  // Combo: each shard cleared within comboWindow seconds of the last keeps the
+  // chain alive and raises the score multiplier (capped at comboMax).
+  comboWindow: 2.4,
+  comboMax: 8,
   shardSplitThreshold: 12,
   shardSplitCount: 2,
   shardSplitSpeedBoost: 1.4,
@@ -189,6 +193,8 @@ let state = GAME_STATE.INTRO;
 let elapsed = 0;
 let score = 0;
 let clearScore = 0;
+let comboCount = 0;
+let comboTimer = 0;
 let lastTime = performance.now();
 let hasPlacedPlayer = false;
 let spawnTimer = 0.4;
@@ -330,6 +336,8 @@ function resetRound() {
   elapsed = 0;
   score = 0;
   clearScore = 0;
+  comboCount = 0;
+  comboTimer = 0;
   lives = GAME_CONFIG.startingLives;
   player.health = GAME_CONFIG.maxHealth;
   invulnerableTimer = 0;
@@ -806,7 +814,12 @@ function updateBullets(dt) {
 
       splitShard(shard);
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
+      // Chaining kills within comboWindow raises the multiplier applied to the
+      // points this clear is worth.
+      comboCount += 1;
+      comboTimer = GAME_CONFIG.comboWindow;
+      const comboMultiplier = Math.min(comboCount, GAME_CONFIG.comboMax);
+      clearScore += GAME_CONFIG.shardClearScore * comboMultiplier;
       createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
 
       // Power shots punch through up to `pierce` extra hazards before being
@@ -870,6 +883,11 @@ function update(dt, now) {
   if (state === GAME_STATE.PLAYING) {
     elapsed += dt;
     invulnerableTimer = Math.max(0, invulnerableTimer - dt);
+    // Combo decays in real time; let it lapse and the chain resets.
+    if (comboTimer > 0) {
+      comboTimer = Math.max(0, comboTimer - dt);
+      if (comboTimer === 0) comboCount = 0;
+    }
     score = elapsed * GAME_CONFIG.scoreRate + clearScore;
     updatePlayer(dt, now);
     updateShards(dt);
@@ -1193,6 +1211,41 @@ function draw(now) {
   drawBullets();
   drawPlayer(now);
   drawPowerUpIndicators(now);
+  drawComboMeter(now);
+}
+
+// Combo HUD: top-center multiplier with a draining timer bar. Only shows once a
+// real chain (>= 2) is going so single kills stay quiet.
+function drawComboMeter(now) {
+  if (state !== GAME_STATE.PLAYING || comboCount < 2) return;
+
+  const multiplier = Math.min(comboCount, GAME_CONFIG.comboMax);
+  const remaining = clamp(comboTimer / GAME_CONFIG.comboWindow, 0, 1);
+  const pulse = (Math.sin(now / 110) + 1) / 2;
+  const x = width / 2;
+  const y = 34;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = COLORS.face;
+  ctx.shadowBlur = 14 + pulse * 8;
+  ctx.fillStyle = COLORS.face;
+  ctx.font = "700 26px system-ui, sans-serif";
+  ctx.fillText(`x${multiplier}`, x, y);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = "600 11px system-ui, sans-serif";
+  ctx.fillText("COMBO", x, y + 18);
+
+  // Draining timer bar beneath the label.
+  const barWidth = 58;
+  const barY = y + 28;
+  ctx.fillStyle = "rgba(142, 170, 196, 0.25)";
+  ctx.fillRect(x - barWidth / 2, barY, barWidth, 3);
+  ctx.fillStyle = COLORS.face;
+  ctx.fillRect(x - barWidth / 2, barY, barWidth * remaining, 3);
+  ctx.restore();
 }
 
 function loop(now) {
