@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Whim Asteroids</title>
+    <title>Whim Royale</title>
     <meta
       name="description"
-      content="A minimal Whim-themed HTML5 canvas asteroid game."
+      content="A minimal Whim-themed HTML5 canvas battle-royale game with a shrinking storm."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,11 +20,11 @@
       <header class="scorebar" aria-label="Game stats">
         <div class="scorebar__stats">
           <span class="stat">
-            <span class="stat__label">Points</span>
-            <strong id="score">000000</strong>
+            <span class="stat__label">Eliminations</span>
+            <strong id="score">00</strong>
           </span>
           <span class="stat">
-            <span class="stat__label">Time</span>
+            <span class="stat__label">Storm closing</span>
             <strong id="roundTime">00:00</strong>
           </span>
           <span class="stat">
@@ -40,10 +40,10 @@
         </div>
       </header>
 
-      <main class="game-shell" aria-label="Whim Asteroids game">
+      <main class="game-shell" aria-label="Whim Royale game">
         <canvas
           id="gameCanvas"
-          aria-label="Whim Asteroids canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot."
+          aria-label="Whim Royale canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot. Stay inside the storm's safe zone."
         ></canvas>
         <button
           id="shootButton"
@@ -55,13 +55,13 @@
         </button>
         <div id="gameOverlay" class="game-overlay" hidden>
           <div class="game-overlay__panel">
-            <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>
-            <strong id="overlayTitle">Whim Asteroids</strong>
+            <span id="overlayEyebrow" class="game-overlay__eyebrow">Drop in</span>
+            <strong id="overlayTitle">Whim Royale</strong>
             <p id="overlayCopy" class="game-overlay__copy">
-              Arrow keys or drag to move. Space shoots. Clear shards and keep
-              the face moving.
+              Move with arrow keys or drag, Space to fire. Stay inside the eye
+              of the storm and outlast it for the Victory Royale.
             </p>
-            <button id="restartButton" type="button">Start</button>
+            <button id="restartButton" type="button">Drop in</button>
           </div>
         </div>
       </main>
