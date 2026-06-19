@@ -31,15 +31,15 @@ const shootButton = document.querySelector("#shootButton");
 // Palette mirrors Whim's landing/onboarding blue surface, with terracotta used
 // only as an end-state accent. Canvas art and CSS chrome should stay aligned.
 const COLORS = {
-  background: "#172a45",
-  surface: "#1e3355",
-  surfaceHover: "#243d62",
-  border: "#2a4a6e",
+  background: "#2a0e14",
+  surface: "#3a141d",
+  surfaceHover: "#4a1a25",
+  border: "#5a2530",
   foreground: "#e8e4de",
   muted: "#8eaac4",
-  face: "#64CDFC",
-  faceSoft: "rgba(100, 205, 252, 0.14)",
-  faceLine: "rgba(100, 205, 252, 0.52)",
+  face: "#FF4D4D",
+  faceSoft: "rgba(255, 77, 77, 0.14)",
+  faceLine: "rgba(255, 77, 77, 0.52)",
   danger: "#d4836c",
 };
 
@@ -209,6 +209,11 @@ let burstParticles = [];
 let starField = [];
 let powerUps = [];
 let activePowerUps = createActivePowerUpState();
+// Friendly helpers: a squirrel that hunts and smashes hazards, and a dolphin in
+// a dress that occasionally drops by to shield the player and then flies off.
+let squirrel = null;
+let dolphin = null;
+let dolphinTimer = 0;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -347,6 +352,9 @@ function resetRound() {
   burstParticles = [];
   powerUps = [];
   activePowerUps = createActivePowerUpState();
+  createSquirrel();
+  dolphin = null;
+  dolphinTimer = randomBetween(7, 11);
   centerPlayer();
   overlayEl.hidden = true;
   updateScorebar();
@@ -378,10 +386,12 @@ function createShardPoints(radius) {
   });
 }
 
-function spawnShard(x, y, vx, vy) {
+function spawnShard(x, y, vx, vy, kind = "asteroid") {
   // Hazards spawn just offscreen, then aim roughly toward the playfield center
   // with jitter. This feels intentional without requiring pathfinding.
   // When x/y/vx/vy are provided, this is a split from a destroyed shard.
+  // `kind` controls rendering: fresh hazards are jagged asteroids; pieces broken
+  // off a destroyed asteroid become bouncy basketballs.
   const isSpawned = x === undefined;
 
   let startX = x;
@@ -436,6 +446,7 @@ function spawnShard(x, y, vx, vy) {
     angle: Math.random() * Math.PI * 2,
     spin: randomBetween(-1.3, 1.3),
     pulse: Math.random() * Math.PI * 2,
+    kind,
   });
 }
 
@@ -591,14 +602,15 @@ function getFaceFrame(now, moving) {
   // blink/smile while idle, smile during shots, blink on game over.
   if (state === GAME_STATE.OVER) return "blink";
   if (state === GAME_STATE.INTRO) return "default";
-  if (now < shotFrameUntil) return "smile";
+  // He's always mad — never smile. Shots and movement just agitate the glyph.
+  if (now < shotFrameUntil) return "motion2";
   if (moving) {
     return MOTION_SEQUENCE[Math.floor(now / 96) % MOTION_SEQUENCE.length];
   }
 
   if (now >= nextIdleFrameAt && now >= idleFrameUntil) {
-    idleFrame = Math.random() < 0.68 ? "blink" : "smile";
-    idleFrameUntil = now + (idleFrame === "blink" ? 260 : 560);
+    idleFrame = "blink";
+    idleFrameUntil = now + 260;
     nextIdleFrameAt = now + randomBetween(2600, 7600);
   }
 
@@ -776,7 +788,8 @@ function splitShard(shard) {
     const vx = Math.cos(angle) * boostedSpeed;
     const vy = Math.sin(angle) * boostedSpeed;
 
-    spawnShard(shard.x, shard.y, vx, vy);
+    // Broken-off pieces turn into basketballs.
+    spawnShard(shard.x, shard.y, vx, vy, "basketball");
   }
 
   if (Math.random() < GAME_CONFIG.powerUpSpawnChance) {
@@ -848,6 +861,303 @@ function updateActivePowerUps(now) {
   }
 }
 
+function createSquirrel() {
+  squirrel = {
+    x: width * 0.5,
+    y: height * 0.65,
+    vx: 0,
+    vy: 0,
+    radius: 16,
+    facing: 1,
+    runPhase: 0,
+    wander: Math.random() * Math.PI * 2,
+  };
+}
+
+// The squirrel sprints toward the nearest hazard and smashes it on contact,
+// breaking it exactly as a bullet would (so asteroids still become basketballs).
+function updateSquirrel(dt) {
+  if (!squirrel || state !== GAME_STATE.PLAYING) return;
+
+  let target = null;
+  let best = Infinity;
+  for (const shard of shards) {
+    const d = Math.hypot(shard.x - squirrel.x, shard.y - squirrel.y);
+    if (d < best) {
+      best = d;
+      target = shard;
+    }
+  }
+
+  let ax;
+  let ay;
+  if (target) {
+    const ang = Math.atan2(target.y - squirrel.y, target.x - squirrel.x);
+    ax = Math.cos(ang);
+    ay = Math.sin(ang);
+  } else {
+    // No hazards: scamper around on a slowly drifting heading.
+    squirrel.wander += randomBetween(-0.12, 0.12);
+    ax = Math.cos(squirrel.wander);
+    ay = Math.sin(squirrel.wander);
+  }
+
+  const accel = 1100;
+  squirrel.vx += ax * accel * dt;
+  squirrel.vy += ay * accel * dt;
+  const maxSpeed = target ? 460 : 240;
+  const sp = Math.hypot(squirrel.vx, squirrel.vy);
+  if (sp > maxSpeed) {
+    squirrel.vx *= maxSpeed / sp;
+    squirrel.vy *= maxSpeed / sp;
+  }
+  squirrel.vx *= 0.9 ** (dt * 60);
+  squirrel.vy *= 0.9 ** (dt * 60);
+
+  squirrel.x = wrap(squirrel.x + squirrel.vx * dt, width);
+  squirrel.y = wrap(squirrel.y + squirrel.vy * dt, height);
+  if (Math.abs(squirrel.vx) > 10) squirrel.facing = Math.sign(squirrel.vx);
+  squirrel.runPhase += dt * (6 + sp * 0.03);
+
+  for (let i = shards.length - 1; i >= 0; i -= 1) {
+    const shard = shards[i];
+    const hit = squirrel.radius + shard.radius * 0.7;
+    if (Math.hypot(shard.x - squirrel.x, shard.y - squirrel.y) <= hit) {
+      splitShard(shard);
+      shards.splice(i, 1);
+      clearScore += GAME_CONFIG.shardClearScore;
+      createBurst(shard.x, shard.y, 12, "#C8743C");
+    }
+  }
+}
+
+function drawSquirrel() {
+  if (!squirrel) return;
+  const r = squirrel.radius;
+  const bob = Math.sin(squirrel.runPhase * 2) * 2;
+  const legSwing = Math.sin(squirrel.runPhase * 2) * r * 0.4;
+
+  ctx.save();
+  ctx.translate(squirrel.x, squirrel.y + bob);
+  ctx.scale(squirrel.facing, 1);
+
+  // Bushy tail behind the body.
+  ctx.fillStyle = "#7a4a22";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.55, r * 0.25);
+  ctx.quadraticCurveTo(-r * 1.7, -r * 0.1, -r * 1.05, -r * 1.25);
+  ctx.quadraticCurveTo(-r * 0.65, -r * 0.5, -r * 0.15, -r * 0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Running legs.
+  ctx.strokeStyle = "#7a4a22";
+  ctx.lineWidth = r * 0.16;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(r * 0.22, r * 0.35);
+  ctx.lineTo(r * 0.22 + legSwing, r * 0.75);
+  ctx.moveTo(-r * 0.18, r * 0.35);
+  ctx.lineTo(-r * 0.18 - legSwing, r * 0.75);
+  ctx.stroke();
+
+  // Body + belly.
+  ctx.fillStyle = "#a8703a";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.72, r * 0.56, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e7c79a";
+  ctx.beginPath();
+  ctx.ellipse(r * 0.16, r * 0.14, r * 0.4, r * 0.32, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head, ear, eye.
+  ctx.fillStyle = "#a8703a";
+  ctx.beginPath();
+  ctx.arc(r * 0.66, -r * 0.34, r * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(r * 0.58, -r * 0.7);
+  ctx.lineTo(r * 0.78, -r * 1.08);
+  ctx.lineTo(r * 0.98, -r * 0.62);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#1a1008";
+  ctx.beginPath();
+  ctx.arc(r * 0.82, -r * 0.4, r * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function maybeSpawnDolphin(dt) {
+  if (state !== GAME_STATE.PLAYING || dolphin) return;
+  dolphinTimer -= dt;
+  if (dolphinTimer <= 0) {
+    spawnDolphin();
+  }
+}
+
+function spawnDolphin() {
+  const edge = Math.floor(Math.random() * 4);
+  let x;
+  let y;
+  if (edge === 0) {
+    x = randomBetween(0, width);
+    y = -90;
+  } else if (edge === 1) {
+    x = width + 90;
+    y = randomBetween(0, height);
+  } else if (edge === 2) {
+    x = randomBetween(0, width);
+    y = height + 90;
+  } else {
+    x = -90;
+    y = randomBetween(0, height);
+  }
+  dolphin = {
+    x,
+    y,
+    radius: 26,
+    phase: "arrive",
+    heading: 0,
+    giftTimer: 0,
+    gifted: false,
+    bob: Math.random() * Math.PI * 2,
+  };
+}
+
+// Dolphin lifecycle: swim in toward the player, hover briefly while granting a
+// shield, then bolt off the nearest edge and despawn until the next visit.
+function updateDolphin(dt, now) {
+  if (!dolphin) return;
+  dolphin.bob += dt * 4;
+  const speed = 280;
+
+  if (dolphin.phase === "arrive") {
+    dolphin.heading = Math.atan2(player.y - dolphin.y, player.x - dolphin.x);
+    dolphin.x += Math.cos(dolphin.heading) * speed * dt;
+    dolphin.y += Math.sin(dolphin.heading) * speed * dt;
+    if (Math.hypot(player.x - dolphin.x, player.y - dolphin.y) < player.radius + 64) {
+      dolphin.phase = "gift";
+      dolphin.giftTimer = 0.9;
+    }
+  } else if (dolphin.phase === "gift") {
+    if (!dolphin.gifted) {
+      activatePowerUp("shield", now);
+      createBurst(player.x, player.y, 18, POWERUPS.shield.color);
+      dolphin.gifted = true;
+    }
+    dolphin.giftTimer -= dt;
+    if (dolphin.giftTimer <= 0) {
+      dolphin.phase = "leave";
+      const toLeft = dolphin.x;
+      const toRight = width - dolphin.x;
+      const toTop = dolphin.y;
+      const toBot = height - dolphin.y;
+      const min = Math.min(toLeft, toRight, toTop, toBot);
+      if (min === toLeft) dolphin.heading = Math.PI;
+      else if (min === toRight) dolphin.heading = 0;
+      else if (min === toTop) dolphin.heading = -Math.PI / 2;
+      else dolphin.heading = Math.PI / 2;
+    }
+  } else {
+    const leaveSpeed = speed * 1.6;
+    dolphin.x += Math.cos(dolphin.heading) * leaveSpeed * dt;
+    dolphin.y += Math.sin(dolphin.heading) * leaveSpeed * dt;
+    if (
+      dolphin.x < -140 || dolphin.x > width + 140 ||
+      dolphin.y < -140 || dolphin.y > height + 140
+    ) {
+      dolphin = null;
+      dolphinTimer = randomBetween(12, 20);
+    }
+  }
+}
+
+function drawDolphin() {
+  if (!dolphin) return;
+  const r = dolphin.radius;
+  const faceDir = Math.cos(dolphin.heading) >= 0 ? 1 : -1;
+  const bobY = Math.sin(dolphin.bob) * 4;
+
+  ctx.save();
+  ctx.translate(dolphin.x, dolphin.y + bobY);
+  ctx.scale(faceDir, 1);
+  ctx.rotate(Math.sin(dolphin.bob) * 0.06);
+
+  // Body.
+  ctx.fillStyle = "#5c7a99";
+  ctx.beginPath();
+  ctx.moveTo(-r * 1.3, 0);
+  ctx.quadraticCurveTo(-r * 0.3, -r * 0.95, r * 1.1, -r * 0.18);
+  ctx.quadraticCurveTo(r * 1.55, 0, r * 1.1, r * 0.12);
+  ctx.quadraticCurveTo(-r * 0.3, r * 0.62, -r * 1.3, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lighter belly.
+  ctx.fillStyle = "#9fb8cf";
+  ctx.beginPath();
+  ctx.moveTo(r * 1.0, r * 0.06);
+  ctx.quadraticCurveTo(-r * 0.2, r * 0.52, -r * 1.0, r * 0.05);
+  ctx.quadraticCurveTo(-r * 0.2, r * 0.22, r * 1.0, r * 0.06);
+  ctx.fill();
+
+  // Tail fluke.
+  ctx.fillStyle = "#5c7a99";
+  ctx.beginPath();
+  ctx.moveTo(-r * 1.1, 0);
+  ctx.lineTo(-r * 1.75, -r * 0.5);
+  ctx.lineTo(-r * 1.5, 0);
+  ctx.lineTo(-r * 1.75, r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Dorsal fin.
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.1, -r * 0.58);
+  ctx.lineTo(r * 0.22, -r * 1.18);
+  ctx.lineTo(r * 0.46, -r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eye.
+  ctx.fillStyle = "#10202e";
+  ctx.beginPath();
+  ctx.arc(r * 0.8, -r * 0.22, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  // The dress: a flared pink frock around the midsection.
+  ctx.fillStyle = "#ff5db1";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.18, -r * 0.52);
+  ctx.lineTo(r * 0.36, -r * 0.42);
+  ctx.lineTo(r * 0.78, r * 0.72);
+  ctx.lineTo(-r * 0.62, r * 0.58);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#ffd1e8";
+  ctx.lineWidth = r * 0.1;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // Polka dots on the dress.
+  ctx.fillStyle = "#ffd1e8";
+  for (const [dx, dy] of [
+    [r * 0.02, r * 0.0],
+    [r * 0.34, r * 0.28],
+    [-r * 0.18, r * 0.34],
+    [r * 0.18, -r * 0.18],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(dx, dy, r * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 function updateEffects(dt) {
   for (const trail of trails) {
     trail.age += dt;
@@ -873,6 +1183,9 @@ function update(dt, now) {
     updateShards(dt);
     updateBullets(dt);
     updatePowerUps(dt, now);
+    updateSquirrel(dt);
+    maybeSpawnDolphin(dt);
+    updateDolphin(dt, now);
   }
 
   updateActivePowerUps(now);
@@ -912,7 +1225,48 @@ function drawBackground(now) {
   ctx.globalAlpha = 1;
 }
 
+function drawBasketball(shard) {
+  const r = shard.radius;
+  ctx.save();
+  ctx.translate(shard.x, shard.y);
+  ctx.rotate(shard.angle);
+
+  // Orange ball body.
+  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+  grad.addColorStop(0, "#F39B5A");
+  grad.addColorStop(1, "#D2691E");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Black seams: outline, the two great-circle lines, and the curved side seams.
+  ctx.strokeStyle = "rgba(20, 12, 6, 0.9)";
+  ctx.lineWidth = Math.max(1.2, r * 0.07);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.moveTo(-r, 0);
+  ctx.lineTo(r, 0);
+  ctx.moveTo(0, -r);
+  ctx.lineTo(0, r);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.55, 0, r * 0.5, r, 0, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(r * 0.55, 0, r * 0.5, r, 0, Math.PI / 2, (3 * Math.PI) / 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawShard(shard) {
+  if (shard.kind === "basketball") {
+    drawBasketball(shard);
+    return;
+  }
+
   const alpha = 0.7 + Math.sin(shard.pulse) * 0.12;
 
   ctx.save();
@@ -1001,8 +1355,8 @@ function drawPlayer(now) {
   ctx.save();
   ctx.translate(player.x, player.y);
   ctx.rotate(player.rotation);
-  ctx.fillStyle = "rgba(100, 205, 252, 0.055)";
-  ctx.strokeStyle = "rgba(100, 205, 252, 0.18)";
+  ctx.fillStyle = "rgba(255, 77, 77, 0.055)";
+  ctx.strokeStyle = "rgba(255, 77, 77, 0.18)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.ellipse(0, 0, player.size * 0.62, player.size * 0.46, 0, 0, Math.PI * 2);
@@ -1032,7 +1386,7 @@ function drawPlayer(now) {
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.rotate(aimAngle);
-    ctx.strokeStyle = `rgba(100, 205, 252, ${shotPulse * 0.5})`;
+    ctx.strokeStyle = `rgba(255, 77, 77, ${shotPulse * 0.5})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(
@@ -1046,19 +1400,48 @@ function drawPlayer(now) {
     ctx.restore();
   }
 
+  // He's permanently furious: a fast tremble, a hot red glare, and angry brows.
+  const trembleX = Math.sin(now * 0.05) * 1.4 + Math.sin(now * 0.13) * 0.8;
+  const trembleY = Math.cos(now * 0.047) * 1.4 + Math.cos(now * 0.11) * 0.8;
+  const faceX = player.x + trembleX;
+  const faceY = player.y + trembleY;
+
   ctx.save();
-  ctx.shadowColor = "rgba(100, 205, 252, 0.34)";
-  ctx.shadowBlur = 22;
+  ctx.shadowColor = "rgba(255, 32, 32, 0.85)";
+  ctx.shadowBlur = 30;
   drawFace(
     frame,
-    player.x,
-    player.y,
+    faceX,
+    faceY,
     player.size * (1 + shotPulse * 0.04),
     player.rotation,
     1,
+    "#FF2A1A",
   );
   ctx.restore();
+
+  drawAngryBrows(faceX, faceY, player.size, player.rotation);
   ctx.globalAlpha = 1;
+}
+
+function drawAngryBrows(x, y, size, rotation) {
+  // Two thick brows angled down toward the center — the universal "mad" signal.
+  // Drawn over the face so the abstract Whim glyph reads as angry.
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.strokeStyle = "#7a0000";
+  ctx.lineWidth = Math.max(3, size * 0.07);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  // Left brow: outer-high to inner-low.
+  ctx.moveTo(-size * 0.36, -size * 0.5);
+  ctx.lineTo(-size * 0.08, -size * 0.36);
+  // Right brow: inner-low to outer-high.
+  ctx.moveTo(size * 0.08, -size * 0.36);
+  ctx.lineTo(size * 0.36, -size * 0.5);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawEffects() {
@@ -1160,7 +1543,7 @@ function drawPointerGuide() {
   const alpha = clamp(distance / 220, 0.12, 0.42);
 
   ctx.save();
-  ctx.strokeStyle = `rgba(100, 205, 252, ${alpha})`;
+  ctx.strokeStyle = `rgba(255, 77, 77, ${alpha})`;
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 8]);
   ctx.beginPath();
@@ -1188,6 +1571,8 @@ function draw(now) {
     drawPowerUp(powerUp, now);
   }
 
+  drawSquirrel();
+  drawDolphin();
   drawBullets();
   drawPlayer(now);
   drawPowerUpIndicators(now);
