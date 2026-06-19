@@ -61,13 +61,18 @@ const COLORS = {
   faceGlow: "rgba(255, 42, 36, 0.85)",
   // Star tint — a faint warm rose so the field reads as part of the red world.
   star: "#ffd9c2",
-  // Hazards: jagged asteroids glow as cool embers; basketballs keep their orange.
+  // Hazards: every enemy reads as ember matter in the same warm-red void.
+  // Identity is carried by silhouette + motion, not hue — color stays inside the
+  // ember family (cooler/crimson = bigger & slower, whiter-hot = faster).
   hazard: "#ff7a59",
   hazardSoft: "rgba(255, 122, 89, 0.07)",
   hazardLine: "rgba(255, 122, 89, 0.5)",
-  ballHi: "#ff9d5c",
-  ballLo: "#c2461b",
-  ballSeam: "rgba(26, 6, 8, 0.9)",
+  emberCore: "#ffb070", // hottest center for any molten body
+  cinderEdge: "#7a1f12", // dark cooled crust / outline for rock
+  cinderGlow: "rgba(255, 138, 74, 0.18)", // soft heat halo for new kinds
+  moteHot: "#ff8a4a", // small fast embers / sparks
+  veilCore: "#ff5e6e", // cool plasma/gas body (leans crimson, not orange)
+  veilGlow: "rgba(255, 94, 110, 0.22)",
   // Friendly helpers, tinted to belong to the same warm world.
   squirrel: "#c2461b",
   danger: "#e08a6f",
@@ -113,6 +118,13 @@ const GAME_CONFIG = {
   spreadShotAngle: 0.22, // radians between Triple Tap pellets
   scoreMultiplierValue: 2, // Bounty: multiplier applied to clear-score only
   repairAmount: 50, // Repair: instant partial heal (kept partial to avoid snowballing)
+  // Per-kind movement tuning for the ember enemy roster (see spawnShard /
+  // updateShards). Multipliers scale a freshly-rolled asteroid speed.
+  lanceSpeedMult: 1.85, // streaker: fastest, dead-straight, no spin
+  cinderSpeedMult: 1.25, // split debris: fast, gently arcing
+  cinderCurve: 0.6, // rad/s heading rotation that makes cinders arc
+  drifterSpeedMult: 0.5, // plasma blob: slow looming body
+  drifterTurn: 0.5, // rad/s CAPPED homing turn toward the player (dodgeable)
 };
 
 // Extensible power-up framework. To add a new power-up, append one entry here
@@ -500,20 +512,46 @@ function createShardPoints(radius) {
   });
 }
 
+// Difficulty-gated kind roll for a FRESH hazard. Early game (d~0) is almost
+// pure asteroids — the calm opening the rebalance added is preserved. Faster
+// streakers (lance) phase in first, then slow looming drifters as d climbs.
+// `cinder` is intentionally absent here: it only ever exists as split debris,
+// keeping its "broke off something" meaning intact.
+function pickFreshShardKind() {
+  const d = getDifficulty();
+  // Weights ramp with difficulty. asteroid is always the floor.
+  const weights = {
+    asteroid: 1.0,
+    lance: 0.15 + d * 0.6, // a little even early (reactive dodge spike), grows
+    drifter: clamp((d - 0.35) / 0.65, 0, 1) * 0.5, // loomers only enter mid-game
+  };
+  const total = weights.asteroid + weights.lance + weights.drifter;
+  let r = Math.random() * total;
+  for (const kind of ["lance", "drifter"]) {
+    r -= weights[kind];
+    if (r < 0) return kind;
+  }
+  return "asteroid";
+}
+
 function spawnShard(x, y, vx, vy, kind = "asteroid") {
   // Hazards spawn just offscreen, then aim roughly toward the playfield center
   // with jitter. This feels intentional without requiring pathfinding.
-  // When x/y/vx/vy are provided, this is a split from a destroyed shard.
-  // `kind` controls rendering: fresh hazards are jagged asteroids; pieces broken
-  // off a destroyed asteroid become bouncy basketballs.
+  // When x/y/vx/vy are provided, this is a split from a destroyed shard (its
+  // `kind` is passed by the caller). A fresh spawn (no coords) rolls its own
+  // kind via difficulty-gated weighting so the early game stays asteroid-heavy.
   const isSpawned = x === undefined;
 
   let startX = x;
   let startY = y;
   let startVx = vx;
   let startVy = vy;
+  let spawnKind = kind;
+
+  const difficulty = getDifficulty();
 
   if (isSpawned) {
+    spawnKind = pickFreshShardKind();
     const margin = 70;
     const edge = Math.floor(Math.random() * 4);
 
@@ -537,18 +575,31 @@ function spawnShard(x, y, vx, vy, kind = "asteroid") {
       startY += Math.sign(startY - player.y || 1) * GAME_CONFIG.safeSpawnDistance;
     }
 
-    const difficulty = getDifficulty();
     const targetX = randomBetween(width * 0.15, width * 0.85);
     const targetY = randomBetween(height * 0.15, height * 0.85);
     const heading = Math.atan2(targetY - startY, targetX - startX) + randomBetween(-0.42, 0.42);
-    const speed = randomBetween(54, 108) + difficulty * 82;
+    let speed = randomBetween(54, 108) + difficulty * 82;
+    // Per-kind speed shaping: lances streak, drifters loom.
+    if (spawnKind === "lance") speed *= GAME_CONFIG.lanceSpeedMult;
+    else if (spawnKind === "drifter") speed *= GAME_CONFIG.drifterSpeedMult;
 
     startVx = Math.cos(heading) * speed;
     startVy = Math.sin(heading) * speed;
   }
 
-  const difficulty = getDifficulty();
-  const radius = randomBetween(18, 38 + difficulty * 12);
+  // Radius by kind: drifters are very big soft orbs, lances are small slivers,
+  // cinders are small chips; asteroids keep the original range.
+  let radius;
+  if (spawnKind === "drifter") radius = randomBetween(40, 52 + difficulty * 10);
+  else if (spawnKind === "lance") radius = randomBetween(9, 13);
+  else if (spawnKind === "cinder") radius = randomBetween(7, 11);
+  else radius = randomBetween(18, 38 + difficulty * 12);
+
+  // Lances are thrown spears: no tumble. Cinders tumble fast. Others drift-spin.
+  let spin;
+  if (spawnKind === "lance") spin = 0;
+  else if (spawnKind === "cinder") spin = randomBetween(-3.2, 3.2);
+  else spin = randomBetween(-1.3, 1.3);
 
   shards.push({
     x: startX,
@@ -557,10 +608,12 @@ function spawnShard(x, y, vx, vy, kind = "asteroid") {
     vy: startVy,
     radius,
     points: createShardPoints(radius),
-    angle: Math.random() * Math.PI * 2,
-    spin: randomBetween(-1.3, 1.3),
+    angle: spawnKind === "lance" ? Math.atan2(startVy, startVx) : Math.random() * Math.PI * 2,
+    spin,
     pulse: Math.random() * Math.PI * 2,
-    kind,
+    kind: spawnKind,
+    // cinder steering: +1/-1 arc direction so debris curves instead of going straight.
+    curveDir: spawnKind === "cinder" ? (Math.random() < 0.5 ? -1 : 1) : 0,
   });
 }
 
@@ -762,9 +815,38 @@ function updateShards(dt) {
   const slowFactor = getShardSpeedFactor();
 
   for (const shard of shards) {
+    // Per-kind steering BEFORE the generic integrate. Anti-runaway: nothing here
+    // spawns shards, and homing is capped-turn + fixed-speed so it stays dodgeable.
+    if (shard.kind === "cinder") {
+      // Debris arcs: rotate velocity a little each frame so it visibly curves
+      // instead of flying dead-straight like an asteroid.
+      const c = GAME_CONFIG.cinderCurve * shard.curveDir * dt;
+      const cos = Math.cos(c);
+      const sin = Math.sin(c);
+      const nvx = shard.vx * cos - shard.vy * sin;
+      const nvy = shard.vx * sin + shard.vy * cos;
+      shard.vx = nvx;
+      shard.vy = nvy;
+    } else if (shard.kind === "drifter") {
+      // Mild player-homing with a CAPPED turn rate: the blob looms toward you but
+      // a player at speed can always escape. Speed is preserved (slow body).
+      const desired = Math.atan2(player.y - shard.y, player.x - shard.x);
+      const cur = Math.atan2(shard.vy, shard.vx);
+      let da = desired - cur;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      const maxTurn = GAME_CONFIG.drifterTurn * dt;
+      const heading = cur + clamp(da, -maxTurn, maxTurn);
+      const spd = Math.hypot(shard.vx, shard.vy);
+      shard.vx = Math.cos(heading) * spd;
+      shard.vy = Math.sin(heading) * spd;
+    }
+
     shard.x = wrap(shard.x + shard.vx * dt * slowFactor, width);
     shard.y = wrap(shard.y + shard.vy * dt * slowFactor, height);
-    shard.angle += shard.spin * dt;
+    // Lances are streakers: lock facing to travel direction, no tumble.
+    if (shard.kind === "lance") shard.angle = Math.atan2(shard.vy, shard.vx);
+    else shard.angle += shard.spin * dt;
     shard.pulse += dt * 2;
   }
 
@@ -1000,8 +1082,9 @@ function splitShard(shard) {
     const vx = Math.cos(angle) * boostedSpeed;
     const vy = Math.sin(angle) * boostedSpeed;
 
-    // Broken-off pieces turn into basketballs.
-    spawnShard(shard.x, shard.y, vx, vy, "basketball");
+    // Broken-off pieces are glowing ember cinders: small, fast, gently arcing,
+    // and below the split threshold so they can never re-split (hard runaway floor).
+    spawnShard(shard.x, shard.y, vx, vy, "cinder");
   }
 
   if (Math.random() < GAME_CONFIG.powerUpSpawnChance) {
@@ -1088,7 +1171,7 @@ function createSquirrel() {
 }
 
 // The squirrel sprints toward the nearest hazard and smashes it on contact,
-// breaking it exactly as a bullet would (so asteroids still become basketballs).
+// breaking it exactly as a bullet would (so asteroids still shed ember cinders).
 function updateSquirrel(dt) {
   if (!squirrel || state !== GAME_STATE.PLAYING) return;
 
@@ -1455,45 +1538,129 @@ function drawBackground(now) {
   ctx.globalAlpha = 1;
 }
 
-function drawBasketball(shard) {
+// `cinder` — molten chip flung off a broken body. A small lumpy ember blob
+// (reuses the jagged `points`) glowing hot in the center, trailing tiny sparks
+// opposite its velocity so it reads as "still-burning debris."
+function drawCinder(shard) {
   const r = shard.radius;
+  // Trailing motes behind the cinder (in world space, opposite velocity).
+  const sp = Math.hypot(shard.vx, shard.vy) || 1;
+  const ux = -shard.vx / sp;
+  const uy = -shard.vy / sp;
+  ctx.save();
+  ctx.fillStyle = COLORS.moteHot;
+  for (let i = 1; i <= 3; i += 1) {
+    const t = i / 3;
+    ctx.globalAlpha = 0.5 * (1 - t);
+    ctx.beginPath();
+    ctx.arc(shard.x + ux * r * (1 + i), shard.y + uy * r * (1 + i), r * 0.3 * (1 - t * 0.4), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
   ctx.save();
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
+  const grad = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
+  grad.addColorStop(0, COLORS.emberCore);
+  grad.addColorStop(1, COLORS.cinderEdge);
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = COLORS.cinderEdge;
+  ctx.lineWidth = 1.2;
+  ctx.shadowColor = COLORS.cinderGlow;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  shard.points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
 
-  // Orange ball body.
-  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-  grad.addColorStop(0, COLORS.ballHi);
-  grad.addColorStop(1, COLORS.ballLo);
+// `drifter` — slow heavy plasma blob. The only round, soft-edged big body, so it
+// never gets confused with a jagged rock. A breathing crimson halo sells the dread.
+function drawDrifter(shard) {
+  const r = shard.radius;
+  const breath = 1 + Math.sin(shard.pulse) * 0.1;
+  ctx.save();
+  ctx.translate(shard.x, shard.y);
+
+  // Wobbling outer heat halo.
+  ctx.fillStyle = COLORS.veilGlow;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.5 * breath, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Soft plasma body: crimson core fading to transparent.
+  const grad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r);
+  grad.addColorStop(0, COLORS.veilCore);
+  grad.addColorStop(0.7, "rgba(255, 94, 110, 0.5)");
+  grad.addColorStop(1, "rgba(255, 94, 110, 0)");
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Black seams: outline, the two great-circle lines, and the curved side seams.
-  ctx.strokeStyle = COLORS.ballSeam;
-  ctx.lineWidth = Math.max(1.2, r * 0.07);
+  // Faint crimson rim.
+  ctx.strokeStyle = "rgba(255, 94, 110, 0.4)";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.moveTo(-r, 0);
-  ctx.lineTo(r, 0);
-  ctx.moveTo(0, -r);
-  ctx.lineTo(0, r);
+  ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
 
-  ctx.beginPath();
-  ctx.ellipse(-r * 0.55, 0, r * 0.5, r, 0, -Math.PI / 2, Math.PI / 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(r * 0.55, 0, r * 0.5, r, 0, Math.PI / 2, (3 * Math.PI) / 2);
-  ctx.stroke();
+// `lance` — fast spindly streaker. An elongated needle oriented along its
+// velocity with a hot tip and a short motion streak behind: the only directional,
+// non-circular shape, reading as a thrown spear.
+function drawLance(shard) {
+  const r = shard.radius;
+  ctx.save();
+  ctx.translate(shard.x, shard.y);
+  ctx.rotate(shard.angle);
 
+  // Additive heat streak behind the tip.
+  ctx.fillStyle = COLORS.cinderGlow;
+  ctx.beginPath();
+  ctx.moveTo(-r * 3.4, 0);
+  ctx.lineTo(-r * 0.8, -r * 0.5);
+  ctx.lineTo(-r * 0.8, r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Stretched 2:1 diamond/needle: hot core tip -> cooled tail.
+  const grad = ctx.createLinearGradient(-r * 2, 0, r * 2, 0);
+  grad.addColorStop(0, COLORS.cinderEdge);
+  grad.addColorStop(1, COLORS.emberCore);
+  ctx.fillStyle = grad;
+  ctx.shadowColor = COLORS.moteHot;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(r * 2, 0); // hot leading tip
+  ctx.lineTo(0, -r * 0.7);
+  ctx.lineTo(-r * 2, 0);
+  ctx.lineTo(0, r * 0.7);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
 function drawShard(shard) {
-  if (shard.kind === "basketball") {
-    drawBasketball(shard);
+  // Per-kind rendering dispatch. All paths stay inside the ember palette;
+  // silhouette + motion carry identity. asteroid falls through to the default.
+  if (shard.kind === "cinder") {
+    drawCinder(shard);
+    return;
+  }
+  if (shard.kind === "drifter") {
+    drawDrifter(shard);
+    return;
+  }
+  if (shard.kind === "lance") {
+    drawLance(shard);
     return;
   }
 
