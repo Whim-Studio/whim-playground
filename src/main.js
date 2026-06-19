@@ -378,10 +378,11 @@ function createShardPoints(radius) {
   });
 }
 
-function spawnShard(x, y, vx, vy) {
+function spawnShard(x, y, vx, vy, splitRadius) {
   // Hazards spawn just offscreen, then aim roughly toward the playfield center
   // with jitter. This feels intentional without requiring pathfinding.
-  // When x/y/vx/vy are provided, this is a split from a destroyed shard.
+  // When x/y/vx/vy are provided, this is a split from a destroyed shard, and
+  // splitRadius (when given) is the smaller child size inherited from the parent.
   const isSpawned = x === undefined;
 
   let startX = x;
@@ -424,7 +425,8 @@ function spawnShard(x, y, vx, vy) {
   }
 
   const difficulty = getDifficulty();
-  const radius = randomBetween(18, 38 + difficulty * 12);
+  // Split children inherit an explicit, smaller radius; fresh spawns size randomly.
+  const radius = splitRadius !== undefined ? splitRadius : randomBetween(18, 38 + difficulty * 12);
 
   shards.push({
     x: startX,
@@ -776,7 +778,7 @@ function splitShard(shard) {
     const vx = Math.cos(angle) * boostedSpeed;
     const vy = Math.sin(angle) * boostedSpeed;
 
-    spawnShard(shard.x, shard.y, vx, vy);
+    spawnShard(shard.x, shard.y, vx, vy, newRadius);
   }
 
   if (Math.random() < GAME_CONFIG.powerUpSpawnChance) {
