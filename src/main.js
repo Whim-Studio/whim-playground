@@ -88,7 +88,7 @@ const GAME_CONFIG = {
   scoreRate: 14,
   spawnIntervalStart: 1.55,
   spawnIntervalEnd: 0.48,
-  maxDifficultyTime: 80,
+  maxDifficultyTime: 48,
   minPlayerSize: 48,
   maxPlayerSize: 72,
   safeSpawnDistance: 180,

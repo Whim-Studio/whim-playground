@@ -20,22 +20,35 @@ let muted = readMutedFlag();
 // The bed is in A minor. Frequencies (Hz) for the notes the bassline and
 // arpeggio draw from, so every SFX (tuned to the same key below) sits in tune
 // with the music.
+// Equal-tempered pitches (Hz) the bed draws from. Kept named so the SFX below,
+// tuned to the same A-minor centre, sit in tune with the music.
+const F2 = 87.31;
+const G2 = 98.0;
 const A2 = 110.0;
 const C3 = 130.81;
-const D3 = 146.83;
 const E3 = 164.81;
+const F3 = 174.61;
 const G3 = 196.0;
 const A3 = 220.0;
+const B3 = 246.94;
 const C4 = 261.63;
 const D4 = 293.66;
 const E4 = 329.63;
+const F4 = 349.23;
 const G4 = 392.0;
 const A4 = 440.0;
+const C5 = 523.25;
 
-// Slow root movement (one chord root per bar) and a sparse pentatonic
-// arpeggio drawn from A-minor — unobtrusive but recognisably "space arcade".
-const BASS_LINE = [A2, A2, G3, G3, C3, C3, E3, E3];
-const ARP_NOTES = [A3, C4, E4, A4, G4, E4, D4, C4];
+// Four-bar progression in A-minor: Am – F – C – G (i–VI–III–VII), the classic
+// uplifting "space arcade" loop. Each bar carries a bass root, a three-note pad
+// chord, and a higher arpeggio drawn from the same chord tones, so the whole
+// bed moves harmonically instead of sitting on one drone.
+const PROGRESSION = [
+  { root: A2, pad: [A3, C4, E4], arp: [A3, C4, E4, A4] }, // Am
+  { root: F2, pad: [F3, A3, C4], arp: [F3, A3, C4, F4] }, // F
+  { root: C3, pad: [C4, E4, G4], arp: [C4, E4, G4, C5] }, // C
+  { root: G2, pad: [G3, B3, D4], arp: [G3, B3, D4, G4] }, // G
+];
 
 let musicGain = null; // dedicated low master for the music bed
 let musicTimer = null; // setInterval id driving the lookahead scheduler
@@ -43,11 +56,11 @@ let musicStep = 0; // 16th-note counter
 let nextNoteTime = 0; // absolute AudioContext time of the next step
 let musicRunning = false;
 
-const TEMPO = 92; // BPM
+const TEMPO = 140; // BPM — driving techno
 const SECONDS_PER_16TH = 60 / TEMPO / 4;
 const LOOKAHEAD_MS = 25; // how often the scheduler wakes up
-const SCHEDULE_AHEAD = 0.12; // how far ahead (s) we schedule notes
-const MUSIC_LEVEL = 0.06; // master music gain (kept well below SFX)
+const SCHEDULE_AHEAD = 0.2; // how far ahead (s) we schedule notes
+const MUSIC_LEVEL = 0.07; // master music gain (kept well below SFX)
 
 function readMutedFlag() {
   try {
@@ -279,30 +292,95 @@ function scheduleNote(audio, dest, { type, freq, time, dur, level }) {
   }
 }
 
-// Emit the voices that fall on the current 16th-note step.
-function scheduleStep(audio, dest, step, time) {
-  const bar = Math.floor(step / 16) % BASS_LINE.length;
+// Punchy four-on-the-floor kick: a fast downward pitch sweep with a tight body.
+function scheduleKick(audio, dest, time) {
+  try {
+    const osc = audio.createOscillator();
+    const g = audio.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(48, time + 0.11);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.9, time + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+    osc.connect(g).connect(dest);
+    osc.start(time);
+    osc.stop(time + 0.2);
+  } catch (_e) {
+    /* no-op */
+  }
+}
 
-  // Bassline: one sustained root note at the top of each bar.
-  if (step % 16 === 0) {
+// Hi-hat: a short burst of high-passed noise. `open` lengthens the decay for
+// the classic off-beat techno shimmer.
+function scheduleHat(audio, dest, time, open) {
+  try {
+    const buf = getNoiseBuffer(audio);
+    if (!buf) return;
+    const src = audio.createBufferSource();
+    src.buffer = buf;
+    const hp = audio.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7000;
+    const g = audio.createGain();
+    const dur = open ? 0.11 : 0.03;
+    g.gain.setValueAtTime(open ? 0.16 : 0.1, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    src.connect(hp).connect(g).connect(dest);
+    src.start(time);
+    src.stop(time + dur + 0.02);
+  } catch (_e) {
+    /* no-op */
+  }
+}
+
+// Emit the techno voices that fall on the current 16th-note step. The bar's
+// chord comes from PROGRESSION; drums + a rolling bass carry the drive.
+function scheduleStep(audio, dest, step, time) {
+  const chord = PROGRESSION[Math.floor(step / 16) % PROGRESSION.length];
+  const s = step % 16;
+
+  // Four-on-the-floor kick on every quarter.
+  if (s % 4 === 0) scheduleKick(audio, dest, time);
+
+  // Closed hat on every off-16th; an open hat on each upbeat ("and").
+  if (s % 2 === 1) scheduleHat(audio, dest, time, false);
+  if (s % 4 === 2) scheduleHat(audio, dest, time, true);
+
+  // Driving 16th bass: rolling root pluck on every step except the kick's
+  // downbeat, so the low end stabs between the kicks instead of muddying them.
+  if (s % 4 !== 0) {
     scheduleNote(audio, dest, {
-      type: 'triangle',
-      freq: BASS_LINE[bar],
+      type: 'sawtooth',
+      freq: chord.root,
       time,
-      dur: SECONDS_PER_16TH * 14,
+      dur: SECONDS_PER_16TH * 0.85,
       level: 0.5,
     });
   }
 
-  // Sparse arpeggio: a note every other 8th note (steps 0,4,8,12 …).
-  if (step % 4 === 0) {
-    const idx = (step / 4) % ARP_NOTES.length;
+  // Off-beat chord stabs — the techno "chord on the and".
+  if (s % 8 === 2 || s % 8 === 6) {
+    chord.pad.forEach((freq) =>
+      scheduleNote(audio, dest, {
+        type: 'square',
+        freq,
+        time,
+        dur: SECONDS_PER_16TH * 1.3,
+        level: 0.1,
+      }),
+    );
+  }
+
+  // Bright lead arp riding the 8ths over the chord tones.
+  if (s % 2 === 0) {
+    const idx = (s / 2) % chord.arp.length;
     scheduleNote(audio, dest, {
-      type: 'sine',
-      freq: ARP_NOTES[idx],
+      type: 'triangle',
+      freq: chord.arp[idx],
       time,
-      dur: SECONDS_PER_16TH * 3,
-      level: 0.32,
+      dur: SECONDS_PER_16TH * 1.1,
+      level: 0.16,
     });
   }
 }
