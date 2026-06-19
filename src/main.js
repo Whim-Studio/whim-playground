@@ -109,6 +109,10 @@ const GAME_CONFIG = {
   strongShotPierce: 2,
   maxHealth: 100,
   healthDamage: 25,
+  // Power-up expansion tuning.
+  spreadShotAngle: 0.22, // radians between Triple Tap pellets
+  scoreMultiplierValue: 2, // Bounty: multiplier applied to clear-score only
+  repairAmount: 50, // Repair: instant partial heal (kept partial to avoid snowballing)
 };
 
 // Extensible power-up framework. To add a new power-up, append one entry here
@@ -123,6 +127,15 @@ const GAME_CONFIG = {
 //                       (timed invulnerability; not consumed per hit)
 //   - strongShots:      upgrades fired bullets (bigger, faster, piercing) using
 //                       the strongShot* tuning in GAME_CONFIG
+//   - bulletCount/spreadAngle: fire N pellets in a fan (read in shoot())
+//   - scoreMultiplier: multiplies clear-score while active (read by
+//                      getScoreMultiplier at the two shard-clear sites)
+//   - instant + instantEffect: applied immediately on pickup instead of being
+//                      stamped with a timed expiry. activatePowerUp branches on
+//                      `instant` and dispatches via applyInstantEffect(); instant
+//                      defs never enter activePowerUps, so they have no timer.
+// Each def also carries a `weight` for the weighted drop pool (higher = more
+// common); strong/swingy effects are rarest so the calm early game stays calm.
 // rapidFire is the canonical sample proving the framework end-to-end.
 const POWERUPS = {
   rapidFire: {
@@ -131,6 +144,7 @@ const POWERUPS = {
     color: "#FFD700",
     duration: GAME_CONFIG.powerUpDuration,
     shootCooldownMs: GAME_CONFIG.rapidFireCooldownMs,
+    weight: 10,
   },
   slowShards: {
     id: "slowShards",
@@ -138,6 +152,7 @@ const POWERUPS = {
     color: "#87CEEB",
     duration: GAME_CONFIG.powerUpDuration,
     shardSpeedFactor: GAME_CONFIG.shardSlowFactor,
+    weight: 8,
   },
   shield: {
     id: "shield",
@@ -145,6 +160,7 @@ const POWERUPS = {
     color: "#FF69B4",
     duration: GAME_CONFIG.powerUpDuration,
     blocksAllHits: true,
+    weight: 6,
   },
   strongShots: {
     id: "strongShots",
@@ -152,6 +168,50 @@ const POWERUPS = {
     color: "#FFB020",
     duration: GAME_CONFIG.powerUpDuration,
     strongShots: true,
+    weight: 5,
+  },
+  // Triple Tap: short offensive tempo buff — fires a 3-pellet fan. Composes with
+  // strongShots/rapidFire and never raises the field cap, so it just clears the
+  // already-capped field faster.
+  spreadShot: {
+    id: "spreadShot",
+    label: "Triple tap",
+    color: "#FFB020",
+    duration: 6,
+    bulletCount: 3,
+    spreadAngle: GAME_CONFIG.spreadShotAngle,
+    weight: 5,
+  },
+  // Bounty: economy buff — doubles score earned from CLEARING shards (never the
+  // idle time term), so it has zero effect on hazards. Anti-runaway by design.
+  bounty: {
+    id: "bounty",
+    label: "Bounty",
+    color: "#FFD700",
+    duration: GAME_CONFIG.powerUpDuration,
+    scoreMultiplier: GAME_CONFIG.scoreMultiplierValue,
+    weight: 4,
+  },
+  // Nova: INSTANT one-shot — clears the current field (awarding clear-score per
+  // shard). Empties the array, so it works WITH the cap; the field respawns from
+  // the calm baseline. Strongest button, so it is the rarest drop.
+  bomb: {
+    id: "bomb",
+    label: "Nova",
+    color: "#FF69B4",
+    instant: true,
+    instantEffect: "clearField",
+    weight: 1,
+  },
+  // Repair: INSTANT partial heal. Wasted if already full-health (a natural
+  // rarity throttle). Pure survivability economy, no hazard interaction.
+  repair: {
+    id: "repair",
+    label: "Repair",
+    color: "#87CEEB",
+    instant: true,
+    instantEffect: "repair",
+    weight: 3,
   },
 };
 const POWERUP_IDS = Object.keys(POWERUPS);
@@ -558,17 +618,24 @@ function shoot(now = performance.now()) {
   shotFrameUntil = now + 180;
   const strong = getStrongShotsActive();
   const bulletSpeed = strong ? GAME_CONFIG.strongShotSpeed : GAME_CONFIG.bulletSpeed;
-  bullets.push({
-    x: muzzleX,
-    y: muzzleY,
-    vx: Math.cos(angle) * bulletSpeed + player.vx * 0.18,
-    vy: Math.sin(angle) * bulletSpeed + player.vy * 0.18,
-    age: 0,
-    life: GAME_CONFIG.bulletLife,
-    radius: strong ? GAME_CONFIG.strongShotRadius : GAME_CONFIG.bulletRadius,
-    pierce: strong ? GAME_CONFIG.strongShotPierce : 0,
-    strong,
-  });
+  // Fire a fan of `n` pellets centered on `angle`; each pellet keeps the full
+  // strong/speed/radius logic so spreadShot composes with strongShots.
+  const n = getBulletCount();
+  const spread = getBulletSpread();
+  for (let i = 0; i < n; i += 1) {
+    const pelletAngle = angle + (i - (n - 1) / 2) * spread;
+    bullets.push({
+      x: muzzleX,
+      y: muzzleY,
+      vx: Math.cos(pelletAngle) * bulletSpeed + player.vx * 0.18,
+      vy: Math.sin(pelletAngle) * bulletSpeed + player.vy * 0.18,
+      age: 0,
+      life: GAME_CONFIG.bulletLife,
+      radius: strong ? GAME_CONFIG.strongShotRadius : GAME_CONFIG.bulletRadius,
+      pierce: strong ? GAME_CONFIG.strongShotPierce : 0,
+      strong,
+    });
+  }
   playShoot();
 
   player.vx -= Math.cos(angle) * 34;
@@ -745,10 +812,21 @@ function loseLife() {
   updateScorebar();
 }
 
+// Weighted drop selection: each def's `weight` (default 1) shapes WHICH power-up
+// drops, not HOW OFTEN — drop frequency stays powerUpSpawnChance. New POWERUPS
+// entries auto-enroll in the pool.
+function pickPowerUpId() {
+  const total = POWERUP_IDS.reduce((sum, id) => sum + (POWERUPS[id].weight ?? 1), 0);
+  let r = Math.random() * total;
+  for (const id of POWERUP_IDS) {
+    r -= POWERUPS[id].weight ?? 1;
+    if (r < 0) return id;
+  }
+  return POWERUP_IDS[POWERUP_IDS.length - 1];
+}
+
 function spawnPowerUp(x, y) {
-  // Pick a registered power-up at random so new POWERUPS entries enter the
-  // drop pool automatically.
-  const type = POWERUP_IDS[Math.floor(Math.random() * POWERUP_IDS.length)];
+  const type = pickPowerUpId();
 
   powerUps.push({
     x,
@@ -762,10 +840,43 @@ function spawnPowerUp(x, y) {
   });
 }
 
+// Apply an INSTANT power-up's effect immediately on pickup. Instant defs carry
+// `instant: true` and an `instantEffect` key dispatched here; they never enter
+// activePowerUps, so they have no timer and no HUD ring.
+function applyInstantEffect(def) {
+  switch (def.instantEffect) {
+    case "clearField": {
+      // Award clear-score per shard (honoring Bounty), burst each, then empty
+      // the field. Emptying the array works WITH the cap — the field simply
+      // respawns from the calm baseline rather than spawning anything new.
+      for (const shard of shards) {
+        clearScore += GAME_CONFIG.shardClearScore * getScoreMultiplier();
+        createBurst(shard.x, shard.y, 10, def.color);
+      }
+      shards = [];
+      break;
+    }
+    case "repair": {
+      player.health = Math.min(
+        GAME_CONFIG.maxHealth,
+        player.health + GAME_CONFIG.repairAmount,
+      );
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 function activatePowerUp(type, now) {
   const def = POWERUPS[type];
   if (!def) return;
   powerup();
+  // Instant power-ups apply once and never stamp a timed expiry.
+  if (def.instant) {
+    applyInstantEffect(def);
+    return;
+  }
   activePowerUps[type].active = true;
   // Durations live in seconds (GAME_CONFIG convention); the loop clock is in
   // milliseconds, so convert here when stamping the expiry.
@@ -811,6 +922,42 @@ function getStrongShotsActive() {
     }
   }
   return false;
+}
+
+// Number of pellets to fire (max bulletCount among active defs; default 1) and
+// the matching spread angle. Read by shoot() to fan out the volley.
+function getBulletCount() {
+  let count = 1;
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    if (def.bulletCount !== undefined && isPowerUpActive(id)) {
+      count = Math.max(count, def.bulletCount);
+    }
+  }
+  return count;
+}
+
+function getBulletSpread() {
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    if (def.bulletCount !== undefined && isPowerUpActive(id)) {
+      return def.spreadAngle ?? 0;
+    }
+  }
+  return 0;
+}
+
+// Clear-score multiplier, compounding every active scoreMultiplier power-up.
+// Returns >= 1 so it is safe to apply unconditionally at the clear-score sites.
+function getScoreMultiplier() {
+  let multiplier = 1;
+  for (const id of POWERUP_IDS) {
+    const def = POWERUPS[id];
+    if (def.scoreMultiplier !== undefined && isPowerUpActive(id)) {
+      multiplier *= def.scoreMultiplier;
+    }
+  }
+  return multiplier;
 }
 
 // Negate an incoming hit using an active defensive power-up; returns true if the
@@ -882,7 +1029,7 @@ function updateBullets(dt) {
 
       splitShard(shard);
       shards.splice(shardIndex, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
+      clearScore += GAME_CONFIG.shardClearScore * getScoreMultiplier();
       explode();
       createBurst(shard.x, shard.y, 12, bullet.strong ? POWERUPS.strongShots.color : COLORS.face);
 
@@ -991,7 +1138,7 @@ function updateSquirrel(dt) {
     if (Math.hypot(shard.x - squirrel.x, shard.y - squirrel.y) <= hit) {
       splitShard(shard);
       shards.splice(i, 1);
-      clearScore += GAME_CONFIG.shardClearScore;
+      clearScore += GAME_CONFIG.shardClearScore * getScoreMultiplier();
       explode();
       createBurst(shard.x, shard.y, 12, COLORS.squirrel);
     }
@@ -1592,12 +1739,18 @@ function drawPowerUpIndicators(now) {
     const def = POWERUPS[id];
     const power = activePowerUps[id];
 
+    // Instant power-ups have no timer, so they never render a permanent dim dot.
+    if (def.instant) continue;
+
     ctx.save();
     if (power.active) {
+      const remaining = Math.max(0, power.expiresAt - now);
       ctx.shadowColor = def.color;
       ctx.shadowBlur = 12;
       ctx.fillStyle = def.color;
-      ctx.globalAlpha = 0.8;
+      // Pulse the dot in its final closing window so the player feels a
+      // build-defining buff about to expire.
+      ctx.globalAlpha = remaining < 1200 ? 0.5 + 0.5 * Math.sin(now / 120) : 0.8;
     } else {
       ctx.fillStyle = COLORS.muted;
       ctx.globalAlpha = 0.25;
@@ -1609,12 +1762,26 @@ function drawPowerUpIndicators(now) {
 
     if (power.active) {
       const remaining = Math.max(0, power.expiresAt - now);
-      const progress = clamp(remaining / (def.duration * 1000), 0, 1);
+      // Guard against a missing/zero duration so the ring math never divides by
+      // undefined for any future timed entry.
+      const span = def.duration > 0 ? def.duration * 1000 : 1;
+      const progress = clamp(remaining / span, 0, 1);
       ctx.strokeStyle = def.color;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(x, y, indicatorSize / 2 + 1, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
       ctx.stroke();
+
+      // Surface the Bounty economy buff as a small multiplier label.
+      if (def.scoreMultiplier !== undefined) {
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = def.color;
+        ctx.font = "10px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(`x${def.scoreMultiplier}`, x, y + indicatorSize / 2 + 3);
+      }
     }
 
     ctx.restore();
