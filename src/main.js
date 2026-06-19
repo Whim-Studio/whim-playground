@@ -83,6 +83,8 @@ const GAME_CONFIG = {
 //   - shootCooldownMs: overrides the fire cooldown while active (smallest wins)
 //   - shardSpeedFactor: multiplies hazard speed while active
 //   - absorbsHit:       consumes the power-up to negate one incoming hit
+//   - blocksAllHits:    negates every incoming hit for the full duration
+//                       (timed invulnerability; not consumed per hit)
 // rapidFire is the canonical sample proving the framework end-to-end.
 const POWERUPS = {
   rapidFire: {
@@ -104,7 +106,7 @@ const POWERUPS = {
     label: "Shield",
     color: "#FF69B4",
     duration: GAME_CONFIG.powerUpDuration,
-    absorbsHit: true,
+    blocksAllHits: true,
   },
 };
 const POWERUP_IDS = Object.keys(POWERUPS);
@@ -708,9 +710,16 @@ function getShardSpeedFactor() {
   return factor;
 }
 
-// Consume the first active hit-absorbing power-up; returns true if a hit was
-// negated so the caller can skip damage.
+// Negate an incoming hit using an active defensive power-up; returns true if the
+// hit was absorbed so the caller can skip damage. Timed blockers (blocksAllHits)
+// stay active for their full duration; one-shot absorbers (absorbsHit) are
+// consumed. Blockers win first so they aren't needlessly spent.
 function absorbHitWithPowerUp() {
+  for (const id of POWERUP_IDS) {
+    if (POWERUPS[id].blocksAllHits && isPowerUpActive(id)) {
+      return true;
+    }
+  }
   for (const id of POWERUP_IDS) {
     if (POWERUPS[id].absorbsHit && isPowerUpActive(id)) {
       activePowerUps[id].active = false;
@@ -953,15 +962,20 @@ function drawPlayer(now) {
   ctx.stroke();
   ctx.restore();
 
-  // Draw shield if active
+  // Draw the timed shield bubble while invulnerable so it's obviously active.
   if (isPowerUpActive("shield")) {
     const shieldPulse = (Math.sin(now / 120) + 1) / 2;
+    const radius = player.radius * (1.55 + shieldPulse * 0.12);
     ctx.save();
     ctx.translate(player.x, player.y);
-    ctx.strokeStyle = `rgba(255, 105, 180, ${0.4 + shieldPulse * 0.3})`;
-    ctx.lineWidth = 2;
+    // Soft inner glow fill.
+    ctx.fillStyle = `rgba(255, 105, 180, ${0.08 + shieldPulse * 0.07})`;
     ctx.beginPath();
-    ctx.arc(0, 0, player.radius * 1.6, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+    // Bright pulsing outer ring.
+    ctx.strokeStyle = `rgba(255, 105, 180, ${0.45 + shieldPulse * 0.35})`;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
     ctx.restore();
   }
