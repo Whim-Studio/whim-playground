@@ -6,3 +6,6 @@ coverage/
 .DS_Store
 .vercel
 .osgrep
+
+# Java build output
+target/
