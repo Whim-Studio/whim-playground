@@ -171,6 +171,18 @@ button {
   touch-action: none;
 }
 
+/* Transparent 2D overlay above the WebGL canvas, used only for the screen-space
+   HUD power-up indicator dots. Never intercepts input. */
+.hud-overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .shoot-button {
   position: absolute;
   right: max(18px, env(safe-area-inset-right));
