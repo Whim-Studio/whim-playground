@@ -1,9 +1,6 @@
 import "./styles.css";
-import {
-  FACE_FRAMES,
-  FACE_VIEW_BOX,
-  MOTION_SEQUENCE,
-} from "./whimFaceFrames.js";
+import { MOTION_SEQUENCE } from "./whimFaceFrames.js";
+import { GameRenderer } from "./render3d.js";
 import {
   resumeAudio,
   shoot as playShoot,
@@ -27,7 +24,16 @@ import {
 const canvas = document.querySelector("#gameCanvas");
 const gameShell = document.querySelector(".game-shell");
 const scorebar = document.querySelector(".scorebar");
-const ctx = canvas.getContext("2d");
+
+// The scene is rendered in real 3D with three.js (see render3d.js). The main
+// #gameCanvas hosts the WebGL context; a lightweight transparent 2D canvas is
+// overlaid on top solely for the screen-space HUD power-up indicator dots.
+// `renderer` is constructed lower down, once COLORS/POWERUPS exist.
+const hudCanvas = document.createElement("canvas");
+hudCanvas.className = "hud-overlay";
+gameShell.appendChild(hudCanvas);
+const ctx = hudCanvas.getContext("2d");
+let renderer;
 const scoreEl = document.querySelector("#score");
 const roundTimeEl = document.querySelector("#roundTime");
 const livesEl = document.querySelector("#lives");
@@ -228,6 +234,9 @@ const POWERUPS = {
 };
 const POWERUP_IDS = Object.keys(POWERUPS);
 
+// Now that the theme tokens and power-up registry exist, build the 3D renderer.
+renderer = new GameRenderer(canvas, COLORS, POWERUPS);
+
 function createActivePowerUpState() {
   return Object.fromEntries(
     POWERUP_IDS.map((id) => [id, { active: false, expiresAt: 0 }]),
@@ -254,15 +263,6 @@ const GAME_STATE = Object.freeze({
   PLAYING: "playing",
   OVER: "over",
 });
-
-// Convert SVG path data once up front. Recreating Path2D instances per frame
-// is unnecessary work and makes animation changes harder to reason about.
-const facePathCache = Object.fromEntries(
-  Object.entries(FACE_FRAMES).map(([frame, paths]) => [
-    frame,
-    paths.map((d) => new Path2D(d)),
-  ]),
-);
 
 // Mutable simulation state lives in this module. For future features, prefer
 // adding small state arrays/objects near these declarations over hidden globals.
@@ -402,8 +402,11 @@ function resizeCanvas() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   width = nextWidth;
   height = nextHeight;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  // The WebGL renderer owns the #gameCanvas backing store (sizing + DPR).
+  renderer.resize(width, height, dpr);
+  // The transparent HUD overlay mirrors the CSS size and DPR for crisp dots.
+  hudCanvas.width = Math.round(width * dpr);
+  hudCanvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   player.size = clamp(
@@ -1278,64 +1281,6 @@ function updateSquirrel(dt) {
   }
 }
 
-function drawSquirrel() {
-  if (!squirrel) return;
-  const r = squirrel.radius;
-  const bob = Math.sin(squirrel.runPhase * 2) * 2;
-  const legSwing = Math.sin(squirrel.runPhase * 2) * r * 0.4;
-
-  ctx.save();
-  ctx.translate(squirrel.x, squirrel.y + bob);
-  ctx.scale(squirrel.facing, 1);
-
-  // Bushy tail behind the body.
-  ctx.fillStyle = "#7a4a22";
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.55, r * 0.25);
-  ctx.quadraticCurveTo(-r * 1.7, -r * 0.1, -r * 1.05, -r * 1.25);
-  ctx.quadraticCurveTo(-r * 0.65, -r * 0.5, -r * 0.15, -r * 0.2);
-  ctx.closePath();
-  ctx.fill();
-
-  // Running legs.
-  ctx.strokeStyle = "#7a4a22";
-  ctx.lineWidth = r * 0.16;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(r * 0.22, r * 0.35);
-  ctx.lineTo(r * 0.22 + legSwing, r * 0.75);
-  ctx.moveTo(-r * 0.18, r * 0.35);
-  ctx.lineTo(-r * 0.18 - legSwing, r * 0.75);
-  ctx.stroke();
-
-  // Body + belly.
-  ctx.fillStyle = "#a8703a";
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r * 0.72, r * 0.56, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#e7c79a";
-  ctx.beginPath();
-  ctx.ellipse(r * 0.16, r * 0.14, r * 0.4, r * 0.32, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Head, ear, eye.
-  ctx.fillStyle = "#a8703a";
-  ctx.beginPath();
-  ctx.arc(r * 0.66, -r * 0.34, r * 0.42, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(r * 0.58, -r * 0.7);
-  ctx.lineTo(r * 0.78, -r * 1.08);
-  ctx.lineTo(r * 0.98, -r * 0.62);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#1a1008";
-  ctx.beginPath();
-  ctx.arc(r * 0.82, -r * 0.4, r * 0.09, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.restore();
-}
 
 function maybeSpawnDolphin(dt) {
   if (state !== GAME_STATE.PLAYING || dolphin) return;
@@ -1422,88 +1367,6 @@ function updateDolphin(dt, now) {
   }
 }
 
-function drawDolphin() {
-  if (!dolphin) return;
-  const r = dolphin.radius;
-  const faceDir = Math.cos(dolphin.heading) >= 0 ? 1 : -1;
-  const bobY = Math.sin(dolphin.bob) * 4;
-
-  ctx.save();
-  ctx.translate(dolphin.x, dolphin.y + bobY);
-  ctx.scale(faceDir, 1);
-  ctx.rotate(Math.sin(dolphin.bob) * 0.06);
-
-  // Body.
-  ctx.fillStyle = "#5c7a99";
-  ctx.beginPath();
-  ctx.moveTo(-r * 1.3, 0);
-  ctx.quadraticCurveTo(-r * 0.3, -r * 0.95, r * 1.1, -r * 0.18);
-  ctx.quadraticCurveTo(r * 1.55, 0, r * 1.1, r * 0.12);
-  ctx.quadraticCurveTo(-r * 0.3, r * 0.62, -r * 1.3, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  // Lighter belly.
-  ctx.fillStyle = "#9fb8cf";
-  ctx.beginPath();
-  ctx.moveTo(r * 1.0, r * 0.06);
-  ctx.quadraticCurveTo(-r * 0.2, r * 0.52, -r * 1.0, r * 0.05);
-  ctx.quadraticCurveTo(-r * 0.2, r * 0.22, r * 1.0, r * 0.06);
-  ctx.fill();
-
-  // Tail fluke.
-  ctx.fillStyle = "#5c7a99";
-  ctx.beginPath();
-  ctx.moveTo(-r * 1.1, 0);
-  ctx.lineTo(-r * 1.75, -r * 0.5);
-  ctx.lineTo(-r * 1.5, 0);
-  ctx.lineTo(-r * 1.75, r * 0.5);
-  ctx.closePath();
-  ctx.fill();
-
-  // Dorsal fin.
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.1, -r * 0.58);
-  ctx.lineTo(r * 0.22, -r * 1.18);
-  ctx.lineTo(r * 0.46, -r * 0.5);
-  ctx.closePath();
-  ctx.fill();
-
-  // Eye.
-  ctx.fillStyle = "#10202e";
-  ctx.beginPath();
-  ctx.arc(r * 0.8, -r * 0.22, r * 0.08, 0, Math.PI * 2);
-  ctx.fill();
-
-  // The dress: a flared pink frock around the midsection.
-  ctx.fillStyle = "#ff5db1";
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.18, -r * 0.52);
-  ctx.lineTo(r * 0.36, -r * 0.42);
-  ctx.lineTo(r * 0.78, r * 0.72);
-  ctx.lineTo(-r * 0.62, r * 0.58);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "#ffd1e8";
-  ctx.lineWidth = r * 0.1;
-  ctx.lineJoin = "round";
-  ctx.stroke();
-
-  // Polka dots on the dress.
-  ctx.fillStyle = "#ffd1e8";
-  for (const [dx, dy] of [
-    [r * 0.02, r * 0.0],
-    [r * 0.34, r * 0.28],
-    [-r * 0.18, r * 0.34],
-    [r * 0.18, -r * 0.18],
-  ]) {
-    ctx.beginPath();
-    ctx.arc(dx, dy, r * 0.07, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
 
 function updateEffects(dt) {
   for (const trail of trails) {
@@ -1540,410 +1403,6 @@ function update(dt, now) {
   updateScorebar();
 }
 
-function drawBackground(now) {
-  // The game scene is painted entirely on canvas; CSS owns only the header and
-  // overlay chrome. Keep decorative canvas work cheap and low contrast.
-  // Vertical plum-to-crimson void sets the mood for the whole red world.
-  const sky = ctx.createLinearGradient(0, 0, 0, height);
-  sky.addColorStop(0, COLORS.backgroundTop);
-  sky.addColorStop(0.55, COLORS.background);
-  sky.addColorStop(1, COLORS.backgroundBottom);
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, width, height);
-
-  // A faint warm ember glow rising from the lower-center keeps the gradient from
-  // feeling flat and draws the eye toward the action.
-  const glow = ctx.createRadialGradient(
-    width / 2, height * 0.92, 0,
-    width / 2, height * 0.92, Math.max(width, height) * 0.85,
-  );
-  glow.addColorStop(0, "rgba(255, 77, 77, 0.10)");
-  glow.addColorStop(1, "rgba(255, 77, 77, 0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, width, height);
-
-  const grid = 40;
-  const offset = (now * 0.012) % grid;
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(255, 77, 77, 0.03)";
-  ctx.beginPath();
-  for (let x = -grid + offset; x <= width + grid; x += grid) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-  }
-  for (let y = -grid + offset; y <= height + grid; y += grid) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-  }
-  ctx.stroke();
-
-  for (const star of starField) {
-    const twinkle = 0.65 + Math.sin(now * star.drift + star.x) * 0.35;
-    ctx.globalAlpha = star.alpha * twinkle;
-    ctx.fillStyle = COLORS.star;
-    ctx.beginPath();
-    ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-// `cinder` — molten chip flung off a broken body. A small lumpy ember blob
-// (reuses the jagged `points`) glowing hot in the center, trailing tiny sparks
-// opposite its velocity so it reads as "still-burning debris."
-function drawCinder(shard) {
-  const r = shard.radius;
-  // Trailing motes behind the cinder (in world space, opposite velocity).
-  const sp = Math.hypot(shard.vx, shard.vy) || 1;
-  const ux = -shard.vx / sp;
-  const uy = -shard.vy / sp;
-  ctx.save();
-  ctx.fillStyle = COLORS.moteHot;
-  for (let i = 1; i <= 3; i += 1) {
-    const t = i / 3;
-    ctx.globalAlpha = 0.5 * (1 - t);
-    ctx.beginPath();
-    ctx.arc(shard.x + ux * r * (1 + i), shard.y + uy * r * (1 + i), r * 0.3 * (1 - t * 0.4), 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-  ctx.rotate(shard.angle);
-  const grad = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
-  grad.addColorStop(0, COLORS.emberCore);
-  grad.addColorStop(1, COLORS.cinderEdge);
-  ctx.fillStyle = grad;
-  ctx.strokeStyle = COLORS.cinderEdge;
-  ctx.lineWidth = 1.2;
-  ctx.shadowColor = COLORS.cinderGlow;
-  ctx.shadowBlur = 8;
-  ctx.beginPath();
-  shard.points.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-// `drifter` — slow heavy plasma blob. The only round, soft-edged big body, so it
-// never gets confused with a jagged rock. A breathing crimson halo sells the dread.
-function drawDrifter(shard) {
-  const r = shard.radius;
-  const breath = 1 + Math.sin(shard.pulse) * 0.1;
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-
-  // Wobbling outer heat halo.
-  ctx.fillStyle = COLORS.veilGlow;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 1.5 * breath, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Soft plasma body: crimson core fading to transparent.
-  const grad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r);
-  grad.addColorStop(0, COLORS.veilCore);
-  grad.addColorStop(0.7, "rgba(255, 94, 110, 0.5)");
-  grad.addColorStop(1, "rgba(255, 94, 110, 0)");
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Faint crimson rim.
-  ctx.strokeStyle = "rgba(255, 94, 110, 0.4)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-// `lance` — fast spindly streaker. An elongated needle oriented along its
-// velocity with a hot tip and a short motion streak behind: the only directional,
-// non-circular shape, reading as a thrown spear.
-function drawLance(shard) {
-  const r = shard.radius;
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-  ctx.rotate(shard.angle);
-
-  // Additive heat streak behind the tip.
-  ctx.fillStyle = COLORS.cinderGlow;
-  ctx.beginPath();
-  ctx.moveTo(-r * 3.4, 0);
-  ctx.lineTo(-r * 0.8, -r * 0.5);
-  ctx.lineTo(-r * 0.8, r * 0.5);
-  ctx.closePath();
-  ctx.fill();
-
-  // Stretched 2:1 diamond/needle: hot core tip -> cooled tail.
-  const grad = ctx.createLinearGradient(-r * 2, 0, r * 2, 0);
-  grad.addColorStop(0, COLORS.cinderEdge);
-  grad.addColorStop(1, COLORS.emberCore);
-  ctx.fillStyle = grad;
-  ctx.shadowColor = COLORS.moteHot;
-  ctx.shadowBlur = 8;
-  ctx.beginPath();
-  ctx.moveTo(r * 2, 0); // hot leading tip
-  ctx.lineTo(0, -r * 0.7);
-  ctx.lineTo(-r * 2, 0);
-  ctx.lineTo(0, r * 0.7);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawShard(shard) {
-  // Per-kind rendering dispatch. All paths stay inside the ember palette;
-  // silhouette + motion carry identity. asteroid falls through to the default.
-  if (shard.kind === "cinder") {
-    drawCinder(shard);
-    return;
-  }
-  if (shard.kind === "drifter") {
-    drawDrifter(shard);
-    return;
-  }
-  if (shard.kind === "lance") {
-    drawLance(shard);
-    return;
-  }
-
-  const alpha = 0.7 + Math.sin(shard.pulse) * 0.12;
-
-  ctx.save();
-  ctx.translate(shard.x, shard.y);
-  ctx.rotate(shard.angle);
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = `rgba(255, 122, 89, ${0.42 + alpha * 0.16})`;
-  ctx.fillStyle = COLORS.hazardSoft;
-  ctx.shadowColor = "rgba(255, 122, 89, 0.45)";
-  ctx.shadowBlur = 8;
-  ctx.beginPath();
-  shard.points.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.strokeStyle = "rgba(243, 236, 230, 0.14)";
-  ctx.beginPath();
-  ctx.moveTo(shard.points[0].x * 0.28, shard.points[0].y * 0.28);
-  const opposite = shard.points[Math.floor(shard.points.length / 2)];
-  ctx.lineTo(opposite.x * 0.62, opposite.y * 0.62);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawBullets() {
-  for (const bullet of bullets) {
-    const progress = bullet.age / bullet.life;
-    ctx.save();
-    ctx.globalAlpha = 1 - progress * 0.45;
-    if (bullet.strong) {
-      // Power shots read as hotter, heavier slugs than the base bullet.
-      const strongColor = POWERUPS.strongShots.color;
-      ctx.strokeStyle = strongColor;
-      ctx.fillStyle = "#FFE3C2";
-      ctx.lineWidth = 2.2;
-      ctx.shadowColor = strongColor;
-      ctx.shadowBlur = 20;
-    } else {
-      ctx.strokeStyle = "rgba(255, 180, 150, 0.85)";
-      ctx.fillStyle = COLORS.face;
-      ctx.lineWidth = 1.4;
-      ctx.shadowColor = COLORS.faceGlow;
-      ctx.shadowBlur = 12;
-    }
-    ctx.beginPath();
-    ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
-function drawFace(frame, x, y, size, rotation, alpha = 1, color = COLORS.face) {
-  // All Whim-face rendering goes through this helper so future agents can swap
-  // the art source, tint, or scaling policy in one place.
-  const paths = facePathCache[frame] ?? facePathCache.default;
-  const scale = size / FACE_VIEW_BOX.width;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rotation);
-  ctx.scale(scale, scale);
-  ctx.translate(-FACE_VIEW_BOX.width / 2, -FACE_VIEW_BOX.height / 2);
-  ctx.globalAlpha *= alpha;
-  ctx.fillStyle = color;
-  for (const path of paths) {
-    ctx.fill(path);
-  }
-  ctx.restore();
-}
-
-function drawPlayer(now) {
-  const speed = Math.hypot(player.vx, player.vy);
-  const moving = state === GAME_STATE.PLAYING && speed > 42;
-  const frame = getFaceFrame(now, moving);
-  const shotPulse = clamp((shotFrameUntil - now) / 180, 0, 1);
-
-  // Flicker during the post-hit grace period so the player can see they are
-  // temporarily safe after losing a life.
-  if (invulnerableTimer > 0) {
-    ctx.globalAlpha = Math.floor(now / 110) % 2 === 0 ? 0.35 : 0.85;
-  }
-
-  ctx.save();
-  ctx.translate(player.x, player.y);
-  ctx.rotate(player.rotation);
-  ctx.fillStyle = "rgba(255, 77, 77, 0.055)";
-  ctx.strokeStyle = "rgba(255, 77, 77, 0.18)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, player.size * 0.62, player.size * 0.46, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-
-  // Draw the timed shield bubble while invulnerable so it's obviously active.
-  if (isPowerUpActive("shield")) {
-    const shieldPulse = (Math.sin(now / 120) + 1) / 2;
-    const radius = player.radius * (1.55 + shieldPulse * 0.12);
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    // Soft inner glow fill.
-    ctx.fillStyle = `rgba(255, 105, 180, ${0.08 + shieldPulse * 0.07})`;
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.fill();
-    // Bright pulsing outer ring.
-    ctx.strokeStyle = `rgba(255, 105, 180, ${0.45 + shieldPulse * 0.35})`;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  if (shotPulse > 0) {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.rotate(aimAngle);
-    ctx.strokeStyle = `rgba(255, 77, 77, ${shotPulse * 0.5})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(
-      player.radius * 1.1,
-      0,
-      player.size * (0.22 + (1 - shotPulse) * 0.16),
-      0,
-      Math.PI * 2,
-    );
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // He's permanently furious: a fast tremble, a hot red glare, and angry brows.
-  const trembleX = Math.sin(now * 0.05) * 1.4 + Math.sin(now * 0.13) * 0.8;
-  const trembleY = Math.cos(now * 0.047) * 1.4 + Math.cos(now * 0.11) * 0.8;
-  const faceX = player.x + trembleX;
-  const faceY = player.y + trembleY;
-
-  ctx.save();
-  ctx.shadowColor = "rgba(255, 32, 32, 0.85)";
-  ctx.shadowBlur = 30;
-  drawFace(
-    frame,
-    faceX,
-    faceY,
-    player.size * (1 + shotPulse * 0.04),
-    player.rotation,
-    1,
-    "#FF2A1A",
-  );
-  ctx.restore();
-
-  drawAngryBrows(faceX, faceY, player.size, player.rotation);
-  ctx.globalAlpha = 1;
-}
-
-function drawAngryBrows(x, y, size, rotation) {
-  // Two thick brows angled down toward the center — the universal "mad" signal.
-  // Drawn over the face so the abstract Whim glyph reads as angry.
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rotation);
-  ctx.strokeStyle = "#7a0000";
-  ctx.lineWidth = Math.max(3, size * 0.07);
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  // Left brow: outer-high to inner-low.
-  ctx.moveTo(-size * 0.36, -size * 0.5);
-  ctx.lineTo(-size * 0.08, -size * 0.36);
-  // Right brow: inner-low to outer-high.
-  ctx.moveTo(size * 0.08, -size * 0.36);
-  ctx.lineTo(size * 0.36, -size * 0.5);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawEffects() {
-  for (const trail of trails) {
-    const progress = trail.age / trail.life;
-    drawFace(
-      trail.frame,
-      trail.x,
-      trail.y,
-      trail.size * (1 + progress * 0.12),
-      trail.rotation,
-      (1 - progress) * 0.18,
-      COLORS.face,
-    );
-  }
-
-  for (const particle of burstParticles) {
-    const progress = particle.age / particle.life;
-    ctx.globalAlpha = (1 - progress) * 0.78;
-    ctx.strokeStyle = particle.color;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(particle.x, particle.y);
-    ctx.lineTo(
-      particle.x - particle.vx * 0.035,
-      particle.y - particle.vy * 0.035,
-    );
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawPowerUp(powerUp, now) {
-  const glow = 0.5 + Math.sin(now * 0.008 + powerUp.x) * 0.5;
-  const color = POWERUPS[powerUp.type]?.color ?? COLORS.face;
-
-  ctx.save();
-  ctx.translate(powerUp.x, powerUp.y);
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 16 * glow;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.arc(0, 0, powerUp.radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = `rgba(255, 255, 255, ${glow * 0.4})`;
-  ctx.beginPath();
-  ctx.arc(0, 0, powerUp.radius * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
 
 function drawPowerUpIndicators(now) {
   const padding = 16;
@@ -2006,45 +1465,35 @@ function drawPowerUpIndicators(now) {
   }
 }
 
-function drawPointerGuide() {
-  if (!pointerTarget.active || state !== GAME_STATE.PLAYING) return;
-
-  const distance = Math.hypot(pointerTarget.x - player.x, pointerTarget.y - player.y);
-  const alpha = clamp(distance / 220, 0.12, 0.42);
-
-  ctx.save();
-  ctx.strokeStyle = `rgba(255, 77, 77, ${alpha})`;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 8]);
-  ctx.beginPath();
-  ctx.moveTo(player.x, player.y);
-  ctx.lineTo(pointerTarget.x, pointerTarget.y);
-  ctx.stroke();
-
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(pointerTarget.x, pointerTarget.y, 13, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
+// Build a read-only snapshot of the simulation and hand it to the 3D renderer.
+// Everything here mirrors live sim state in CSS-pixel space; render3d.js maps it
+// into the WebGL scene. The HUD power-up dots stay as a cheap 2D overlay.
 function draw(now) {
-  drawBackground(now);
-  drawEffects();
-  drawPointerGuide();
+  const speed = Math.hypot(player.vx, player.vy);
+  const moving = state === GAME_STATE.PLAYING && speed > 42;
+  const shotPulse = clamp((shotFrameUntil - now) / 180, 0, 1);
 
-  for (const shard of shards) {
-    drawShard(shard);
-  }
+  renderer.render(
+    {
+      player,
+      shards,
+      bullets,
+      powerUps,
+      burstParticles,
+      trails,
+      squirrel,
+      dolphin,
+      pointer: pointerTarget,
+      playing: state === GAME_STATE.PLAYING,
+      faceFrame: getFaceFrame(now, moving),
+      shotPulse,
+      shieldActive: isPowerUpActive("shield"),
+      invulnerable: invulnerableTimer > 0,
+    },
+    now,
+  );
 
-  for (const powerUp of powerUps) {
-    drawPowerUp(powerUp, now);
-  }
-
-  drawSquirrel();
-  drawDolphin();
-  drawBullets();
-  drawPlayer(now);
+  ctx.clearRect(0, 0, width, height);
   drawPowerUpIndicators(now);
 }
 
