@@ -45,37 +45,37 @@ const shootButton = document.querySelector("#shootButton");
 // Canvas art (this object) and CSS chrome (:root tokens) must stay in sync.
 const COLORS = {
   // Background gradient stops (top is the darkest void, bottom is warm crimson).
-  backgroundTop: "#1a060c",
-  background: "#2a0a12",
-  backgroundBottom: "#3d0d18",
-  surface: "#3a141d",
-  surfaceHover: "#4a1a25",
-  border: "#5a2530",
+  backgroundTop: "#100618",
+  background: "#180a2a",
+  backgroundBottom: "#250d3d",
+  surface: "#241439",
+  surfaceHover: "#2e1a4a",
+  border: "#3a255a",
   foreground: "#f3ece6",
-  muted: "#c79aa2",
+  muted: "#b29ac7",
   // The hot Whim red and its translucent derivatives, used for the player glow,
   // base bullets, pointer guide, grid, and most particle bursts.
-  face: "#ff4d4d",
-  faceSoft: "rgba(255, 77, 77, 0.14)",
-  faceLine: "rgba(255, 77, 77, 0.52)",
-  faceGlow: "rgba(255, 42, 36, 0.85)",
+  face: "#b14dff",
+  faceSoft: "rgba(177, 77, 255, 0.14)",
+  faceLine: "rgba(177, 77, 255, 0.52)",
+  faceGlow: "rgba(190, 36, 255, 0.85)",
   // Star tint — a faint warm rose so the field reads as part of the red world.
-  star: "#ffd9c2",
+  star: "#e8d9ff",
   // Hazards: every enemy reads as ember matter in the same warm-red void.
   // Identity is carried by silhouette + motion, not hue — color stays inside the
   // ember family (cooler/crimson = bigger & slower, whiter-hot = faster).
-  hazard: "#ff7a59",
-  hazardSoft: "rgba(255, 122, 89, 0.07)",
-  hazardLine: "rgba(255, 122, 89, 0.5)",
-  emberCore: "#ffb070", // hottest center for any molten body
-  cinderEdge: "#7a1f12", // dark cooled crust / outline for rock
-  cinderGlow: "rgba(255, 138, 74, 0.18)", // soft heat halo for new kinds
-  moteHot: "#ff8a4a", // small fast embers / sparks
-  veilCore: "#ff5e6e", // cool plasma/gas body (leans crimson, not orange)
-  veilGlow: "rgba(255, 94, 110, 0.22)",
+  hazard: "#a05cff",
+  hazardSoft: "rgba(170, 89, 255, 0.07)",
+  hazardLine: "rgba(170, 89, 255, 0.5)",
+  emberCore: "#c98aff", // hottest center for any molten body
+  cinderEdge: "#3a127a", // dark cooled crust / outline for rock
+  cinderGlow: "rgba(185, 74, 255, 0.18)", // soft heat halo for new kinds
+  moteHot: "#b06aff", // small fast embers / sparks
+  veilCore: "#9a5eff", // cool plasma/gas body (leans crimson, not orange)
+  veilGlow: "rgba(175, 94, 255, 0.22)",
   // Friendly helpers, tinted to belong to the same warm world.
-  squirrel: "#c2461b",
-  danger: "#e08a6f",
+  squirrel: "#7a2bd1",
+  danger: "#b06fe0",
 };
 
 // Primary gameplay tuning surface. Distances are CSS pixels; speeds are pixels
@@ -177,7 +177,7 @@ const POWERUPS = {
   strongShots: {
     id: "strongShots",
     label: "Power shots",
-    color: "#FFB020",
+    color: "#c98aff",
     duration: GAME_CONFIG.powerUpDuration,
     strongShots: true,
     weight: 5,
@@ -188,7 +188,7 @@ const POWERUPS = {
   spreadShot: {
     id: "spreadShot",
     label: "Triple tap",
-    color: "#FFB020",
+    color: "#c98aff",
     duration: 6,
     bulletCount: 3,
     spreadAngle: GAME_CONFIG.spreadShotAngle,
@@ -1557,15 +1557,15 @@ function drawBackground(now) {
     width / 2, height * 0.92, 0,
     width / 2, height * 0.92, Math.max(width, height) * 0.85,
   );
-  glow.addColorStop(0, "rgba(255, 77, 77, 0.10)");
-  glow.addColorStop(1, "rgba(255, 77, 77, 0)");
+  glow.addColorStop(0, "rgba(177, 77, 255, 0.10)");
+  glow.addColorStop(1, "rgba(177, 77, 255, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
 
   const grid = 40;
   const offset = (now * 0.012) % grid;
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(255, 77, 77, 0.03)";
+  ctx.strokeStyle = "rgba(177, 77, 255, 0.03)";
   ctx.beginPath();
   for (let x = -grid + offset; x <= width + grid; x += grid) {
     ctx.moveTo(x, 0);
@@ -1647,15 +1647,15 @@ function drawDrifter(shard) {
   // Soft plasma body: crimson core fading to transparent.
   const grad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r);
   grad.addColorStop(0, COLORS.veilCore);
-  grad.addColorStop(0.7, "rgba(255, 94, 110, 0.5)");
-  grad.addColorStop(1, "rgba(255, 94, 110, 0)");
+  grad.addColorStop(0.7, "rgba(175, 94, 255, 0.5)");
+  grad.addColorStop(1, "rgba(175, 94, 255, 0)");
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
 
   // Faint crimson rim.
-  ctx.strokeStyle = "rgba(255, 94, 110, 0.4)";
+  ctx.strokeStyle = "rgba(175, 94, 255, 0.4)";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
@@ -1720,9 +1720,9 @@ function drawShard(shard) {
   ctx.translate(shard.x, shard.y);
   ctx.rotate(shard.angle);
   ctx.lineWidth = 1.4;
-  ctx.strokeStyle = `rgba(255, 122, 89, ${0.42 + alpha * 0.16})`;
+  ctx.strokeStyle = `rgba(170, 89, 255, ${0.42 + alpha * 0.16})`;
   ctx.fillStyle = COLORS.hazardSoft;
-  ctx.shadowColor = "rgba(255, 122, 89, 0.45)";
+  ctx.shadowColor = "rgba(170, 89, 255, 0.45)";
   ctx.shadowBlur = 8;
   ctx.beginPath();
   shard.points.forEach((point, index) => {
@@ -1805,8 +1805,8 @@ function drawPlayer(now) {
   ctx.save();
   ctx.translate(player.x, player.y);
   ctx.rotate(player.rotation);
-  ctx.fillStyle = "rgba(255, 77, 77, 0.055)";
-  ctx.strokeStyle = "rgba(255, 77, 77, 0.18)";
+  ctx.fillStyle = "rgba(177, 77, 255, 0.055)";
+  ctx.strokeStyle = "rgba(177, 77, 255, 0.18)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.ellipse(0, 0, player.size * 0.62, player.size * 0.46, 0, 0, Math.PI * 2);
@@ -1836,7 +1836,7 @@ function drawPlayer(now) {
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.rotate(aimAngle);
-    ctx.strokeStyle = `rgba(255, 77, 77, ${shotPulse * 0.5})`;
+    ctx.strokeStyle = `rgba(177, 77, 255, ${shotPulse * 0.5})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(
@@ -1857,7 +1857,7 @@ function drawPlayer(now) {
   const faceY = player.y + trembleY;
 
   ctx.save();
-  ctx.shadowColor = "rgba(255, 32, 32, 0.85)";
+  ctx.shadowColor = "rgba(190, 32, 255, 0.85)";
   ctx.shadowBlur = 30;
   drawFace(
     frame,
@@ -2013,7 +2013,7 @@ function drawPointerGuide() {
   const alpha = clamp(distance / 220, 0.12, 0.42);
 
   ctx.save();
-  ctx.strokeStyle = `rgba(255, 77, 77, ${alpha})`;
+  ctx.strokeStyle = `rgba(177, 77, 255, ${alpha})`;
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 8]);
   ctx.beginPath();

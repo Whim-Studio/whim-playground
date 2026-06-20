@@ -13,21 +13,21 @@
   /* "Deep-space ember" palette — a single Whim-red world. Keep these tokens and
      the COLORS object in src/main.js in sync when changing the visual direction.
      --accent is the hot Whim red; --accent-* are its translucent derivatives. */
-  --background: #2a0a12;
-  --background-top: #1a060c;
+  --background: #180a2a;
+  --background-top: #100618;
   --foreground: #f3ece6;
-  --surface: #3a141d;
-  --surface-hover: #4a1a25;
-  --border: #5a2530;
-  --accent: #ff4d4d;
-  --accent-soft: rgba(255, 77, 77, 0.16);
-  --accent-line: rgba(255, 77, 77, 0.46);
+  --surface: #241439;
+  --surface-hover: #2e1a4a;
+  --border: #3a255a;
+  --accent: #b14dff;
+  --accent-soft: rgba(177, 77, 255, 0.16);
+  --accent-line: rgba(177, 77, 255, 0.46);
   /* Back-compat aliases: older rules referenced --blue. */
   --blue: var(--accent);
   --blue-soft: var(--accent-soft);
   --blue-line: var(--accent-line);
-  --muted: #c79aa2;
-  --danger: #e08a6f;
+  --muted: #b29ac7;
+  --danger: #b06fe0;
   --shadow: rgba(12, 2, 6, 0.45);
 }
 
@@ -60,9 +60,9 @@ button {
   height: 100dvh;
   min-height: 100vh;
   background:
-    linear-gradient(rgba(255, 77, 77, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 77, 77, 0.03) 1px, transparent 1px),
-    linear-gradient(180deg, var(--background-top), var(--background) 55%, #3d0d18);
+    linear-gradient(rgba(177, 77, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(177, 77, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, var(--background-top), var(--background) 55%, #250d3d);
   background-size:
     44px 44px,
     44px 44px,
@@ -112,7 +112,7 @@ button {
 .health-bar {
   height: 6px;
   width: 100%;
-  background: rgba(255, 77, 77, 0.12);
+  background: rgba(177, 77, 255, 0.12);
   border: 1px solid var(--accent-line);
   border-radius: 3px;
   overflow: hidden;
@@ -122,9 +122,9 @@ button {
 .health-bar__fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #ffb020, var(--accent));
+  background: linear-gradient(90deg, #c98aff, var(--accent));
   border-radius: 2px;
-  box-shadow: 0 0 10px rgba(255, 77, 77, 0.55);
+  box-shadow: 0 0 10px rgba(177, 77, 255, 0.55);
   transition: width 0.2s ease;
 }
 
@@ -180,14 +180,14 @@ button {
   place-items: center;
   width: 68px;
   height: 68px;
-  border: 1px solid rgba(255, 77, 77, 0.45);
+  border: 1px solid rgba(177, 77, 255, 0.45);
   border-radius: 50%;
   background:
-    radial-gradient(circle at 50% 30%, rgba(255, 77, 77, 0.22), transparent 70%),
-    rgba(42, 10, 18, 0.72);
+    radial-gradient(circle at 50% 30%, rgba(177, 77, 255, 0.22), transparent 70%),
+    rgba(26, 10, 42, 0.72);
   box-shadow:
     0 14px 42px rgba(12, 2, 6, 0.4),
-    0 0 28px rgba(255, 77, 77, 0.18),
+    0 0 28px rgba(177, 77, 255, 0.18),
     inset 0 1px 0 rgba(243, 236, 230, 0.08);
   color: var(--accent);
   cursor: pointer;
@@ -201,8 +201,8 @@ button {
   border: 2px solid currentColor;
   border-radius: 50%;
   box-shadow:
-    0 0 0 8px rgba(255, 77, 77, 0.08),
-    0 0 22px rgba(255, 77, 77, 0.28);
+    0 0 0 8px rgba(177, 77, 255, 0.08),
+    0 0 22px rgba(177, 77, 255, 0.28);
 }
 
 .shoot-button:active {
@@ -235,14 +235,14 @@ button {
   gap: 14px;
   width: min(100%, 280px);
   padding: 26px 24px 24px;
-  border: 1px solid rgba(255, 77, 77, 0.3);
+  border: 1px solid rgba(177, 77, 255, 0.3);
   border-radius: 12px;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(255, 77, 77, 0.14), transparent 70%),
-    rgba(42, 10, 18, 0.82);
+    radial-gradient(120% 90% at 50% 0%, rgba(177, 77, 255, 0.14), transparent 70%),
+    rgba(26, 10, 42, 0.82);
   box-shadow:
     0 22px 70px rgba(12, 2, 6, 0.5),
-    0 0 40px rgba(255, 77, 77, 0.12),
+    0 0 40px rgba(177, 77, 255, 0.12),
     inset 0 1px 0 rgba(243, 236, 230, 0.07);
 }
 
@@ -274,9 +274,9 @@ button {
 .game-overlay__panel button {
   width: 100%;
   min-height: 42px;
-  border: 1px solid rgba(255, 77, 77, 0.5);
+  border: 1px solid rgba(177, 77, 255, 0.5);
   border-radius: 7px;
-  background: rgba(255, 77, 77, 0.12);
+  background: rgba(177, 77, 255, 0.12);
   color: var(--foreground);
   cursor: pointer;
   font-size: 13px;
@@ -291,7 +291,7 @@ button {
 
 .game-overlay__panel button:hover {
   border-color: var(--blue);
-  background: rgba(255, 77, 77, 0.2);
+  background: rgba(177, 77, 255, 0.2);
 }
 
 .game-overlay__panel button:active {
@@ -393,7 +393,7 @@ button {
     width: 14px;
     height: 14px;
     box-shadow:
-      0 0 0 6px rgba(255, 77, 77, 0.08),
-      0 0 18px rgba(255, 77, 77, 0.28);
+      0 0 0 6px rgba(177, 77, 255, 0.08),
+      0 0 18px rgba(177, 77, 255, 0.28);
   }
 }
