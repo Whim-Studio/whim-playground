@@ -34,8 +34,7 @@ public class FinesseMoveGenerator implements MoveGenerator {
     };
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public List legalMoves(GameState state, Position from) {
+    public List<Position> legalMoves(GameState state, Position from) {
         List<Position> moves = new ArrayList<>();
         if (state == null || from == null) {
             return moves;

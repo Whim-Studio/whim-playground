@@ -18,9 +18,16 @@ public enum PieceType {
     ROOK,
     BISHOP,
     KNIGHT,
-    PAWN;
+    PAWN,
 
-    // Variant-specific types (e.g. Finesse pieces) may be appended below this
-    // line by editing the variant. The core makes no assumption about the set
-    // of types beyond the six standard ones declared above.
+    // Variant-specific types are appended below this line. The core makes no
+    // assumption about the set of types beyond the six standard ones above;
+    // movement behaviour lives in the variant's MoveGenerator.
+
+    /**
+     * The Finesse variant piece: moves like a bishop for quiet (non-capturing)
+     * moves, but captures only via a knight's leap. Behaviour is defined in
+     * {@code com.finesse.variant.FinesseMoveGenerator} (see {@code RULES.md}).
+     */
+    FINESSE;
 }

@@ -26,8 +26,8 @@ public interface MoveGenerator {
      *
      * @param state the current game state; must not be {@code null}
      * @param from  the square of the piece whose moves are requested
-     * @return an immutable or freshly-allocated list of legal {@link Move}s;
-     *         never {@code null}, possibly empty
+     * @return a freshly-allocated list of destination {@link Position}s reachable
+     *         by the piece on {@code from}; never {@code null}, possibly empty
      */
-    List<Move> legalMoves(GameState state, Position from);
+    List<Position> legalMoves(GameState state, Position from);
 }

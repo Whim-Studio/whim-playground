@@ -27,7 +27,7 @@ import org.junit.Test;
  *
  * <p>API ASSUMPTIONS (Task 1/2 own these; reconcile names at integration):
  * <ul>
- *   <li>{@code new FinesseSetup().createInitialState()} returns the starting {@link GameState}.</li>
+ *   <li>{@code FinesseSetup.newGame()} returns the starting {@link GameState}.</li>
  *   <li>{@code GameState#getBoard()} and {@code GameState#getSideToMove()}.</li>
  *   <li>{@code Piece#getType()} / {@code Piece#getColor()}.</li>
  * </ul>
@@ -42,7 +42,7 @@ public class FinesseSetupTest {
 
     @Before
     public void setUp() {
-        state = new FinesseSetup().createInitialState();
+        state = FinesseSetup.newGame();
         assertNotNull("setup must produce a GameState", state);
         board = state.getBoard();
         assertNotNull("GameState must wrap a Board", board);
@@ -117,15 +117,16 @@ public class FinesseSetupTest {
     }
 
     @Test
-    public void standardPieceComplementPerColor() {
-        // ASSUMPTION: Finesse uses the standard FIDE complement per color:
-        // 8 pawns, 2 rooks, 2 knights, 2 bishops, 1 queen, 1 king (16 total).
-        // RULES.md may define a different roster — reconcile these expected counts.
+    public void finessePieceComplementPerColor() {
+        // Per RULES.md: standard FIDE complement EXCEPT the two bishops are
+        // replaced by the variant FINESSE piece on files 2 and 5.
+        // Per color: 8 pawns, 2 rooks, 2 knights, 2 FINESSE, 1 queen, 1 king (16 total).
         Map<PieceType, Integer> white = tallyByType(PieceColor.WHITE);
         assertEquals(Integer.valueOf(8), white.getOrDefault(PieceType.PAWN, 0));
         assertEquals(Integer.valueOf(2), white.getOrDefault(PieceType.ROOK, 0));
         assertEquals(Integer.valueOf(2), white.getOrDefault(PieceType.KNIGHT, 0));
-        assertEquals(Integer.valueOf(2), white.getOrDefault(PieceType.BISHOP, 0));
+        assertEquals(Integer.valueOf(2), white.getOrDefault(PieceType.FINESSE, 0));
+        assertEquals(Integer.valueOf(0), white.getOrDefault(PieceType.BISHOP, 0));
         assertEquals(Integer.valueOf(1), white.getOrDefault(PieceType.QUEEN, 0));
         assertEquals(Integer.valueOf(1), white.getOrDefault(PieceType.KING, 0));
     }
@@ -139,20 +140,20 @@ public class FinesseSetupTest {
 
     @Test
     public void documentedBackRankSquaresHoldExpectedPieces() {
-        // ASSUMPTION: standard chess back-rank layout on rank 0 (White) /
-        // rank 7 (Black), files a..h = 0..7:
-        //   rook,knight,bishop,queen,king,bishop,knight,rook.
-        // This is a placeholder reflecting standard chess; replace each square's
-        // expected piece with the Finesse layout documented in RULES.md.
+        // Per RULES.md: Finesse back-rank layout on rank 0 (White) / rank 7 (Black),
+        // files 0..7: rook, knight, FINESSE, queen, king, FINESSE, knight, rook.
+        // (The bishops of standard chess are replaced by the FINESSE piece.)
         assertPiece(0, 0, PieceType.ROOK, PieceColor.WHITE);
         assertPiece(1, 0, PieceType.KNIGHT, PieceColor.WHITE);
-        assertPiece(2, 0, PieceType.BISHOP, PieceColor.WHITE);
+        assertPiece(2, 0, PieceType.FINESSE, PieceColor.WHITE);
         assertPiece(3, 0, PieceType.QUEEN, PieceColor.WHITE);
         assertPiece(4, 0, PieceType.KING, PieceColor.WHITE);
-        assertPiece(5, 0, PieceType.BISHOP, PieceColor.WHITE);
+        assertPiece(5, 0, PieceType.FINESSE, PieceColor.WHITE);
         assertPiece(6, 0, PieceType.KNIGHT, PieceColor.WHITE);
         assertPiece(7, 0, PieceType.ROOK, PieceColor.WHITE);
 
+        assertPiece(2, 7, PieceType.FINESSE, PieceColor.BLACK);
+        assertPiece(5, 7, PieceType.FINESSE, PieceColor.BLACK);
         assertPiece(4, 7, PieceType.KING, PieceColor.BLACK);
         assertPiece(3, 7, PieceType.QUEEN, PieceColor.BLACK);
     }

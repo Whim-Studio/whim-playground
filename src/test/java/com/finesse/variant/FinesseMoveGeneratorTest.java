@@ -109,38 +109,42 @@ public class FinesseMoveGeneratorTest {
         assertFalse("cannot pass through captured enemy", result.contains(pos(4, 0)));
     }
 
-    // ---- BISHOP ---------------------------------------------------------------
+    // ---- FINESSE (quiet diagonal slide) --------------------------------------
+    // Per RULES.md the variant has no bishop; the FINESSE piece performs the
+    // diagonal slide for QUIET moves (it captures only by a knight's leap — see
+    // finesseSpecificMechanic below).
 
     @Test
-    public void bishopOnEmptyBoardSlidesDiagonals() {
+    public void finesseOnEmptyBoardSlidesDiagonals() {
         GameState state = emptyState(PieceColor.WHITE);
         Position from = pos(2, 2);
-        state.getBoard().setPiece(from, new Piece(PieceType.BISHOP, PieceColor.WHITE));
+        state.getBoard().setPiece(from, new Piece(PieceType.FINESSE, PieceColor.WHITE));
 
-        // ASSUMPTION: standard bishop movement (diagonal sliding).
+        // Quiet moves follow the diagonals (identical geometry to a bishop).
         Set<Position> result = moves(state, from);
         assertTrue(result.contains(pos(3, 3)));
         assertTrue(result.contains(pos(7, 7)));
         assertTrue(result.contains(pos(0, 0)));
         assertTrue(result.contains(pos(1, 3)));
         assertTrue(result.contains(pos(3, 1)));
-        assertFalse("bishop does not move orthogonally", result.contains(pos(2, 3)));
-        assertFalse("bishop does not move orthogonally", result.contains(pos(3, 2)));
+        assertFalse("finesse quiet move is diagonal, not orthogonal", result.contains(pos(2, 3)));
+        assertFalse("finesse quiet move is diagonal, not orthogonal", result.contains(pos(3, 2)));
     }
 
     @Test
-    public void bishopBlockedByFriendlyOnDiagonal() {
+    public void finesseDiagonalSlideStopsBeforeAnyPiece() {
         GameState state = emptyState(PieceColor.WHITE);
         Position from = pos(0, 0);
         Board b = state.getBoard();
-        b.setPiece(from, new Piece(PieceType.BISHOP, PieceColor.WHITE));
+        b.setPiece(from, new Piece(PieceType.FINESSE, PieceColor.WHITE));
+        // A friendly blocker on the diagonal halts the quiet slide. (An enemy here
+        // would behave identically — the finesse never captures along the diagonal.)
         b.setPiece(pos(2, 2), new Piece(PieceType.PAWN, PieceColor.WHITE));
 
         Set<Position> result = moves(state, from);
-        // ASSUMPTION: standard sliding blocked by friendly piece.
         assertTrue(result.contains(pos(1, 1)));
-        assertFalse("cannot land on friendly", result.contains(pos(2, 2)));
-        assertFalse("cannot pass through friendly", result.contains(pos(3, 3)));
+        assertFalse("cannot land on the blocker", result.contains(pos(2, 2)));
+        assertFalse("cannot pass through the blocker", result.contains(pos(3, 3)));
     }
 
     // ---- KNIGHT ---------------------------------------------------------------
@@ -326,16 +330,32 @@ public class FinesseMoveGeneratorTest {
 
     @Test
     public void finesseSpecificMechanic() {
-        // ASSUMPTION / PLACEHOLDER: RULES.md was not available on this branch, so the
-        // variant's signature "finesse" mechanic could not be encoded. Once RULES.md is
-        // integrated, replace this body with a focused test of that mechanic (e.g. the
-        // special move/capture rule that distinguishes Finesse from standard chess).
-        //
-        // It currently asserts only that the generator is wired up and returns a
-        // non-null result for a representative position, so the suite compiles and runs.
+        // RULES.md signature rule: the FINESSE piece "moves like a bishop, captures
+        // like a knight" — quiet moves slide the diagonals (never capturing), and
+        // captures happen ONLY via a knight's leap onto an enemy.
         GameState state = emptyState(PieceColor.WHITE);
-        Position from = pos(4, 1);
-        state.getBoard().setPiece(from, new Piece(PieceType.PAWN, PieceColor.WHITE));
-        assertNotNull(gen.legalMoves(state, from));
+        Position from = pos(3, 3);
+        Board b = state.getBoard();
+        b.setPiece(from, new Piece(PieceType.FINESSE, PieceColor.WHITE));
+
+        b.setPiece(pos(5, 5), new Piece(PieceType.PAWN, PieceColor.BLACK)); // enemy ON a diagonal
+        b.setPiece(pos(5, 4), new Piece(PieceType.PAWN, PieceColor.BLACK)); // enemy on a knight square
+        b.setPiece(pos(1, 2), new Piece(PieceType.PAWN, PieceColor.WHITE)); // friendly on a knight square
+
+        Set<Position> result = moves(state, from);
+
+        // Moves like a bishop: quiet diagonal squares are reachable...
+        assertTrue("quiet diagonal step", result.contains(pos(4, 4)));
+        assertTrue("quiet diagonal step", result.contains(pos(2, 2)));
+        // ...but it may NOT capture along the diagonal — the enemy on (5,5) is safe,
+        // and the slide stops in front of it.
+        assertFalse("finesse cannot capture along the diagonal", result.contains(pos(5, 5)));
+
+        // Captures like a knight: an enemy on a knight-leap square IS capturable...
+        assertTrue("finesse captures via a knight's leap", result.contains(pos(5, 4)));
+        // ...a friendly piece on a knight square is not a legal target...
+        assertFalse("cannot capture a friendly piece", result.contains(pos(1, 2)));
+        // ...and a knight square is NOT a quiet move when empty (capture-only).
+        assertFalse("knight squares are capture-only, not quiet moves", result.contains(pos(4, 5)));
     }
 }
