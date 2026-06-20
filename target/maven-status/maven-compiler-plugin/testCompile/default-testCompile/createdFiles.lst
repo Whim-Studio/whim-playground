@@ -1,0 +1,9 @@
+com/tiwa/mahjong/scoring/ScoreCalculatorTest.class
+com/finesse/variant/FinesseMoveGeneratorTest.class
+com/finesse/core/BoardTest.class
+com/tiwa/mahjong/scoring/Stubs.class
+com/finesse/variant/FinesseSetupTest.class
+com/tiwa/mahjong/scoring/PenaltiesTest.class
+com/tiwa/mahjong/scoring/Stubs$StubTile.class
+com/tiwa/mahjong/scoring/PayoutCalculatorTest.class
+com/tiwa/mahjong/scoring/Stubs$StubMeld.class

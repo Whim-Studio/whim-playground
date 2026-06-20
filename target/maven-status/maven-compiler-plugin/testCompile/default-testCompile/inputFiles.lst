@@ -1,0 +1,7 @@
+/app/src/test/java/com/finesse/variant/FinesseSetupTest.java
+/app/src/test/java/com/tiwa/mahjong/scoring/PayoutCalculatorTest.java
+/app/src/test/java/com/tiwa/mahjong/scoring/PenaltiesTest.java
+/app/src/test/java/com/finesse/core/BoardTest.java
+/app/src/test/java/com/tiwa/mahjong/scoring/Stubs.java
+/app/src/test/java/com/finesse/variant/FinesseMoveGeneratorTest.java
+/app/src/test/java/com/tiwa/mahjong/scoring/ScoreCalculatorTest.java
