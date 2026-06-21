@@ -21,6 +21,8 @@ import java.util.Map;
  *   <li>Soldier moves forward/sideways (never backward) and gains palace diagonal steps.</li>
  *   <li>"Pass" ({@code new Move(p, p)}) is legal unless it would leave the General in check.</li>
  *   <li>No draws: a move creating a 3rd occurrence of a position is illegal.</li>
+ *   <li>Bikjang: a move producing an unobstructed vertical alignment of the two
+ *       Generals (same file, no intervening pieces) is illegal and filtered out.</li>
  * </ul>
  */
 public class GameState {
@@ -112,7 +114,7 @@ public class GameState {
     public List<Move> legalMoves() {
         List<Move> result = new ArrayList<Move>();
         for (Move m : pseudoLegalMoves(board, sideToMove)) {
-            if (leavesOwnGeneralSafe(m) && !wouldRepeat(m)) {
+            if (leavesOwnGeneralSafe(m) && !createsBikjang(m) && !wouldRepeat(m)) {
                 result.add(m);
             }
         }
@@ -120,7 +122,7 @@ public class GameState {
         Position gen = board.findGeneral(sideToMove);
         if (gen != null) {
             Move pass = new Move(gen, gen);
-            if (!checkOnBoard(board, sideToMove) && !wouldRepeat(pass)) {
+            if (!checkOnBoard(board, sideToMove) && !createsBikjang(pass) && !wouldRepeat(pass)) {
                 result.add(pass);
             }
         }
@@ -132,7 +134,7 @@ public class GameState {
             if (board.findGeneral(sideToMove) == null) {
                 return false;
             }
-            return !checkOnBoard(board, sideToMove) && !wouldRepeat(move);
+            return !checkOnBoard(board, sideToMove) && !createsBikjang(move) && !wouldRepeat(move);
         }
         return legalMoves().contains(move);
     }
@@ -148,6 +150,39 @@ public class GameState {
     private boolean leavesOwnGeneralSafe(Move move) {
         Board nb = applyToBoard(move);
         return !checkOnBoard(nb, sideToMove);
+    }
+
+    /** A move is illegal if the resulting position is a Bikjang (facing Generals). */
+    private boolean createsBikjang(Move move) {
+        return isBikjang(applyToBoard(move));
+    }
+
+    /**
+     * Bikjang ("facing Generals"): both Generals occupy the same column with zero
+     * intervening pieces on the intermediate intersections between them, giving an
+     * unobstructed vertical line of sight. In this variant Bikjang is forbidden, so
+     * any move producing it is filtered out of {@link #legalMoves()} alongside the
+     * self-check and threefold-repetition filters. Because the AI explores only via
+     * {@code legalMoves()}/{@code apply()}, it can never generate or search a Bikjang.
+     */
+    private static boolean isBikjang(Board b) {
+        Position cho = b.findGeneral(Side.CHO);
+        Position han = b.findGeneral(Side.HAN);
+        if (cho == null || han == null) {
+            return false; // a captured General cannot face anything
+        }
+        if (cho.col() != han.col()) {
+            return false; // different files -> no vertical alignment
+        }
+        int col = cho.col();
+        int lo = Math.min(cho.row(), han.row());
+        int hi = Math.max(cho.row(), han.row());
+        for (int r = lo + 1; r < hi; r++) {
+            if (b.pieceAt(r, col) != null) {
+                return false; // an intervening piece blocks the line of sight
+            }
+        }
+        return true; // same file, clear line -> Bikjang
     }
 
     // ------------------------------------------------------------------

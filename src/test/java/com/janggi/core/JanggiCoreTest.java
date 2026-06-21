@@ -230,6 +230,37 @@ public class JanggiCoreTest {
         assertFalse(gs.legalMoves().contains(hanB));
     }
 
+    // ---- Bikjang (facing generals) ----
+
+    @Test
+    public void moveCreatingBikjangIsIllegal() {
+        // Generals share column 4; a CHO soldier at (5,4) blocks the line of sight.
+        GameState gs = stateWith(Side.CHO,
+                Position.of(9, 4), new Piece(Side.CHO, PieceType.GENERAL),
+                Position.of(0, 4), new Piece(Side.HAN, PieceType.GENERAL),
+                Position.of(5, 4), new Piece(Side.CHO, PieceType.SOLDIER));
+
+        // Sliding the blocker off the file opens an unobstructed General line -> Bikjang.
+        Move opensBikjang = new Move(Position.of(5, 4), Position.of(5, 3));
+        assertFalse(gs.isLegal(opensBikjang));
+        assertFalse(gs.legalMoves().contains(opensBikjang));
+
+        // Advancing the soldier keeps it on column 4, so the line stays blocked -> legal.
+        assertTrue(canMove(gs, 5, 4, 4, 4));
+    }
+
+    @Test
+    public void sameFileButBlockedIsNotBikjang() {
+        // Generals on the same column with an intervening piece is NOT Bikjang.
+        GameState gs = stateWith(Side.CHO,
+                Position.of(9, 4), new Piece(Side.CHO, PieceType.GENERAL),
+                Position.of(0, 4), new Piece(Side.HAN, PieceType.GENERAL),
+                Position.of(4, 4), new Piece(Side.HAN, PieceType.SOLDIER));
+        assertFalse(gs.isGameOver());
+        // General may even stay on the same file (8,4) because the soldier still blocks.
+        assertTrue(canMove(gs, 9, 4, 8, 4));
+    }
+
     @Test
     public void checkmateEndsGame() {
         // HAN general at corner (0,3). A CHO chariot on row 0 gives check; two more

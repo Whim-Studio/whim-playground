@@ -26,6 +26,10 @@ import com.janggi.core.Side;
  *       the palace near the General is rewarded.</li>
  * </ul>
  *
+ * <p><b>Bikjang.</b> The facing-Generals constraint requires no evaluation term:
+ * {@code GameState.legalMoves()} already filters out any move that would create a
+ * Bikjang, so the search ({@link MinimaxAI}) never reaches such a position.
+ *
  * Scores are returned from {@code perspective}'s point of view (higher better)
  * and are anti-symmetric apart from the side-to-move mobility term.
  */
