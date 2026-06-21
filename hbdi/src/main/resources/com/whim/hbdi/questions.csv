@@ -1,0 +1,117 @@
+id,category,text,weightA,weightB,weightC,weightD
+1,Work Style,I enjoy working with numbers, facts, and statistics.,3,1,1,1
+2,Problem Solving,I like to plan tasks step by step.,1,3,1,1
+3,Communication,I enjoy helping and supporting other people.,1,1,3,1
+4,Learning,I enjoy brainstorming new and unconventional ideas.,1,1,1,3
+5,Decision Making,I like to analyze problems logically before acting.,3,1,1,1
+6,Creativity,I keep my work organized and follow a schedule.,1,3,1,1
+7,Work Style,I am sensitive to the feelings of those around me.,1,1,3,1
+8,Problem Solving,I like to imagine future possibilities and the big picture.,1,1,1,3
+9,Communication,I am comfortable making decisions based on data.,3,1,1,1
+10,Learning,I prefer clear procedures and detailed instructions.,1,3,1,1
+11,Decision Making,I prefer collaborating in a team over working alone.,1,1,3,1
+12,Creativity,I am comfortable taking risks to try something novel.,1,1,1,3
+13,Work Style,I prefer arguments backed by evidence and reasoning.,3,1,1,1
+14,Problem Solving,I complete one task fully before starting another.,1,3,1,1
+15,Communication,I build relationships easily and value harmony.,1,1,3,1
+16,Learning,I see connections between seemingly unrelated things.,1,1,1,3
+17,Decision Making,I find financial and technical details engaging.,3,1,1,1
+18,Creativity,I value reliability, structure, and predictability.,1,3,1,1
+19,Work Style,I listen carefully to understand others' viewpoints.,1,1,3,1
+20,Problem Solving,I prefer open-ended problems with room to experiment.,1,1,1,3
+21,Communication,I evaluate options by weighing costs and benefits.,3,1,1,1
+22,Learning,I make checklists to keep track of what needs doing.,1,3,1,1
+23,Decision Making,I express my emotions openly with people I trust.,1,1,3,1
+24,Creativity,I rely on intuition and gut feeling when deciding.,1,1,1,3
+25,Work Style,I am drawn to precise, measurable goals.,3,1,1,1
+26,Problem Solving,I am careful about deadlines and commitments.,1,3,1,1
+27,Communication,I am motivated by a sense of community and belonging.,1,1,3,1
+28,Learning,I get bored with routine and crave variety.,1,1,1,3
+29,Decision Making,I trust analysis more than intuition.,3,1,1,1
+30,Creativity,I prefer established methods over improvising.,1,3,1,1
+31,Work Style,I find it natural to encourage and mentor others.,1,1,3,1
+32,Problem Solving,I enjoy expressing myself creatively and visually.,1,1,1,3
+33,Communication,I enjoy working with numbers, facts, and statistics.,3,1,1,1
+34,Learning,I like to plan tasks step by step.,1,3,1,1
+35,Decision Making,I enjoy helping and supporting other people.,1,1,3,1
+36,Creativity,I enjoy brainstorming new and unconventional ideas.,1,1,1,3
+37,Work Style,I like to analyze problems logically before acting.,3,1,1,1
+38,Problem Solving,I keep my work organized and follow a schedule.,1,3,1,1
+39,Communication,I am sensitive to the feelings of those around me.,1,1,3,1
+40,Learning,I like to imagine future possibilities and the big picture.,1,1,1,3
+41,Decision Making,I am comfortable making decisions based on data.,3,1,1,1
+42,Creativity,I prefer clear procedures and detailed instructions.,1,3,1,1
+43,Work Style,I prefer collaborating in a team over working alone.,1,1,3,1
+44,Problem Solving,I am comfortable taking risks to try something novel.,1,1,1,3
+45,Communication,I prefer arguments backed by evidence and reasoning.,3,1,1,1
+46,Learning,I complete one task fully before starting another.,1,3,1,1
+47,Decision Making,I build relationships easily and value harmony.,1,1,3,1
+48,Creativity,I see connections between seemingly unrelated things.,1,1,1,3
+49,Work Style,I find financial and technical details engaging.,3,1,1,1
+50,Problem Solving,I value reliability, structure, and predictability.,1,3,1,1
+51,Communication,I listen carefully to understand others' viewpoints.,1,1,3,1
+52,Learning,I prefer open-ended problems with room to experiment.,1,1,1,3
+53,Decision Making,I evaluate options by weighing costs and benefits.,3,1,1,1
+54,Creativity,I make checklists to keep track of what needs doing.,1,3,1,1
+55,Work Style,I express my emotions openly with people I trust.,1,1,3,1
+56,Problem Solving,I rely on intuition and gut feeling when deciding.,1,1,1,3
+57,Communication,I am drawn to precise, measurable goals.,3,1,1,1
+58,Learning,I am careful about deadlines and commitments.,1,3,1,1
+59,Decision Making,I am motivated by a sense of community and belonging.,1,1,3,1
+60,Creativity,I get bored with routine and crave variety.,1,1,1,3
+61,Work Style,I trust analysis more than intuition.,3,1,1,1
+62,Problem Solving,I prefer established methods over improvising.,1,3,1,1
+63,Communication,I find it natural to encourage and mentor others.,1,1,3,1
+64,Learning,I enjoy expressing myself creatively and visually.,1,1,1,3
+65,Decision Making,I enjoy working with numbers, facts, and statistics.,3,1,1,1
+66,Creativity,I like to plan tasks step by step.,1,3,1,1
+67,Work Style,I enjoy helping and supporting other people.,1,1,3,1
+68,Problem Solving,I enjoy brainstorming new and unconventional ideas.,1,1,1,3
+69,Communication,I like to analyze problems logically before acting.,3,1,1,1
+70,Learning,I keep my work organized and follow a schedule.,1,3,1,1
+71,Decision Making,I am sensitive to the feelings of those around me.,1,1,3,1
+72,Creativity,I like to imagine future possibilities and the big picture.,1,1,1,3
+73,Work Style,I am comfortable making decisions based on data.,3,1,1,1
+74,Problem Solving,I prefer clear procedures and detailed instructions.,1,3,1,1
+75,Communication,I prefer collaborating in a team over working alone.,1,1,3,1
+76,Learning,I am comfortable taking risks to try something novel.,1,1,1,3
+77,Decision Making,I prefer arguments backed by evidence and reasoning.,3,1,1,1
+78,Creativity,I complete one task fully before starting another.,1,3,1,1
+79,Work Style,I build relationships easily and value harmony.,1,1,3,1
+80,Problem Solving,I see connections between seemingly unrelated things.,1,1,1,3
+81,Communication,I find financial and technical details engaging.,3,1,1,1
+82,Learning,I value reliability, structure, and predictability.,1,3,1,1
+83,Decision Making,I listen carefully to understand others' viewpoints.,1,1,3,1
+84,Creativity,I prefer open-ended problems with room to experiment.,1,1,1,3
+85,Work Style,I evaluate options by weighing costs and benefits.,3,1,1,1
+86,Problem Solving,I make checklists to keep track of what needs doing.,1,3,1,1
+87,Communication,I express my emotions openly with people I trust.,1,1,3,1
+88,Learning,I rely on intuition and gut feeling when deciding.,1,1,1,3
+89,Decision Making,I am drawn to precise, measurable goals.,3,1,1,1
+90,Creativity,I am careful about deadlines and commitments.,1,3,1,1
+91,Work Style,I am motivated by a sense of community and belonging.,1,1,3,1
+92,Problem Solving,I get bored with routine and crave variety.,1,1,1,3
+93,Communication,I trust analysis more than intuition.,3,1,1,1
+94,Learning,I prefer established methods over improvising.,1,3,1,1
+95,Decision Making,I find it natural to encourage and mentor others.,1,1,3,1
+96,Creativity,I enjoy expressing myself creatively and visually.,1,1,1,3
+97,Work Style,I enjoy working with numbers, facts, and statistics.,3,1,1,1
+98,Problem Solving,I like to plan tasks step by step.,1,3,1,1
+99,Communication,I enjoy helping and supporting other people.,1,1,3,1
+100,Learning,I enjoy brainstorming new and unconventional ideas.,1,1,1,3
+101,Decision Making,I like to analyze problems logically before acting.,3,1,1,1
+102,Creativity,I keep my work organized and follow a schedule.,1,3,1,1
+103,Work Style,I am sensitive to the feelings of those around me.,1,1,3,1
+104,Problem Solving,I like to imagine future possibilities and the big picture.,1,1,1,3
+105,Communication,I am comfortable making decisions based on data.,3,1,1,1
+106,Learning,I prefer clear procedures and detailed instructions.,1,3,1,1
+107,Decision Making,I prefer collaborating in a team over working alone.,1,1,3,1
+108,Creativity,I am comfortable taking risks to try something novel.,1,1,1,3
+109,Work Style,I prefer arguments backed by evidence and reasoning.,3,1,1,1
+110,Problem Solving,I complete one task fully before starting another.,1,3,1,1
+111,Communication,I build relationships easily and value harmony.,1,1,3,1
+112,Learning,I see connections between seemingly unrelated things.,1,1,1,3
+113,Decision Making,I find financial and technical details engaging.,3,1,1,1
+114,Creativity,I value reliability, structure, and predictability.,1,3,1,1
+115,Work Style,I listen carefully to understand others' viewpoints.,1,1,3,1
+116,Problem Solving,I prefer open-ended problems with room to experiment.,1,1,1,3
