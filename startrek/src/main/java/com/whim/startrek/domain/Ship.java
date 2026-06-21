@@ -22,8 +22,10 @@ public class Ship {
 
     private int officersRequired = 1;
     private int weaponDamage = 10;
-    private int weaponRange = 5;
-    private double speed = 10.0; // RTS units/sec
+    // RTS-arena tuned defaults (arena is 800x600): without these, ships crawl and
+    // never reach weapon range, so the battle view would render with no fire.
+    private int weaponRange = 150;
+    private double speed = 60.0; // RTS units/sec
 
     // RTS live-battle position (ignored on the TBS map).
     private double x;
