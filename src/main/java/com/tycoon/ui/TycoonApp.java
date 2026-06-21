@@ -6,6 +6,7 @@ import com.tycoon.core.GameState;
 import com.tycoon.core.Interrupt;
 import com.tycoon.core.RoomType;
 import com.tycoon.core.TurnProcessor;
+import com.tycoon.sim.SimTurnProcessor;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -187,7 +188,7 @@ public class TycoonApp extends JFrame {
     public static void main(String[] args) {
         long seed = args.length > 0 ? parseSeedOr(args[0], 42L) : 42L;
         final GameState state = GameState.newGame(seed);
-        final TurnProcessor processor = resolveProcessor();
+        final TurnProcessor processor = new SimTurnProcessor();
         final AutoTurnEngine engine = new AutoTurnEngine(state, processor);
 
         if (GraphicsEnvironment.isHeadless()) {
@@ -214,24 +215,5 @@ public class TycoonApp extends JFrame {
     private static long parseSeedOr(String s, long fallback) {
         try { return Long.parseLong(s.trim()); }
         catch (NumberFormatException e) { return fallback; }
-    }
-
-    /**
-     * Resolve the turn processor.
-     *
-     * <p>TODO(consolidation): wire {@code com.tycoon.sim.SimTurnProcessor} directly once the
-     * sim module is merged. Until then we reflectively instantiate it if present, falling
-     * back to a no-op {@link NoOpTurnProcessor} so the UI compiles and boots standalone.</p>
-     */
-    private static TurnProcessor resolveProcessor() {
-        try {
-            Class<?> c = Class.forName("com.tycoon.sim.SimTurnProcessor");
-            Object o = c.getDeclaredConstructor().newInstance();
-            return (TurnProcessor) o;
-        } catch (Throwable t) {
-            System.out.println("[TycoonApp] SimTurnProcessor unavailable (" + t.getClass().getSimpleName()
-                    + ") — using NoOpTurnProcessor placeholder.");
-            return new NoOpTurnProcessor();
-        }
     }
 }
