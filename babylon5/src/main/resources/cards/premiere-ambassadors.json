@@ -1,0 +1,69 @@
+{
+  "_comment": "B5 CCG Premiere / Base Set — Starting Ambassadors. Minimal text only; no full copyrighted card text. imageUrl points at public community art (best-effort; the app degrades to a placeholder if a URL does not resolve).",
+  "cards": [
+    {
+      "id": "prem-amb-human-sinclair",
+      "name": "Jeffrey Sinclair",
+      "set": "Premiere",
+      "rarity": "Starter",
+      "type": "AMBASSADOR",
+      "faction": "HUMAN",
+      "cost": 0,
+      "influence": 0,
+      "diplomacy": 3,
+      "intrigue": 2,
+      "psi": 0,
+      "military": 0,
+      "text": "Starting Ambassador — Earth Alliance. Commands Babylon 5.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/sinclair.jpg"
+    },
+    {
+      "id": "prem-amb-minbari-delenn",
+      "name": "Delenn",
+      "set": "Premiere",
+      "rarity": "Starter",
+      "type": "AMBASSADOR",
+      "faction": "MINBARI",
+      "cost": 0,
+      "influence": 0,
+      "diplomacy": 3,
+      "intrigue": 1,
+      "psi": 2,
+      "military": 0,
+      "text": "Starting Ambassador — Minbari Federation. Grey Council Member.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/delenn.jpg"
+    },
+    {
+      "id": "prem-amb-narn-gkar",
+      "name": "G'Kar",
+      "set": "Premiere",
+      "rarity": "Starter",
+      "type": "AMBASSADOR",
+      "faction": "NARN",
+      "cost": 0,
+      "influence": 0,
+      "diplomacy": 2,
+      "intrigue": 3,
+      "psi": 0,
+      "military": 0,
+      "text": "Starting Ambassador — Narn Regime.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/gkar.jpg"
+    },
+    {
+      "id": "prem-amb-centauri-londo",
+      "name": "Londo Mollari",
+      "set": "Premiere",
+      "rarity": "Starter",
+      "type": "AMBASSADOR",
+      "faction": "CENTAURI",
+      "cost": 0,
+      "influence": 0,
+      "diplomacy": 2,
+      "intrigue": 3,
+      "psi": 0,
+      "military": 0,
+      "text": "Starting Ambassador — Centauri Republic.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/londo.jpg"
+    }
+  ]
+}

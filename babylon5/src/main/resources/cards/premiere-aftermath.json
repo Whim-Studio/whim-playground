@@ -1,0 +1,35 @@
+{
+  "_comment": "B5 CCG Premiere — Aftermath cards (played in the Resolution round). Play conditions live in text (Won/Lost + conflict type). Minimal text only.",
+  "cards": [
+    {
+      "id": "prem-aft-war-hero",
+      "name": "War Hero",
+      "set": "Premiere", "rarity": "Common",
+      "type": "AFTERMATH", "faction": "NONALIGNED",
+      "cost": 0, "influence": 0,
+      "diplomacy": 0, "intrigue": 0, "psi": 0, "military": 0,
+      "text": "Won Military. Improves a militarily successful character.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/war-hero.jpg"
+    },
+    {
+      "id": "prem-aft-disgrace",
+      "name": "Disgrace",
+      "set": "Premiere", "rarity": "Common",
+      "type": "AFTERMATH", "faction": "NONALIGNED",
+      "cost": 0, "influence": 0,
+      "diplomacy": 0, "intrigue": 0, "psi": 0, "military": 0,
+      "text": "Lost (any). The initiator loses standing.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/disgrace.jpg"
+    },
+    {
+      "id": "prem-aft-diplomatic-coup",
+      "name": "Diplomatic Coup",
+      "set": "Premiere", "rarity": "Uncommon",
+      "type": "AFTERMATH", "faction": "NONALIGNED",
+      "cost": 0, "influence": 0,
+      "diplomacy": 0, "intrigue": 0, "psi": 0, "military": 0,
+      "text": "Won Diplomacy. +1 influence to the winner.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/diplomatic-coup.jpg"
+    }
+  ]
+}

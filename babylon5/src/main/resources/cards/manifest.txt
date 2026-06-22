@@ -1,0 +1,8 @@
+# CardDatabase manifest — one JSON filename per line (relative to cards/).
+# Lines starting with '#' and blank lines are ignored. Keep this in sync when
+# adding card files so loading works from a packaged jar (not just exploded).
+premiere-ambassadors.json
+premiere-characters.json
+premiere-conflicts.json
+premiere-aftermath.json
+deluxe-cards.json
