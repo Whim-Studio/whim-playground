@@ -1,0 +1,105 @@
+{
+  "_comment": "B5 CCG Premiere — supporting characters (loyal + neutral). Abilities: diplomacy/intrigue/psi only for characters (military is fleets/locations). Minimal flavor text only.",
+  "cards": [
+    {
+      "id": "prem-chr-human-garibaldi",
+      "name": "Michael Garibaldi",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "HUMAN",
+      "cost": 2, "influence": 0,
+      "diplomacy": 1, "intrigue": 3, "psi": 0, "military": 0,
+      "text": "Security Chief.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/garibaldi.jpg"
+    },
+    {
+      "id": "prem-chr-human-ivanova",
+      "name": "Susan Ivanova",
+      "set": "Premiere", "rarity": "Uncommon",
+      "type": "CHARACTER", "faction": "HUMAN",
+      "cost": 3, "influence": 0,
+      "diplomacy": 2, "intrigue": 2, "psi": 0, "military": 0,
+      "text": "Command Staff. Ambassador's Assistant.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/ivanova.jpg"
+    },
+    {
+      "id": "prem-chr-minbari-lennier",
+      "name": "Lennier",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "MINBARI",
+      "cost": 2, "influence": 0,
+      "diplomacy": 2, "intrigue": 1, "psi": 1, "military": 0,
+      "text": "Ambassador's Assistant (Delenn).",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/lennier.jpg"
+    },
+    {
+      "id": "prem-chr-minbari-neroon",
+      "name": "Neroon",
+      "set": "Premiere", "rarity": "Uncommon",
+      "type": "CHARACTER", "faction": "MINBARI",
+      "cost": 3, "influence": 0,
+      "diplomacy": 1, "intrigue": 2, "psi": 1, "military": 0,
+      "text": "Warrior Caste.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/neroon.jpg"
+    },
+    {
+      "id": "prem-chr-narn-natoth",
+      "name": "Na'Toth",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "NARN",
+      "cost": 2, "influence": 0,
+      "diplomacy": 1, "intrigue": 3, "psi": 0, "military": 0,
+      "text": "Ambassador's Assistant (G'Kar).",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/natoth.jpg"
+    },
+    {
+      "id": "prem-chr-narn-narn-bureaucrat",
+      "name": "Narn Bureaucrat",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "NARN",
+      "cost": 1, "influence": 0,
+      "diplomacy": 2, "intrigue": 1, "psi": 0, "military": 0,
+      "text": "Minor functionary of the Regime.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/narn-bureaucrat.jpg"
+    },
+    {
+      "id": "prem-chr-centauri-vir",
+      "name": "Vir Cotto",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "CENTAURI",
+      "cost": 1, "influence": 0,
+      "diplomacy": 2, "intrigue": 1, "psi": 0, "military": 0,
+      "text": "Ambassador's Assistant (Londo).",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/vir.jpg"
+    },
+    {
+      "id": "prem-chr-centauri-refa",
+      "name": "Lord Refa",
+      "set": "Premiere", "rarity": "Uncommon",
+      "type": "CHARACTER", "faction": "CENTAURI",
+      "cost": 3, "influence": 0,
+      "diplomacy": 1, "intrigue": 3, "psi": 0, "military": 0,
+      "text": "Centauri Court intriguer.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/refa.jpg"
+    },
+    {
+      "id": "prem-chr-neutral-talia",
+      "name": "Talia Winters",
+      "set": "Premiere", "rarity": "Uncommon",
+      "type": "CHARACTER", "faction": "NONALIGNED",
+      "cost": 3, "influence": 0,
+      "diplomacy": 1, "intrigue": 1, "psi": 3, "military": 0,
+      "text": "Neutral — Psi Corps commercial telepath.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/talia.jpg"
+    },
+    {
+      "id": "prem-chr-neutral-franklin",
+      "name": "Stephen Franklin",
+      "set": "Premiere", "rarity": "Common",
+      "type": "CHARACTER", "faction": "NONALIGNED",
+      "cost": 2, "influence": 0,
+      "diplomacy": 2, "intrigue": 1, "psi": 0, "military": 0,
+      "text": "Neutral — chief medical officer.",
+      "imageUrl": "https://www.vintageccg.com/b5/images/premiere/franklin.jpg"
+    }
+  ]
+}
