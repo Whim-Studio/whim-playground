@@ -6,100 +6,73 @@
 <title>Star Trek RPG (Coda System) — Character Creator</title>
 <style>
   /* ============================================================
-     SECTION 3 (part A): UI PRESENTATION — embedded CSS only.
-     No external libraries, no CDNs.
+     UI PRESENTATION — embedded CSS only. No CDNs, no libraries.
      ============================================================ */
   :root{
     --bg:#06080f; --panel:#0d1322; --panel2:#121a2e; --edge:#22304d;
     --ink:#e8eefc; --muted:#8fa1c4; --accent:#f5b301; --accent2:#3aa0ff;
-    --good:#37d39b; --bad:#ff6b6b; --chip:#1b2a4a;
+    --good:#37d39b; --bad:#ff6b6b;
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:radial-gradient(1200px 700px at 70% -10%,#10203f 0%,var(--bg) 60%);
-    color:var(--ink); font:14px/1.5 "Segoe UI",system-ui,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  header.app{
-    padding:18px 22px; border-bottom:1px solid var(--edge);
-    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
-    background:linear-gradient(180deg,#0b1228 0,transparent 100%);
-  }
-  header.app h1{margin:0; font-size:20px; letter-spacing:.5px}
-  header.app h1 span{color:var(--accent)}
-  header.app .tag{color:var(--muted); font-size:12px}
-  .wrap{max-width:1180px; margin:0 auto; padding:18px 22px 60px}
-  .grid{display:grid; grid-template-columns:1.15fr .85fr; gap:18px}
-  @media (max-width:960px){.grid{grid-template-columns:1fr}}
-  .card{
-    background:linear-gradient(180deg,var(--panel) 0,var(--panel2) 100%);
-    border:1px solid var(--edge); border-radius:12px; padding:16px 16px 18px;
-    margin-bottom:18px; box-shadow:0 8px 26px rgba(0,0,0,.35);
-  }
-  .card h2{
-    margin:0 0 12px; font-size:13px; text-transform:uppercase;
-    letter-spacing:1.4px; color:var(--accent2);
-    border-bottom:1px solid var(--edge); padding-bottom:8px;
-    display:flex; justify-content:space-between; align-items:center;
-  }
+  body{margin:0; background:radial-gradient(1200px 700px at 70% -10%,#10203f 0%,var(--bg) 60%);
+    color:var(--ink); font:14px/1.5 "Segoe UI",system-ui,Arial,sans-serif; -webkit-font-smoothing:antialiased;}
+  header.app{padding:16px 22px; border-bottom:1px solid var(--edge); display:flex; align-items:baseline;
+    gap:14px; flex-wrap:wrap; background:linear-gradient(180deg,#0b1228 0,transparent 100%);}
+  header.app h1{margin:0; font-size:19px; letter-spacing:.5px}
+  header.app h1 span{color:var(--accent)} header.app .tag{color:var(--muted); font-size:12px}
+  .wrap{max-width:1200px; margin:0 auto; padding:18px 22px 80px}
+  .grid{display:grid; grid-template-columns:1.2fr .8fr; gap:18px; align-items:start}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel) 0,var(--panel2) 100%); border:1px solid var(--edge);
+    border-radius:12px; padding:15px 16px 17px; margin-bottom:18px; box-shadow:0 8px 26px rgba(0,0,0,.35);}
+  .card h2{margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:1.3px; color:var(--accent2);
+    border-bottom:1px solid var(--edge); padding-bottom:8px; display:flex; justify-content:space-between; gap:8px; align-items:center;}
+  .card h2 .step{background:var(--accent2); color:#021227; border-radius:6px; padding:1px 8px; font-size:11px; font-weight:700}
+  .explain{font-size:12px; color:var(--muted); background:#0a1124; border:1px solid var(--edge);
+    border-left:3px solid var(--accent2); border-radius:6px; padding:8px 10px; margin:0 0 12px}
   label{display:block; font-size:12px; color:var(--muted); margin:0 0 4px}
   input,select,textarea,button{font:inherit; color:inherit}
-  input[type=text],input[type=number],select,textarea{
-    width:100%; background:#0a1124; border:1px solid var(--edge);
-    border-radius:8px; padding:8px 10px; color:var(--ink);
-  }
+  input[type=text],input[type=number],select,textarea{width:100%; background:#0a1124; border:1px solid var(--edge);
+    border-radius:8px; padding:7px 9px; color:var(--ink);}
   input:focus,select:focus,textarea:focus{outline:1px solid var(--accent2); border-color:var(--accent2)}
-  .row{display:flex; gap:12px; flex-wrap:wrap}
-  .row>div{flex:1; min-width:120px}
-  .btn{
-    cursor:pointer; border:1px solid var(--edge); background:#15203a;
-    color:var(--ink); border-radius:8px; padding:8px 14px; font-weight:600;
-    transition:.12s; white-space:nowrap;
-  }
+  .row{display:flex; gap:10px; flex-wrap:wrap} .row>div{flex:1; min-width:110px}
+  .btn{cursor:pointer; border:1px solid var(--edge); background:#15203a; color:var(--ink); border-radius:8px;
+    padding:7px 13px; font-weight:600; transition:.12s; white-space:nowrap;}
   .btn:hover{border-color:var(--accent2); background:#1b2a4a}
   .btn.primary{background:linear-gradient(180deg,#f5b301,#d99800); color:#1a1200; border-color:#a87900}
-  .btn.primary:hover{filter:brightness(1.08)}
-  .btn.ghost{background:transparent}
-  .btn.sm{padding:5px 10px; font-size:12px}
-  .pillbar{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap}
-  .pillbar .btn{flex:1}
+  .btn.primary:hover{filter:brightness(1.08)} .btn.sm{padding:4px 9px; font-size:12px} .btn.ghost{background:transparent}
+  .pillbar{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap} .pillbar .btn{flex:1}
   .pillbar .btn.active{background:var(--accent2); border-color:var(--accent2); color:#021227}
-
   table{width:100%; border-collapse:collapse}
   .attrs td{padding:5px 4px; border-bottom:1px solid #16203a; vertical-align:middle}
-  .attrs .name{font-weight:600; width:120px}
-  .attrs input{width:62px; text-align:center}
-  .attrs .mod{width:48px; text-align:center; color:var(--accent); font-weight:700}
-  .attrs .final{width:64px; text-align:center; font-weight:700; color:var(--good)}
-  .small{font-size:11px; color:var(--muted)}
-  .hint{font-size:11px; color:var(--muted); margin-top:6px}
-
-  .derived{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  .stat{
-    background:#0a1124; border:1px solid var(--edge); border-radius:10px;
-    padding:10px; text-align:center;
-  }
-  .stat .v{font-size:24px; font-weight:800; color:var(--accent)}
-  .stat .k{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
-
-  .tablerow{display:flex; gap:8px; align-items:center; margin-bottom:6px}
-  .tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
-  .chip{
-    background:#15203a; border:1px solid var(--edge); border-radius:20px;
-    padding:4px 10px; font-size:12px; display:flex; align-items:center; gap:8px;
-  }
-  .chip.good{border-color:#1f6b52} .chip.bad{border-color:#7a3030}
-  .chip b{color:var(--ink)} .chip .x{cursor:pointer; color:var(--bad); font-weight:700}
+  .attrs .name{font-weight:600} .attrs input{width:60px; text-align:center}
+  .attrs .mod{text-align:center; color:var(--accent); font-weight:700} .attrs .final{text-align:center; font-weight:700; color:var(--good)}
+  .small{font-size:11px; color:var(--muted)} .hint{font-size:11px; color:var(--muted); margin-top:6px}
+  .derived{display:grid; grid-template-columns:repeat(3,1fr); gap:9px}
+  .stat{background:#0a1124; border:1px solid var(--edge); border-radius:10px; padding:9px; text-align:center}
+  .stat .v{font-size:22px; font-weight:800; color:var(--accent)} .stat .k{font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
+  .stat.psi{border-color:#6a3fb0} .stat.psi .v{color:#c79bff}
+  .tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  .chip{background:#15203a; border:1px solid var(--edge); border-radius:20px; padding:4px 10px; font-size:12px; display:flex; align-items:center; gap:8px}
+  .chip.good{border-color:#1f6b52} .chip.bad{border-color:#7a3030} .chip.prof{border-color:#a87900}
+  .chip .x{cursor:pointer; color:var(--bad); font-weight:700}
   .ability-list{margin:8px 0 0; padding:0; list-style:none}
-  .ability-list li{font-size:12px; padding:3px 0; border-bottom:1px dashed #16203a}
-  .ability-list li b{color:var(--accent)}
-  textarea#json{height:300px; font-family:ui-monospace,Consolas,monospace; font-size:12px; white-space:pre}
+  .ability-list li{font-size:12px; padding:3px 0; border-bottom:1px dashed #16203a} .ability-list li b{color:var(--accent)}
+  textarea#json{height:280px; font-family:ui-monospace,Consolas,monospace; font-size:12px; white-space:pre}
   .toolbar{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap}
-  .err{color:var(--bad); font-size:12px; min-height:16px; margin-top:4px}
-  .ok{color:var(--good)}
-  .muted{color:var(--muted)}
-  .flexsplit{display:flex; gap:8px} .flexsplit>*{flex:1}
-  .badge{font-size:10px; background:#15203a; border:1px solid var(--edge); border-radius:6px; padding:1px 6px; color:var(--muted)}
+  .err{color:var(--bad); font-size:12px; min-height:15px; margin-top:4px} .ok{color:var(--good)}
+  .muted{color:var(--muted)} .badge{font-size:10px; background:#15203a; border:1px solid var(--edge); border-radius:6px; padding:1px 6px; color:var(--muted)}
+  .budget{font-weight:700} .budget.over{color:var(--bad)} .budget.ok{color:var(--good)}
+  .opts{display:flex; flex-direction:column; gap:4px; margin:6px 0}
+  .opts label{display:flex; align-items:center; gap:7px; color:var(--ink); font-size:12px; margin:0; cursor:pointer}
+  .opts label input{width:auto}
+  .grant{font-size:12px; background:#0a1124; border:1px solid var(--edge); border-radius:6px; padding:8px; margin-top:6px}
+  .grant b{color:var(--accent)}
+  .skilltbl td{padding:4px 6px; border-bottom:1px solid #16203a; font-size:12px}
+  .skilltbl th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); padding:4px 6px; border-bottom:1px solid var(--edge)}
+  .lvl{color:var(--good); font-weight:700} .over6{color:var(--bad)}
+  details{margin-top:8px} summary{cursor:pointer; color:var(--accent2); font-size:12px}
+  .num{max-width:64px}
 </style>
 </head>
 <body>
@@ -110,32 +83,17 @@
 
 <div class="wrap">
 <div class="grid">
-
   <!-- ===================== LEFT COLUMN ===================== -->
   <div>
-
-    <!-- Identity / Species / Profession -->
     <div class="card">
       <h2>Identity</h2>
       <div class="row">
-        <div>
-          <label>Character Name</label>
-          <input type="text" id="charName" placeholder="e.g. Lt. T'Vel">
-        </div>
-        <div>
-          <label>Player</label>
-          <input type="text" id="playerName" placeholder="(optional)">
-        </div>
+        <div><label>Character Name</label><input type="text" id="charName" placeholder="e.g. T'Vel"></div>
+        <div><label>Player</label><input type="text" id="playerName" placeholder="(optional)"></div>
       </div>
       <div class="row" style="margin-top:10px">
-        <div>
-          <label>Species</label>
-          <select id="species"></select>
-        </div>
-        <div>
-          <label>Profession</label>
-          <select id="profession"></select>
-        </div>
+        <div><label>Species</label><select id="species"></select></div>
+        <div><label>Profession</label><select id="profession"></select></div>
       </div>
       <div id="speciesInfo" class="card" style="margin:12px 0 0; background:#0a1124">
         <strong id="spName" class="muted">—</strong>
@@ -144,7 +102,6 @@
       </div>
     </div>
 
-    <!-- Attribute generation -->
     <div class="card">
       <h2>Attributes <span class="badge">cap 12 before species</span></h2>
       <div class="pillbar" id="methodBar">
@@ -152,64 +109,73 @@
         <button class="btn" data-method="random">Random Roll</button>
         <button class="btn" data-method="manual">Manual</button>
       </div>
-
       <div id="pointbuyControls">
-        <div class="hint">Base pool <b>10, 9, 7, 7, 5, 4</b> then distribute <b id="pbRemaining">8</b> bonus points. No base attribute above 12.</div>
+        <div class="hint">Base pool <b>10, 9, 7, 7, 5, 4</b>; distribute <b id="pbRemaining">8</b> bonus points. No base above 12.</div>
         <button class="btn sm" id="pbReset" style="margin-top:8px">Reset base pool</button>
       </div>
       <div id="randomControls" style="display:none">
-        <div class="hint">Roll 2d6 nine times, drop the three lowest, then assign the six survivors.</div>
-        <div class="toolbar" style="margin-top:8px">
-          <button class="btn sm" id="rollBtn">Roll 9×2d6</button>
-          <span id="rollPool" class="small"></span>
-        </div>
+        <div class="hint">Roll 2d6 nine times, drop the three lowest, assign the six survivors.</div>
+        <div class="toolbar" style="margin-top:8px"><button class="btn sm" id="rollBtn">Roll 9×2d6</button><span id="rollPool" class="small"></span></div>
       </div>
-      <div id="manualControls" style="display:none">
-        <div class="hint">Type any base scores directly (still capped at 12 before species).</div>
-      </div>
-
+      <div id="manualControls" style="display:none"><div class="hint">Type base scores directly (still capped at 12 before species).</div></div>
       <table class="attrs" style="margin-top:10px">
-        <thead><tr>
-          <td class="small">Attribute</td>
-          <td class="small" style="text-align:center">Base</td>
-          <td class="small" style="text-align:center">Species</td>
-          <td class="small" style="text-align:center">Final</td>
-          <td class="small" style="text-align:center">Mod</td>
-        </tr></thead>
+        <thead><tr><td class="small">Attribute</td><td class="small" style="text-align:center">Base</td>
+          <td class="small" style="text-align:center">Species</td><td class="small" style="text-align:center">Final</td>
+          <td class="small" style="text-align:center">Mod</td></tr></thead>
         <tbody id="attrBody"></tbody>
       </table>
       <div class="err" id="attrErr"></div>
+      <div id="psiRow" class="grant" style="display:none"></div>
     </div>
 
-    <!-- Skills -->
+    <!-- STEP 1: SPECIES SKILLS -->
     <div class="card">
-      <h2>Skills <span class="badge">no duplicate base skill · specialties allowed</span></h2>
+      <h2><span>Skills · Step 1 — Species Skills</span><span class="step">Int × 2</span></h2>
+      <div class="explain">You don't grow up in a culture without learning about it. Spend <b id="ssBudget">0</b> picks
+        (Intellect × 2) on <b>Knowledge</b> (Culture, History, Politics, Religion, Specific World) and <b>Language</b>.
+        Each pick = +1 level and takes a free species/homeworld specialty. Max 6 levels per skill. These count as professional skills.</div>
       <div class="row" style="align-items:flex-end">
-        <div style="flex:2"><label>Skill</label><select id="skillSel"></select></div>
-        <div style="max-width:90px"><label>Rank</label><input type="number" id="skillRank" min="1" max="7" value="1"></div>
-        <div style="flex:1.4"><label>Specialty (optional)</label><input type="text" id="skillSpec" placeholder="e.g. Warp Drive"></div>
-        <div style="max-width:110px"><button class="btn primary" id="addSkill" style="width:100%">Add</button></div>
+        <div style="flex:1.4"><label>Species skill</label><select id="ssSkill"></select></div>
+        <div style="flex:1.2"><label>Specialty (species/world)</label><input type="text" id="ssSpec" placeholder="e.g. Vulcan"></div>
+        <div style="max-width:90px"><button class="btn primary" id="ssAdd" style="width:100%">+1</button></div>
       </div>
-      <div class="err" id="skillErr"></div>
-      <div class="tag-list" id="skillList"></div>
+      <div class="small">Picks used: <span id="ssUsed" class="budget">0</span> / <span id="ssMax">0</span></div>
+      <div class="err" id="ssErr"></div>
+      <div class="tag-list" id="ssList"></div>
     </div>
 
-    <!-- Edges & Flaws -->
+    <!-- STEP 2: PERSONAL DEVELOPMENT -->
     <div class="card">
-      <h2>Edges &amp; Flaws (Traits)</h2>
-      <div class="row" style="align-items:flex-end">
-        <div style="flex:2"><label>Trait</label><select id="traitSel"></select></div>
-        <div style="max-width:120px"><button class="btn primary" id="addTrait" style="width:100%">Add</button></div>
-      </div>
-      <div class="err" id="traitErr"></div>
-      <div class="tag-list" id="traitList"></div>
+      <h2><span>Skills · Step 2 — Personal Development</span><span class="step">+2 / 3×+1 / edge</span></h2>
+      <div class="explain">Your character's early life. Pick one package, then choose <b>one skill at +2</b>, <b>three skills at +1</b>,
+        and <b>one edge</b>. Levels stack with other steps (max 6). Some packages carry a mandatory flaw.</div>
+      <label>Personal development package</label>
+      <select id="perPkg"></select>
+      <div id="perBlurb" class="small" style="margin:6px 0"></div>
+      <div id="perBody"></div>
+      <div class="err" id="perErr"></div>
+      <button class="btn primary" id="perApply" style="margin-top:8px">Apply Personal Development</button>
+      <div id="perApplied" class="grant" style="display:none"></div>
     </div>
 
+    <!-- STEP 3: PROFESSIONAL DEVELOPMENT -->
+    <div class="card">
+      <h2><span>Skills · Step 3 — Professional Development</span><span class="step">package · 5×+1 · edge</span></h2>
+      <div class="explain">Career training. Choose a development package for your profession (auto-grants its skills) or build a
+        custom one by distributing <b>20 levels</b> across the profession's skill list. Then add <b>+1 to five professional skills</b>
+        and pick <b>one edge</b>. Skills gained or raised here become professional.</div>
+      <label>Professional development package</label>
+      <select id="proPkg"></select>
+      <div id="proBlurb" class="small" style="margin:6px 0"></div>
+      <div id="proBody"></div>
+      <div class="err" id="proErr"></div>
+      <button class="btn primary" id="proApply" style="margin-top:8px">Apply Professional Development</button>
+      <div id="proApplied" class="grant" style="display:none"></div>
+    </div>
   </div>
 
   <!-- ===================== RIGHT COLUMN ===================== -->
   <div>
-
     <div class="card">
       <h2>Derived Statistics</h2>
       <div class="derived">
@@ -221,15 +187,29 @@
         <div class="stat"><div class="v" id="dStamina">0</div><div class="k">Stamina</div></div>
         <div class="stat"><div class="v" id="dWill">0</div><div class="k">Willpower</div></div>
         <div class="stat"><div class="v" id="dRenown">0</div><div class="k">Renown</div></div>
-        <div class="stat"><div class="v" id="dTotMod">0</div><div class="k">Total Mod</div></div>
+        <div class="stat psi" id="psiStat" style="display:none"><div class="v" id="dPsi">—</div><div class="k">Psi</div></div>
       </div>
       <div class="hint" id="derivedNote"></div>
     </div>
 
     <div class="card">
-      <h2>Character JSON
-        <span><button class="btn sm ghost" id="refreshJson">Refresh</button></span>
-      </h2>
+      <h2>Final Skills <span class="badge" id="skillCount">0</span></h2>
+      <div id="skillTableWrap"><div class="small muted">Acquire skills via Steps 1–3.</div></div>
+      <div class="hint">★ = professional skill · red level = exceeds the starting cap of 6.</div>
+    </div>
+
+    <div class="card">
+      <h2>Edges &amp; Flaws</h2>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:2"><label>Add trait manually</label><select id="traitSel"></select></div>
+        <div style="max-width:90px"><button class="btn" id="addTrait" style="width:100%">Add</button></div>
+      </div>
+      <div class="small" id="edgeNote"></div>
+      <div class="tag-list" id="traitList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Character JSON <span><button class="btn sm ghost" id="refreshJson">Refresh</button></span></h2>
       <div class="toolbar">
         <button class="btn primary" id="copyBtn">Copy to Clipboard</button>
         <button class="btn" id="downloadBtn">Download JSON</button>
@@ -238,678 +218,843 @@
       <label>Display Final JSON</label>
       <textarea id="json" spellcheck="false" readonly></textarea>
     </div>
-
-    <div class="card">
-      <h2>Profession Skills</h2>
-      <div id="profSkills" class="small muted">Select a profession to see its professional skill list.</div>
-    </div>
-
   </div>
 </div>
 </div>
 
 <script>
 /* ================================================================
-   SECTION 1: CORE DOMAIN & EMBEDDED JSON  (the data dictionaries)
-   ----------------------------------------------------------------
-   Everything the ruleset needs lives in these plain objects. To
-   extend the game, edit the JSON literals below — nothing else in
-   the file hard-codes species names, skills, or modifiers.
+   SECTION 1: CORE DOMAIN & EMBEDDED JSON  (data dictionaries)
+   To extend the ruleset, edit the literals below — species, skills,
+   professions, packages, and traits are all data-driven.
    ================================================================ */
-const DB = {
 
-  /* The six primary attributes (Coda System). */
+/* tiny builders to keep package data compact.
+   o() = a skill option (base skill + optional fixed specialty)
+   g() = "any one skill within this group/category" (UI resolves the specialty)
+   S() = a granted skill with a level; G() = grouped grant with a level */
+const o  = (base, spec)      => ({base, spec:spec||null});
+const g  = (base)            => ({base, group:true});
+const S  = (base, spec, lvl) => ({base, spec:spec||null, lvl});
+const G  = (base, lvl)       => ({base, group:true, lvl});
+
+const DB = {
+  /* primary attributes */
   attributes: ["Strength","Agility","Intellect","Vitality","Presence","Perception"],
 
-  /* Attribute-score -> modifier lookup (Table 4.1).
-     Calibrated to the rulebook worked examples: 4-7 => +0,
-     10-11 => +2, 12 => +3, 8-9 => +1. Edit freely to re-tune. */
-  modifierTable: {
-    "0":-3,"1":-2,"2":-1,"3":-1,"4":0,"5":0,"6":0,"7":0,
-    "8":1,"9":1,"10":2,"11":2,"12":3,"13":3,"14":4,"15":4,
-    "16":4,"17":5,"18":5,"19":6,"20":6
-  },
+  /* score -> modifier (Table 4.1), calibrated to the rulebook worked examples */
+  modifierTable: {"0":-3,"1":-2,"2":-1,"3":-1,"4":0,"5":0,"6":0,"7":0,"8":1,"9":1,
+    "10":2,"11":2,"12":3,"13":3,"14":4,"15":4,"16":4,"17":5,"18":5,"19":6,"20":6},
 
-  /* Character-generation rules / constants. */
   rules: {
-    maxStartAttributeBeforeSpecies: 12,   // hard cap on base+bonus, pre-species
-    explodingDiceDuringCreation: false,   // exploding dice do NOT apply at chargen
+    maxStartAttributeBeforeSpecies: 12,
+    explodingDiceDuringCreation: false,
     pointBuy: { baseScores:[10,9,7,7,5,4], bonusPoints:8 },
     randomRoll: { rolls:9, dice:2, sides:6, dropLowest:3 },
-    baseCourage: 3,
-    baseRenown: 0,
-    /* Derived-value formulas (documented for the engine + reader). */
+    baseCourage: 3, baseRenown: 0,
+    maxStartSkillLevel: 6,
+    psi: { startLevel: 4 },                 // Psionic edge creates Psi at level 4
+    professionalDevelopmentLevels: 20,      // "build your own" professional package
+    professionalFreePicks: 5,               // +1 to five professional skills
     derived: {
-      health:   "Vitality score + Strength modifier",
-      defense:  "7 + Agility modifier",
-      quickness:"best modifier of Perception or Agility",
-      savvy:    "best modifier of Presence or Perception",
-      stamina:  "best modifier of Strength or Vitality",
-      willpower:"best modifier of Intellect or Vitality"
+      health:"Vitality score + Strength modifier", defense:"7 + Agility modifier",
+      quickness:"best modifier of Perception or Agility", savvy:"best modifier of Presence or Perception",
+      stamina:"best modifier of Strength or Vitality", willpower:"best modifier of Intellect or Vitality"
     },
-    /* Reaction -> the two governing attributes (pick best modifier). */
-    reactions: {
-      Quickness: ["Perception","Agility"],
-      Savvy:     ["Presence","Perception"],
-      Stamina:   ["Strength","Vitality"],
-      Willpower: ["Intellect","Vitality"]
-    },
-    skills: {
-      noDuplicateBaseSkill: true,        // same base skill twice = illegal...
-      allowSameSkillDistinctSpecialty: true // ...unless the specialty differs
-    }
+    reactions: { Quickness:["Perception","Agility"], Savvy:["Presence","Perception"],
+      Stamina:["Strength","Vitality"], Willpower:["Intellect","Vitality"] }
   },
 
-  /* ---------------------------------------------------------------
-     SPECIES ROSTER.
-     `adjust` keys are attribute names; values are integer modifiers
-     applied AFTER the pre-species cap of 12 (and may exceed 12).
-     `abilities` are descriptive species traits. `bonuses` carry
-     machine-readable tweaks the engine consumes (e.g. courage).
-     Ocampa / Talaxian / Trill are intentionally excluded.
-     Romulan is present but left as an unfilled placeholder.
-     --------------------------------------------------------------- */
+  /* ---- SPECIES ----
+     adjust: post-cap attribute mods (may exceed 12)
+     skillBonuses: species skill perks that fold into the final skill list
+     bonuses: machine-readable tweaks; psionic: auto|allowed|forbidden */
   species: {
-    "Bajoran": {
-      adjust: {},
-      abilities: [
-        {name:"Artistic",   text:"+1 Craft"},
-        {name:"Faithful",   text:"+2 Religion"},
-        {name:"Pagh",       text:"+1 Courage point"}
-      ],
-      bonuses: { courage:1 }
-    },
-    "Betazoid": {
-      adjust: { Presence:1 },
-      abilities: [
-        {name:"Psionic",    text:"Begins with the Psionic edge (Psi attribute)"},
-        {name:"Peaceful",   text:"+4 Negotiate"},
-        {name:"Telepathy 2",text:"Innate telepathy, level 2"}
-      ],
-      bonuses: {}
-    },
-    "Cardassian": {
-      adjust: { Perception:1, Vitality:1, Agility:-1, Presence:-1 },
-      abilities: [
-        {name:"Eidetic Memory",     text:"Total recall of seen/heard information"},
-        {name:"High Pain Threshold",text:"Resists pain and interrogation"},
-        {name:"Devious",            text:"+2 Influence"},
-        {name:"Prying",             text:"+2 Inquire"},
-        {name:"Vesala",             text:"Cultural discipline / loyalty trait"}
-      ],
-      bonuses: {}
-    },
-    "Ferengi": {
-      adjust: { Presence:1, Perception:1, Strength:-2 },
-      abilities: [
-        {name:"Keen Hearing",       text:"Enlarged lobes grant acute hearing"},
-        {name:"Eye for Profit",     text:"Instinct for the value of a deal"},
-        {name:"Four-Lobed Brain",   text:"Resistant to telepathy"},
-        {name:"Head for Numbers",   text:"+ to commerce / mathematics tests"},
-        {name:"Lobes for Business", text:"Bonus to Negotiate / Appraise"}
-      ],
-      bonuses: {}
-    },
-    "Human": {
-      adjust: {},
-      abilities: [
-        {name:"Adaptable",  text:"+1 skill pick of choice (favored flexibility)"},
-        {name:"Skilled",    text:"Broadly trained; no attribute penalties"}
-      ],
-      bonuses: {}
-    },
-    "Klingon": {
-      adjust: { Strength:1, Vitality:1, Intellect:-1, Perception:-1 },
-      abilities: [
-        {name:"Brak'lul",   text:"Redundant organs; +1 Health"},
-        {name:"Bloodlust",  text:"Combat ferocity (Klingon rage)"},
-        {name:"Stamina+2",  text:"+2 Stamina reaction bonus"}
-      ],
-      bonuses: { reactionStamina:2 }
-    },
-    "Vulcan": {
-      adjust: { Intellect:1, Strength:2, Presence:-3 },
-      abilities: [
-        {name:"Psionic",         text:"Begins with the Psionic edge (Psi attribute)"},
-        {name:"Nerve Pinch",     text:"Vulcan neuro-pressure technique"},
-        {name:"Logical",         text:"+ to Willpower vs emotion"},
-        {name:"Mind Meld",       text:"Telepathic contact via touch"}
-      ],
-      bonuses: {}
-    },
-
-    /* PLACEHOLDER — fill in adjust/abilities to enable. */
-    "Romulan": {
-      adjust: {},                 // TODO: define species attribute modifiers
-      abilities: [],              // TODO: define species abilities
-      bonuses: {},
-      placeholder: true
-    }
+    "Bajoran": { adjust:{}, psionic:"allowed",
+      skillBonuses:[ S("Craft",null,1), S("Knowledge","Religion",2) ],
+      abilities:[ {name:"Artistic",text:"+1 Craft"},{name:"Faithful",text:"+2 Religion (Knowledge)"},{name:"Pagh",text:"+1 Courage point"} ],
+      bonuses:{ courage:1 } },
+    "Betazoid": { adjust:{Presence:1}, psionic:"auto",
+      skillBonuses:[ S("Negotiate",null,4) ],
+      abilities:[ {name:"Psionic",text:"Begins with the Psionic edge (Psi attribute, start 4)"},{name:"Peaceful",text:"+4 Negotiate"},{name:"Telepathy 2",text:"Innate telepathy, level 2"} ],
+      bonuses:{} },
+    "Cardassian": { adjust:{Perception:1,Vitality:1,Agility:-1,Presence:-1}, psionic:"allowed",
+      skillBonuses:[ S("Influence",null,2), S("Inquire",null,2) ],
+      abilities:[ {name:"Eidetic Memory",text:"Total recall of seen/heard information"},{name:"High Pain Threshold",text:"Resists pain & interrogation"},
+        {name:"Devious",text:"+2 Influence"},{name:"Prying",text:"+2 Inquire"},{name:"Vesala",text:"Cultural discipline / loyalty trait"} ],
+      bonuses:{} },
+    "Ferengi": { adjust:{Presence:1,Perception:1,Strength:-2}, psionic:"forbidden",
+      skillBonuses:[ S("Appraise",null,1), S("Negotiate",null,1) ],
+      abilities:[ {name:"Keen Hearing",text:"Acute hearing (enlarged lobes)"},{name:"Eye for Profit",text:"Instinct for a deal's value"},
+        {name:"Four-Lobed Brain",text:"Immune/resistant to telepathy — cannot be psionic"},{name:"Head for Numbers",text:"Bonus to commerce/mathematics"},{name:"Lobes for Business",text:"Bonus to Negotiate/Appraise"} ],
+      bonuses:{} },
+    "Human": { adjust:{}, psionic:"allowed", skillBonuses:[],
+      abilities:[ {name:"Adaptable",text:"Broadly trained; no attribute penalties"} ], bonuses:{} },
+    "Klingon": { adjust:{Strength:1,Vitality:1,Intellect:-1,Perception:-1}, psionic:"allowed",
+      skillBonuses:[],
+      abilities:[ {name:"Brak'lul",text:"Redundant organs; +1 Health"},{name:"Bloodlust",text:"Combat ferocity (Klingon rage)"},{name:"Stamina +2",text:"+2 Stamina reaction bonus"} ],
+      bonuses:{ reactionStamina:2, healthBonus:1 } },
+    "Vulcan": { adjust:{Intellect:1,Strength:2,Presence:-3}, psionic:"auto",
+      skillBonuses:[],
+      abilities:[ {name:"Psionic",text:"Begins with the Psionic edge (Psi attribute, start 4)"},{name:"Nerve Pinch",text:"Vulcan neuro-pressure technique"},
+        {name:"Logical",text:"+ to Willpower vs emotion"},{name:"Mind Meld",text:"Telepathic contact via touch"} ],
+      bonuses:{} },
+    "Romulan": { adjust:{}, psionic:"allowed", skillBonuses:[], abilities:[], bonuses:{}, placeholder:true }
   },
 
-  /* ---------------------------------------------------------------
-     PROFESSIONS (overview professions + Starship Officer roles).
-     `skills` = professional skill list for that profession.
-     A `*` denotes a skill GROUP (choose one each time it is taken).
-     --------------------------------------------------------------- */
-  professions: {
-    "Diplomat": {
-      favored:"Presence", reaction:"Savvy",
-      skills:["Culture","Influence","Inquire","Knowledge*","Language","Negotiate","Observe","Persuade","Politics","World Knowledge*"]
-    },
-    "Merchant": {
-      favored:"Presence", reaction:"Savvy",
-      skills:["Appraise","Computer Use","Influence","Inquire","Knowledge*","Negotiate","Persuade","Streetwise","System Operation","World Knowledge*"]
-    },
-    "Mystic": {
-      favored:"Presence", reaction:"Stamina",
-      skills:["Culture","Empathy","Influence","Knowledge*","Observe","Persuade","Religion","World Knowledge*"]
-    },
-    "Rogue": {
-      favored:"Agility", reaction:"Quickness",
-      skills:["Appraise","Athletics","Disguise","Forgery","Influence","Observe","Sleight of Hand","Stealth","Streetwise","Unarmed Combat*"]
-    },
-    "Scientist": {
-      favored:"Intellect", reaction:"Stamina",
-      skills:["Computer Use","Construct","Craft","Engineering*","Investigate","Knowledge*","Medicine","Observe","Science*","System Operation"]
-    },
-    "Soldier": {
-      favored:"Agility", reaction:"Quickness",
-      skills:["Armed Combat*","Athletics","Demolitions","First Aid","Inquire","Investigate","Observe","Ranged Combat*","Repair","Survival","Tactics","Unarmed Combat*"]
-    },
-    "Starship Officer (Command)": {
-      favored:"Presence", reaction:"Savvy",
-      skills:["Administration","Computer Use","Influence","Inquire","Knowledge*","Observe","Persuade","System Operation","Tactics","World Knowledge*"]
-    },
-    "Starship Officer (Flight Control)": {
-      favored:"Agility", reaction:"Quickness",
-      skills:["Athletics","Computer Use","Navigation","Observe","Repair","Shipboard Systems","System Operation","Vehicle Operation"]
-    },
-    "Starship Officer (Engineer)": {
-      favored:"Intellect", reaction:"Stamina",
-      skills:["Computer Use","Construct","Demolitions","Engineering*","Repair","Science*","Shipboard Systems","System Operation"]
-    },
-    "Starship Officer (Security)": {
-      favored:"Agility", reaction:"Quickness",
-      skills:["Armed Combat*","Athletics","Investigate","Observe","Ranged Combat*","Search","System Operation","Tactics","Unarmed Combat*"]
-    },
-    "Starship Officer (Counselor)": {
-      favored:"Presence", reaction:"Savvy",
-      skills:["Culture","Empathy","Influence","Inquire","Knowledge*","Medicine","Observe","Persuade","World Knowledge*"]
-    },
-    "Starship Officer (Medical)": {
-      favored:"Intellect", reaction:"Stamina",
-      skills:["Computer Use","First Aid","Inquire","Investigate","Knowledge*","Medicine","Observe","Science*","Treatment"]
-    },
-    "Starship Officer (Science)": {
-      favored:"Intellect", reaction:"Stamina",
-      skills:["Computer Use","Construct","Investigate","Knowledge*","Navigation","Observe","Science*","System Operation"]
-    }
-  },
-
-  /* ---------------------------------------------------------------
-     SKILLS dictionary. `key` = governing attribute. `group:true`
-     marks a skill group (specialties strongly encouraged). `spec`
-     lists sample specialties. Add entries to extend the system.
-     --------------------------------------------------------------- */
+  /* ---- SKILLS (canonical Coda list) ----
+     key = governing attribute; group:true = skill group (specialties strongly encouraged);
+     trained:false = usable untrained; spec = sample specialties (book table). */
   skills: {
-    "Administration":   {key:"Intellect", spec:["Starfleet","Bureaucracy"]},
-    "Appraise":         {key:"Perception", spec:["Art","Technology","Gems"]},
-    "Armed Combat":     {key:"Agility", group:true, spec:["Blade","Bat'leth","Club"]},
-    "Athletics":        {key:"Strength", spec:["Climbing","Running","Swimming"]},
-    "Computer Use":     {key:"Intellect", spec:["Programming","Hacking","Research"]},
-    "Construct":        {key:"Intellect", spec:["Mechanical","Electronic"]},
-    "Craft":            {key:"Agility", spec:["Painting","Sculpture","Music"]},
-    "Culture":          {key:"Intellect", spec:["Federation","Klingon","Bajoran"]},
-    "Demolitions":      {key:"Intellect", spec:["Defusing","Setting Charges"]},
-    "Disguise":         {key:"Presence", spec:["Impersonation","Costume"]},
-    "Empathy":          {key:"Presence", spec:["Sense Emotion","Project"]},
-    "Engineering":      {key:"Intellect", group:true, spec:["Warp Drive","Structural","Propulsion"]},
-    "First Aid":        {key:"Intellect", spec:["Field Medicine","Resuscitation"]},
-    "Forgery":          {key:"Agility", spec:["Documents","Credentials"]},
-    "Influence":        {key:"Presence", spec:["Charm","Intimidate"]},
-    "Inquire":          {key:"Presence", spec:["Interview","Interrogate"]},
-    "Investigate":      {key:"Intellect", spec:["Forensics","Research","Deduction"]},
-    "Knowledge":        {key:"Intellect", group:true, spec:["History","Law","Religion","Astronomy"]},
-    "Language":         {key:"Intellect", spec:["Klingon","Vulcan","Romulan","Cardassian"]},
-    "Medicine":         {key:"Intellect", spec:["Humans","Vulcans","Xenobiology"]},
-    "Navigation":       {key:"Intellect", spec:["Stellar","Planetary"]},
-    "Negotiate":        {key:"Presence", spec:["Mediate","Bargain"]},
-    "Observe":          {key:"Perception", spec:["Spot","Listen","Search"]},
-    "Persuade":         {key:"Presence", spec:["Oratory","Debate"]},
-    "Politics":         {key:"Presence", spec:["Federation","Local"]},
-    "Ranged Combat":    {key:"Agility", group:true, spec:["Phaser","Disruptor","Thrown"]},
-    "Religion":         {key:"Presence", spec:["Bajoran Prophets","Klingon"]},
-    "Repair":           {key:"Intellect", spec:["Electronics","Mechanical"]},
-    "Science":          {key:"Intellect", group:true, spec:["Physics","Biology","Chemistry","Astrophysics"]},
-    "Search":           {key:"Perception", spec:["Concealed","Tracking"]},
-    "Shipboard Systems":{key:"Intellect", spec:["Sensors","Helm","Tactical"]},
-    "Sleight of Hand":  {key:"Agility", spec:["Pickpocket","Conceal"]},
-    "Stealth":          {key:"Agility", spec:["Hide","Move Silently"]},
-    "Streetwise":       {key:"Presence", spec:["Black Market","Rumors"]},
-    "Survival":         {key:"Perception", spec:["Desert","Arctic","Jungle"]},
-    "System Operation": {key:"Intellect", spec:["Sensors","Communications","Transporter"]},
-    "Tactics":          {key:"Intellect", spec:["Ship","Ground","Fleet"]},
-    "Treatment":        {key:"Intellect", spec:["Surgery","Psychology","Pharmacology"]},
-    "Unarmed Combat":   {key:"Strength", group:true, spec:["Brawling","Martial Arts","Nerve Pinch"]},
-    "Vehicle Operation":{key:"Agility", spec:["Shuttle","Ground Vehicle"]},
-    "World Knowledge":  {key:"Intellect", group:true, spec:["Earth","Qo'noS","Bajor"]}
+    "Appraise":{key:"Perception",trained:true,spec:["Antiques","Dilithium Crystals","Jewelry"]},
+    "Armed Combat":{key:"Agility",group:true,trained:false,spec:["Simple Weapons","Klingon","Martial Arts"]},
+    "Athletics":{key:"Strength",trained:false,spec:["Climb","Jump","Ride","Swim"]},
+    "Computer Use":{key:"Intellect",trained:true,spec:["Encryption","Hacking","Programming","Retrieve"]},
+    "Conceal":{key:"Perception",trained:false,spec:["Cache","Camouflage","Conceal Weapon"]},
+    "Construct":{key:"Intellect",trained:true,spec:["Electronics","Hand Phasers","Machinery","Shelter"]},
+    "Craft":{key:"Agility",group:true,trained:true,spec:["Sculpture","Pottery","Painting","Cooking","Calligraphy"]},
+    "Demolitions":{key:"Intellect",trained:true,spec:["Arm","Build","Defuse"]},
+    "Engineering":{key:"Intellect",group:true,trained:true,spec:["Propulsion","Structural","Systems"]},
+    "Enterprise":{key:"Intellect",group:true,trained:false,spec:["Administration","Business","Streetwise"]},
+    "Entertain":{key:"Presence",trained:false,spec:["Dance","Drama","Sing","Play Instrument"]},
+    "First Aid":{key:"Intellect",trained:false,spec:["Human","Vulcan","Andorian"]},
+    "Forgery":{key:"Agility",trained:true,spec:["Currency","Data","Identification"]},
+    "Gaming":{key:"Intellect",trained:false,spec:["Chess","Dom-jot","Poker","Tongo"]},
+    "Gymnastics":{key:"Agility",trained:false,spec:["Balance","Swing","Tumble"]},
+    "Impersonate":{key:"Presence",trained:false,spec:["Disguise","Mimicry","Stage Acting","Undercover"]},
+    "Indoctrinate":{key:"Presence",trained:true,spec:["Brainwashing","Hypnosis","Neural Alteration"]},
+    "Influence":{key:"Presence",trained:false,spec:["Charm","Fast Talk","Intimidate","Seduce"]},
+    "Inquire":{key:"Presence",trained:false,spec:["Fraternize","Interrogation","Interview"]},
+    "Investigate":{key:"Perception",trained:false,spec:["Deduce","Forensics","Inspect","Research"]},
+    "Knowledge":{key:"Intellect",group:true,trained:true,spec:["Culture","History","Law","Politics","Religion","Specific World","Trivia"]},
+    "Language":{key:"Intellect",group:true,trained:true,spec:["Federation Standard","Klingon","Vulcan","Romulan","Cardassian","Bajoran"]},
+    "Medicine":{key:"Intellect",trained:true,spec:["General Medicine","Psychology","Vulcan Medicine"]},
+    "Negotiate":{key:"Presence",trained:false,spec:["Bargain","Entreat","Mediate"]},
+    "Observe":{key:"Perception",trained:false,spec:["Spot","Listen","Track"]},
+    "Persuade":{key:"Presence",trained:false,spec:["Debate","Oratory","Propaganda"]},
+    "Ranged Combat":{key:"Agility",group:true,trained:false,spec:["Archaic Weapons","Energy Weapons","Projectile Weapons"]},
+    "Repair":{key:"Intellect",trained:true,spec:["Automobile","Transporter","Tricorder"]},
+    "Science":{key:"Intellect",group:true,trained:true,spec:["Life Science","Physical Science","Planetary Science","Social Science","Space Science"]},
+    "Sleight of Hand":{key:"Agility",trained:true,spec:["Palm","Pick Pocket","Prestidigitation"]},
+    "Sport":{key:"Strength",trained:false,spec:["Baseball","Parrises Squares","Ride"]},
+    "Stealth":{key:"Agility",trained:false,spec:["Hide","Shadow","Sneak"]},
+    "Survival":{key:"Perception",trained:false,spec:["Arctic","Desert","Qo'noS"]},
+    "System Operation":{key:"Intellect",trained:true,spec:["Flight Control","Mission Ops","Sensors"]},
+    "Tactics":{key:"Intellect",trained:true,spec:["Federation","Ground","Romulan","Space"]},
+    "Unarmed Combat":{key:"Agility",group:true,trained:false,spec:["Boxing","Brawling","Kung Fu","Mok'bara"]}
   },
 
-  /* ---------------------------------------------------------------
-     TRAITS — edges (positive) and flaws (negative).
-     --------------------------------------------------------------- */
-  traits: {
-    edges: [
-      {name:"Psionic",          text:"Unlocks psionic skills; creates the Psi attribute (start 4)."},
-      {name:"Eidetic Memory",   text:"Total recall of anything seen or heard."},
-      {name:"Promotion",        text:"Formal rank above the starting rank."},
-      {name:"Command",          text:"Bonus to leadership and morale tests."},
-      {name:"Sense of Direction",text:"Never lost; bonus to Navigation."},
-      {name:"Night Vision",     text:"See in dim light; reduce darkness penalties."},
-      {name:"Resolute",         text:"+2 to Willpower reaction tests."},
-      {name:"Toughness",        text:"+3 bonus to Stamina reactions vs injury."},
-      {name:"Famous",           text:"Begin play with extra Renown."},
-      {name:"Wealth",           text:"Above-average personal resources."}
+  /* Psionic skills — require the Psionic edge; key attribute = Psi */
+  psionicSkills: {
+    "Empathy":{key:"Psi",trained:true,spec:["Sense Emotion","Project Emotion"]},
+    "Mind Control":{key:"Psi",trained:true,spec:["Suggestion","Domination"]},
+    "Mind Shield":{key:"Psi",trained:true,spec:["Block","Deflect"]},
+    "Telepathy":{key:"Psi",trained:true,spec:["Send","Receive","Scan"]}
+  },
+
+  /* Skills allowed in Step 1 (species skills): Knowledge specialties + Language */
+  speciesSkillOptions: [
+    {label:"Knowledge (Culture)", base:"Knowledge", spec:"Culture"},
+    {label:"Knowledge (History)", base:"Knowledge", spec:"History"},
+    {label:"Knowledge (Politics)", base:"Knowledge", spec:"Politics"},
+    {label:"Knowledge (Religion)", base:"Knowledge", spec:"Religion"},
+    {label:"Knowledge (Specific World)", base:"Knowledge", spec:"Specific World"},
+    {label:"Language (any)", base:"Language", spec:null}
+  ],
+
+  /* ---- PROFESSIONS: professional skill lists (base skills) ---- */
+  professions: {
+    "Diplomat":{favored:"Presence",reaction:"Savvy",list:["Enterprise","Computer Use","Knowledge","Inquire","Language","Negotiate","Persuade","Science"]},
+    "Merchant":{favored:"Presence",reaction:"Savvy",list:["Appraise","Enterprise","Computer Use","Craft","Knowledge","Influence","Inquire","Language","Negotiate","Repair","System Operation"]},
+    "Mystic":{favored:"Presence",reaction:"Stamina",list:["Armed Combat","Craft","Knowledge","First Aid","Inquire","Observe","Persuade","Entertain","Survival","Unarmed Combat"]},
+    "Rogue":{favored:"Agility",reaction:"Quickness",list:["Appraise","Armed Combat","Conceal","Forgery","Impersonate","Influence","Inquire","Observe","Ranged Combat","Sleight of Hand","Stealth","Enterprise","Unarmed Combat"]},
+    "Scientist":{favored:"Intellect",reaction:"Stamina",list:["Computer Use","Construct","First Aid","Investigate","Knowledge","Language","Medicine","Persuade","Repair","Science","System Operation"]},
+    "Soldier":{favored:"Agility",reaction:"Quickness",list:["Armed Combat","Athletics","Demolitions","First Aid","Inquire","Investigate","Observe","Ranged Combat","Repair","Survival","Tactics","Unarmed Combat"]},
+    "Starship Officer (Command)":{favored:"Presence",reaction:"Savvy",list:["Enterprise","Athletics","Computer Use","Ranged Combat","Inquire","Knowledge","Negotiate","Persuade","Repair","Survival","System Operation","Tactics","Unarmed Combat"]},
+    "Starship Officer (Flight Control)":{favored:"Agility",reaction:"Quickness",list:["Enterprise","Athletics","Computer Use","Ranged Combat","Knowledge","Repair","Science","Survival","Engineering","System Operation","Unarmed Combat"]},
+    "Starship Officer (Engineering)":{favored:"Intellect",reaction:"Stamina",list:["Athletics","Computer Use","Construct","Ranged Combat","Engineering","Knowledge","Science","Repair","Survival","System Operation","Unarmed Combat"]},
+    "Starship Officer (Security)":{favored:"Agility",reaction:"Quickness",list:["Athletics","Computer Use","Ranged Combat","First Aid","Inquire","Investigate","Knowledge","Observe","Repair","Survival","System Operation","Tactics","Unarmed Combat"]},
+    "Starship Officer (Counselor)":{favored:"Presence",reaction:"Savvy",list:["Athletics","Computer Use","First Aid","Influence","Inquire","Knowledge","Medicine","Ranged Combat","Repair","Survival","System Operation","Unarmed Combat"]},
+    "Starship Officer (Medical)":{favored:"Intellect",reaction:"Stamina",list:["Athletics","Computer Use","Ranged Combat","First Aid","Knowledge","Science","Medicine","Repair","Survival","System Operation","Unarmed Combat"]},
+    "Starship Officer (Science)":{favored:"Intellect",reaction:"Stamina",list:["Athletics","Computer Use","Construct","Investigate","Knowledge","Ranged Combat","Repair","Science","Survival","System Operation","Unarmed Combat"]}
+  },
+
+  /* ---- PERSONAL DEVELOPMENT PACKAGES (rulebook) ----
+     pick1 (one option @ +2), pick3 (three options @ +1), edges (choose one).
+     g() options ask the user which specialty/group member to take. */
+  personalPackages: [
+    {name:"Academic Upbringing", blurb:"You grew up in an academic environment where study was important.",
+      pick1:[g("Computer Use"),g("Knowledge"),g("Science")], pick3:[g("Craft"),g("Entertain"),g("Engineering"),g("Language")],
+      edges:["Cultural Flexibility","Curious","Eidetic Memory","Meticulous","Thinker"]},
+    {name:"Artistic Upbringing", blurb:"You spent your early life in artistic and creative pursuits.",
+      pick1:[g("Craft"),g("Entertain"),g("Knowledge")], pick3:[o("Appraise"),o("Computer Use"),o("Construct"),o("Forgery"),o("Gaming"),g("Language"),g("Science")],
+      edges:["Cultural Flexibility","Skill Focus (Compassionate)","Skill Focus (Craftsman)","Unyielding","Wealth"]},
+    {name:"Athletic Upbringing", blurb:"A natural or acquired talent for athletic endeavors.",
+      pick1:[o("Athletics"),o("Gymnastics"),o("Sport")], pick3:[g("Armed Combat"),g("Entertain"),o("Gaming"),g("Knowledge"),o("Ranged Combat","Energy Weapons")],
+      edges:["Ambidextrous","Dodge","Fit","Fast On Your Feet","Speed"]},
+    {name:"Business Upbringing", blurb:"You grew up in a business environment — a family store or apprenticeship.",
+      pick1:[o("Enterprise","Business"),o("Negotiate"),o("Persuade")], pick3:[o("Enterprise","Administration"),o("Appraise"),o("Computer Use"),g("Entertain"),o("Influence"),g("Knowledge"),g("Language"),o("System Operation")],
+      edges:["Contacts","Cultural Flexibility","Shrewd","Skill Focus (Eloquent)","Wealth"]},
+    {name:"Celebrity's Child", blurb:"One or both parents were renowned celebrities.",
+      pick1:[g("Enterprise"),o("Influence"),g("Knowledge")], pick3:[o("Computer Use"),g("Entertain"),g("Knowledge"),g("Language"),o("Science","Social Science"),o("Sport")],
+      edges:["Contacts","Fit","Skill Focus (Diplomatic)","Skill Focus (Persuasive)","Wealth"]},
+    {name:"Colony / Frontier Upbringing", blurb:"You grew up on a colony world far from civilization.",
+      pick1:[o("Construct"),g("Science"),o("Survival")], pick3:[o("Athletics"),o("Computer Use"),g("Engineering"),g("Entertain"),o("First Aid"),o("Gaming"),g("Knowledge"),o("Repair"),g("Science")],
+      edges:["Alert","Curious","Dodge","Innovative","Unyielding"]},
+    {name:"Conquered World", blurb:"You grew up on a conquered world — labor camp, detention, or resistance.",
+      pick1:[o("Unarmed Combat","Brawling"),o("Stealth"),o("Enterprise","Streetwise")], pick3:[o("Athletics"),g("Craft"),o("Demolitions"),o("Ranged Combat","Energy Weapons"),o("Influence"),o("Inquire"),o("Persuade"),o("Armed Combat","Simple Weapons"),o("Sport"),o("Survival")],
+      edges:["Alert","Bold","Dodge","Skill Focus (Furtive)","Sneaky"]},
+    {name:"Criminal Upbringing", blurb:"You grew up around criminals, learning to survive on the wrong side of the law.",
+      pick1:[o("Gaming"),o("Stealth"),o("Enterprise","Streetwise")], pick3:[g("Armed Combat"),o("Appraise"),o("Athletics"),o("Forgery"),o("Impersonate"),o("Influence"),g("Knowledge"),o("Repair"),o("Sleight of Hand")],
+      edges:["Alert","Ambidextrous","Dodge","Lightning Reflexes","Skill Focus (Furtive)"]},
+    {name:"Diplomat's Child", blurb:"You spent childhood accompanying planet-hopping diplomat parents.",
+      pick1:[o("Enterprise","Administration"),g("Knowledge"),o("Negotiate")], pick3:[o("Computer Use"),o("Influence"),g("Knowledge"),g("Language"),g("Science"),o("System Operation")],
+      edges:["Contacts","Meticulous","Skill Focus (Diplomatic)","Skill Focus (Eloquent)","Skill Focus (Persuasive)"]},
+    {name:"Genetic Resequencing", blurb:"Illegal genetic resequencing made you the acme of your species' potential.",
+      pick1:[o("Athletics"),g("Knowledge"),g("Science")], pick3:[o("Computer Use"),g("Craft"),g("Entertain"),o("Gymnastics"),g("Knowledge"),g("Science"),o("Sport")],
+      edges:["Ambidextrous","Eidetic Memory","Excellent Metabolism","Fit","Great Stamina","Healthy","Sense of Direction","Speed","Thinker"],
+      twoEdges:true, mandatoryFlaw:"Dark Secret"},
+    {name:"Mechanic's Child", blurb:"You grew up around machines, systems, and technology.",
+      pick1:[o("Construct"),g("Engineering"),o("Repair")], pick3:[o("Computer Use"),o("Conceal"),g("Engineering"),g("Science"),o("System Operation")],
+      edges:["Curious","Innovative","Skill Focus (3D Thinking)","Skill Focus (Attentive)","Suit Trained"]},
+    {name:"Military Childhood", blurb:"You spent your childhood around soldiers, weapons, and the military.",
+      pick1:[o("Athletics"),o("Ranged Combat","Energy Weapons"),o("First Aid")], pick3:[g("Armed Combat"),o("Computer Use"),o("Gaming"),g("Knowledge"),g("Language"),g("Ranged Combat"),o("Repair"),o("Survival"),o("System Operation")],
+      edges:["Alert","Bold","Dodge","Fit","Sherpa"]},
+    {name:"Orphan / Street Child", blurb:"Orphaned young, you survived by your wits, perhaps on the street.",
+      pick1:[g("Craft"),o("Stealth"),o("Enterprise","Streetwise")], pick3:[o("Unarmed Combat","Brawling"),o("Computer Use"),g("Entertain"),o("Influence"),g("Knowledge"),o("Survival")],
+      edges:["Blends In","Contacts","Dodge","Shrewd","Skill Focus (Furtive)"]},
+    {name:"Political Family", blurb:"Your family was involved in politics to some degree.",
+      pick1:[o("Enterprise","Administration"),o("Influence"),g("Knowledge")], pick3:[o("Enterprise","Business"),o("Computer Use"),g("Knowledge"),g("Language"),o("Negotiate"),o("Persuade"),o("Science","Social Science"),o("Sport")],
+      edges:["Shrewd","Skill Focus (Diplomatic)","Skill Focus (Eloquent)","Skill Focus (Persuasive)","Wealth"]},
+    {name:"Psionic Upbringing", blurb:"Born with psionic ability, you spent childhood developing your gifts.",
+      pick1:[g("__psionic__")], pick3:[o("Computer Use"),o("Gaming"),o("Influence"),g("__psionic__")],
+      edges:["Psionic","Eidetic Memory","High Pain Threshold","Iron Willed","Skill Focus (3D Thinking)","Thinker"]},
+    {name:"Religious Upbringing", blurb:"You came from a devout family or grew up in a temple or monastery.",
+      pick1:[g("Craft"),o("Knowledge","Religion"),o("Science","Social Science")], pick3:[o("Enterprise","Administration"),o("Computer Use"),g("Entertain"),o("Influence"),g("Knowledge"),g("Language"),o("Persuade"),g("Unarmed Combat")],
+      edges:["Eidetic Memory","Meticulous","Skill Focus (Attentive)","Skill Focus (Compassionate)","Skill Focus (Diplomatic)"]},
+    {name:"Scientist's Child", blurb:"Your parents were scientists or explorers; their love of learning rubbed off.",
+      pick1:[o("Computer Use"),g("Knowledge"),g("Science")], pick3:[o("Construct"),g("Engineering"),g("Enterprise"),g("Knowledge"),g("Language"),o("Repair"),o("System Operation")],
+      edges:["Contacts","Curious","Eidetic Memory","Meticulous","Unyielding"]},
+    {name:"Starfleet Family", blurb:"Your parents belonged to Starfleet; you grew up among its ideals.",
+      pick1:[o("Enterprise","Administration"),o("Computer Use"),g("Science")], pick3:[o("Athletics"),o("Construct"),g("Engineering"),g("Entertain"),g("Knowledge"),g("Language"),o("Repair"),o("Sport"),o("System Operation")],
+      edges:["Bold","Contacts","Fit","Resolute","Skill Focus (Eloquent)"]},
+    {name:"Wandering Childhood", blurb:"Your family moved constantly; you saw a lot of the galaxy.",
+      pick1:[o("Gaming"),g("Language"),o("Knowledge","Specific World"),o("Sport")], pick3:[o("Computer Use"),g("Engineering"),g("Enterprise"),g("Entertain"),g("Knowledge"),g("Language"),o("Negotiate"),o("Repair"),o("System Operation")],
+      edges:["Contacts","Cultural Flexibility","Curious","Shrewd","Skill Focus (Persuasive)"]},
+    {name:"Wealthy Upbringing", blurb:"Your family was fabulously rich and you grew up in luxury.",
+      pick1:[o("Enterprise","Business"),o("Influence"),o("Sport")], pick3:[g("Entertain"),o("Gymnastics"),g("Knowledge"),g("Language"),o("Negotiate"),o("Persuade")],
+      edges:["Contacts","Iron Willed","Skill Focus (Seductive)","Unyielding","Wealth"]},
+    {name:"Custom (build your own)", blurb:"Any one skill +2, any three skills +1, any edge except Command or Promotion.",
+      pick1:[g("__any__")], pick3:[g("__any__"),g("__any__"),g("__any__")], edges:["(any edge except Command/Promotion)"], custom:true}
+  ],
+
+  /* ---- PROFESSIONAL DEVELOPMENT PACKAGES (per profession) ----
+     Each named package auto-grants `skills`; then 5 free +1 picks and 1 edge.
+     A Custom option (distribute 20 levels over the profession list) is added per profession at runtime. */
+  professionalPackages: {
+    "Diplomat":[
+      {name:"Civil Servant", blurb:"You kept your government running smoothly.",
+        skills:[S("Enterprise","Administration",3),S("Computer Use","Retrieve",1),S("Inquire","Interview",2),S("Knowledge","Law",3),S("Negotiate","Mediate",1),S("Persuade","Oratory",2),S("Knowledge","Politics",4)],
+        edges:["Contacts","Eidetic Memory","Meticulous","Skill Focus (Diplomatic)","Skill Focus (Eloquent)"]},
+      {name:"Diplomatic Attaché", blurb:"You served in a diplomatic entourage to another government.",
+        skills:[S("Computer Use","Retrieve",1),S("Knowledge","Culture",3),S("Inquire","Fraternize",2),G("Language",2),S("Knowledge","Law",2),S("Negotiate","Mediate",4),S("Knowledge","Specific World",3)],
+        edges:["Ally","Cultural Flexibility","Shrewd","Skill Focus (Diplomatic)","Skill Focus (Eloquent)"]}
     ],
-    flaws: [
-      {name:"Code of Honor",    text:"Bound by a strict personal/cultural code."},
-      {name:"Impulsive",        text:"Acts before thinking; -2 to some Savvy tests."},
-      {name:"Intolerance",      text:"Prejudice against a group; social penalties."},
-      {name:"Medical Problem",  text:"Chronic condition imposing test penalties."},
-      {name:"Obligation",       text:"A debt or duty that complicates life."},
-      {name:"Phobia",           text:"Irrational fear forcing Willpower tests."},
-      {name:"Rival",            text:"A recurring adversary who opposes you."},
-      {name:"Weakness",         text:"-2 to a specified reaction or attribute area."}
+    "Merchant":[
+      {name:"Trader", blurb:"You bought low, sold high, and beat the competition to market.",
+        skills:[S("Appraise",null,3),S("Enterprise","Business",3),S("Knowledge","Culture",2),G("Language",1),S("Negotiate",null,4),S("Knowledge","Specific World",2),S("System Operation","Flight Control",3)],
+        edges:["Contacts","Curious","Skill Focus (Eloquent)","Skill Focus (Persuasive)","Wealth"]},
+      {name:"Shopkeeper", blurb:"You ran a small business catering to individual consumers.",
+        skills:[S("Appraise",null,2),S("Enterprise","Business",3),S("Computer Use",null,1),S("Knowledge","Culture",2),S("Influence","Charm",1),S("Influence","Fast Talk",1),S("Inquire","Fraternize",2),S("Negotiate",null,3),S("Knowledge","Specific World",2)],
+        edges:["Contacts","Meticulous","Shrewd","Skill Focus (Persuasive)","Wealth"]}
+    ],
+    "Mystic":[
+      {name:"Spiritualist", blurb:"A personal philosophy connecting you to the spiritual world.",
+        skills:[G("Armed Combat",2),G("Craft",2),S("First Aid",null,2),S("Observe",null,4),S("Persuade","Debate",2),S("Knowledge","Religion",4),G("Unarmed Combat",3)],
+        edges:["Bold","Fast On Your Feet","Fit","Quick Draw","Weapon Mastery"]},
+      {name:"Ordained Cleric", blurb:"An officially ordained member of your religious hierarchy.",
+        skills:[S("Knowledge","Culture",3),S("First Aid",null,3),S("Knowledge","History",2),S("Inquire","Interview",2),S("Persuade","Oratory",2),S("Knowledge","Religion",4),S("Entertain","Sing",2)],
+        edges:["Contacts","Meticulous","Resolute","Skill Focus (Compassionate)","Skill Focus (Eloquent)"]}
+    ],
+    "Rogue":[
+      {name:"Street Tough", blurb:"You learned your skills surviving on the streets.",
+        skills:[G("Armed Combat",2),S("Conceal",null,2),S("Influence","Intimidate",3),S("Observe","Spot",3),S("Sleight of Hand",null,2),S("Stealth",null,2),S("Enterprise","Streetwise",3)],
+        edges:["Blends In","Fast On Your Feet","Innovative","Skill Focus (Furtive)","Speed"]},
+      {name:"Professional Operative", blurb:"Spy, robber, or saboteur — a consummate professional.",
+        skills:[G("Armed Combat",2),S("Conceal",null,3),S("Observe","Spot",3),G("Ranged Combat",4),S("Stealth",null,3),S("Enterprise","Streetwise",3)],
+        edges:["Alert","Friendly","Iron Willed","Martial Artist","Skill Focus (Attentive)"]}
+    ],
+    "Scientist":[
+      {name:"Academy Graduate", blurb:"You studied at an alien academy such as the Vulcan Science Academy.",
+        skills:[S("Computer Use",null,3),S("Construct",null,3),S("Knowledge","Culture",2),G("Language",2),S("Repair",null,1),G("Science",4),S("Knowledge","Specific World",2)],
+        edges:["Confident","Contacts","Cultural Flexibility","Curious","Unyielding"]},
+      {name:"Field Researcher", blurb:"You conducted your research in the field, not the lab.",
+        skills:[S("Computer Use",null,3),S("Construct",null,1),S("First Aid",null,3),g("Knowledge"),S("Repair",null,1),G("Science",4),S("System Operation","Sensors",3)],
+        edges:["Alert","Eidetic Memory","Fit","Meticulous","Unyielding"]}
+    ],
+    "Soldier":[
+      {name:"Trained Soldier", blurb:"You learned to be a soldier through formal military training.",
+        skills:[G("Armed Combat",3),S("Athletics",null,2),S("Ranged Combat","Energy Weapons",4),S("First Aid",null,1),S("Observe","Listen",2),S("Repair",null,1),S("Survival",null,2),S("Tactics","Ground",1),G("Unarmed Combat",2)],
+        edges:["Dodge","High Pain Threshold","Skill Focus (Keen Hearing)","Skill Focus (Keen Sight)","Weapon Mastery"]},
+      {name:"Irregular Fighter", blurb:"You picked up fighting skills by necessity, not formal training.",
+        skills:[G("Armed Combat",2),S("Athletics","Run",3),S("Demolitions",null,2),S("First Aid",null,1),S("Observe",null,2),G("Ranged Combat",3),G("Ranged Combat",2),S("Survival",null,1),G("Unarmed Combat",2)],
+        edges:["Dead Aim","Fast On Your Feet","Great Stamina","Lightning Reflexes","Weapon Mastery"]}
+    ],
+    "Starship Officer (Command)":[
+      {name:"Command Trained", blurb:"Broad training in basic command procedures and methods.",
+        skills:[S("Enterprise","Administration",2),S("Computer Use","Retrieve",2),S("Ranged Combat","Energy Weapons",3),g("Knowledge"),S("Negotiate",null,1),S("Repair",null,1),S("System Operation","Mission Ops",2),S("Tactics","Space",2),G("Unarmed Combat",2)],
+        edges:["Bold","Command","Confident","Contacts","Iron Willed"]},
+      {name:"Officer-Diplomat", blurb:"Trained to represent your government as officer and diplomat.",
+        skills:[S("Enterprise","Administration",2),S("Computer Use","Retrieve",1),S("Ranged Combat","Energy Weapons",1),S("Inquire","Fraternize",2),g("Knowledge"),S("Negotiate","Mediate",3),S("Persuade","Oratory",2),S("System Operation","Mission Ops",2)],
+        edges:["Command","Confident","Contacts","Skill Focus (Eloquent)","Skill Focus (Persuasive)"]}
+    ],
+    "Starship Officer (Flight Control)":[
+      {name:"Pilot", blurb:"You studied the basics of piloting spacecraft.",
+        skills:[S("Enterprise","Administration",1),S("Computer Use",null,2),S("Ranged Combat","Energy Weapons",2),S("Repair",null,2),S("Science","Space Science",3),S("Engineering","Systems",2),S("System Operation","Flight Control",3),G("Unarmed Combat",2)],
+        edges:["Bold","Confident","Fast On Your Feet","Sense of Direction","Unyielding"]},
+      {name:"Navigator", blurb:"Your piloting talent was augmented by intensive study of navigation.",
+        skills:[S("Athletics",null,1),S("Computer Use",null,1),S("Ranged Combat","Energy Weapons",1),S("Repair",null,1),S("Science","Space Science",4),S("Survival",null,2),S("Engineering","Systems",2),S("System Operation","Flight Control",4)],
+        edges:["Bold","Famous Event","Lightning Reflexes","Shrewd","Skill Focus (3D Thinking)"]}
+    ],
+    "Starship Officer (Engineering)":[
+      {name:"Starship Engineer", blurb:"Trained in the basics of starship engineering.",
+        skills:[S("Computer Use",null,2),S("Construct",null,2),S("Ranged Combat","Energy Weapons",1),S("Engineering","Propulsion",3),S("Repair",null,2),S("Engineering","Structural",3),S("Engineering","Systems",4),S("System Operation",null,2),G("Unarmed Combat",1)],
+        edges:["Bold","Curious","Innovative","Skill Focus (Craftsman)","Unyielding"]},
+      {name:"Computer Specialist", blurb:"Advanced training in AI, computer theory, robotics, and the like.",
+        skills:[S("Computer Use","Programming",3),S("Construct","Electronics",3),S("Ranged Combat","Energy Weapons",1),S("Science","Physical Science",2),S("Repair",null,2),S("Engineering","Systems",3),S("System Operation",null,2)],
+        edges:["Curious","Innovative","Meticulous","Skill Focus (Craftsman)","Unyielding"]}
+    ],
+    "Starship Officer (Security)":[
+      {name:"Security Officer", blurb:"You received standard security training.",
+        skills:[S("Athletics","Climb",2),S("Ranged Combat","Energy Weapons",3),S("First Aid",null,1),S("Inquire","Interrogation",2),S("Investigate","Inspect",2),S("Repair",null,1),S("System Operation","Mission Ops",2),S("Tactics",null,1),G("Unarmed Combat",2)],
+        edges:["Alert","Bold","Dodge","High Pain Threshold","Skill Focus (Attentive)"]},
+      {name:"Tactical Officer", blurb:"Trained in starship tactics — you handle the weapons in battle.",
+        skills:[S("Computer Use","Hacking",2),S("Knowledge","Culture",2),S("Ranged Combat","Energy Weapons",3),S("Repair",null,2),S("System Operation","Sensors",4),S("Tactics","Space",2),G("Unarmed Combat",2)],
+        edges:["Bold","Confident","Contacts","Dodge","Resolute"]}
+    ],
+    "Starship Officer (Counselor)":[
+      {name:"Ship's Counselor", blurb:"You trained in psychology and interpersonal relations.",
+        skills:[S("Computer Use","Retrieve",1),S("Knowledge","Culture",2),S("Ranged Combat","Energy Weapons",1),S("First Aid",null,2),S("Influence","Charm",1),S("Inquire","Interview",3),S("Medicine","Psychology",3),S("Knowledge","Specific World",2),S("System Operation",null,1)],
+        edges:["Contacts","Curious","Skill Focus (Compassionate)","Skill Focus (Eloquent)","Skill Focus (Persuasive)"]},
+      {name:"Xeno-Psychologist", blurb:"You specialized in alien psychology and behavior.",
+        skills:[S("Computer Use","Retrieve",1),S("Inquire","Fraternize",3),S("Knowledge","Culture",3),S("Knowledge","History",2),S("Medicine","Psychology",3),S("Knowledge","Specific World",3),S("System Operation","Mission Ops",1)],
+        edges:["Cultural Flexibility","Friendly","Innovative","Likeable","Skill Focus (Diplomatic)"]}
+    ],
+    "Starship Officer (Medical)":[
+      {name:"Ship's Doctor", blurb:"Medical schooling preparatory to serving as a ship's doctor.",
+        skills:[S("Computer Use","Retrieve",2),S("Ranged Combat","Energy Weapons",1),S("First Aid",null,3),S("Science","Life Science",2),S("Medicine","General Medicine",4),S("Repair",null,1),S("System Operation","Mission Ops",3)],
+        edges:["Confident","Famous Event","Innovative","Meticulous","Skill Focus (Compassionate)"]},
+      {name:"Field Medic", blurb:"Emergency medicine — disaster victims, disease, casualties of war.",
+        skills:[S("Athletics",null,2),S("Computer Use","Retrieve",1),S("Ranged Combat","Energy Weapons",1),S("First Aid",null,4),g("Knowledge"),S("Medicine",null,4),S("System Operation","Mission Ops",2),S("Survival",null,2)],
+        edges:["Alert","Fast On Your Feet","Iron Willed","Skill Focus (Compassionate)","Thinker"]}
+    ],
+    "Starship Officer (Science)":[
+      {name:"Astrosciences", blurb:"You study space — mapping stars, identifying stellar anomalies.",
+        skills:[S("Computer Use","Retrieve",3),S("Construct",null,2),S("Ranged Combat","Energy Weapons",1),S("Science","Physical Science",2),S("Repair",null,1),S("Science","Space Science",3),S("System Operation","Sensors",3)],
+        edges:["Alert","Curious","Meticulous","Skill Focus (3D Thinking)","Thinker"]},
+      {name:"General Science Officer", blurb:"A broad program of science instruction.",
+        skills:[S("Computer Use","Retrieve",2),S("Ranged Combat","Energy Weapons",1),S("Science","Life Science",3),S("Science","Physical Science",3),S("Science","Planetary Science",3),S("Repair",null,2),S("Science","Space Science",2),S("System Operation","Sensors",2)],
+        edges:["Bold","Curious","Innovative","Skill Focus (Compassionate)","Unyielding"]}
     ]
+  },
+
+  /* ---- TRAITS ---- */
+  traits: {
+    edges: ["Alert","Ally","Ambidextrous","Athletic","Blends In","Bold","Command","Competitive","Confident","Contacts",
+      "Cultural Flexibility","Curious","Dead Aim","Dodge","Eidetic Memory","Excellent Metabolism","Exceptional Concentration",
+      "Exceptional Fortitude","Famous Event","Fast On Your Feet","Fit","Friendly","Great Stamina","Great Vitality","Healthy",
+      "High Pain Threshold","Innovative","Iron Willed","License","Lightning Reflexes","Likeable","Martial Artist","Meticulous",
+      "Multitasking","Night Vision","Promotion","Psionic","Quick Draw","Resolute","Sense of Direction","Sense of Time","Sherpa",
+      "Shrewd","Skill Focus (3D Thinking)","Skill Focus (Attentive)","Skill Focus (Compassionate)","Skill Focus (Craftsman)",
+      "Skill Focus (Diplomatic)","Skill Focus (Eloquent)","Skill Focus (Furtive)","Skill Focus (Keen Hearing)",
+      "Skill Focus (Keen Sight)","Skill Focus (Persuasive)","Skill Focus (Seductive)","Sneaky","Speed","Suit Trained",
+      "Thinker","Unyielding","Wealth","Weapon Mastery","Zero-G Trained"],
+    flaws: ["Code of Honor","Dark Secret","Impulsive","Intolerance","Medical Problem","Obligation","Phobia","Rival","Weakness","Dependent","Hunted","Oath","Physically Impaired"]
   }
 };
 /* ====================== END SECTION 1 ====================== */
 
 
 /* ================================================================
-   SECTION 2: LOGIC ENGINE & RULE VALIDATION  (Vanilla JS controller)
-   ----------------------------------------------------------------
-   Pure functions over the live `character` state object. No DOM
-   here except where the UI layer (Section 3) calls in.
+   SECTION 2: LOGIC ENGINE & RULE VALIDATION
    ================================================================ */
 const Engine = (function(){
-
-  /* Current working character state. */
   const character = {
-    name:"", player:"", species:"Human", profession:"Scientist",
-    method:"pointbuy",
-    base:{ Strength:0, Agility:0, Intellect:0, Vitality:0, Presence:0, Perception:0 },
-    rollPool:[],            // surviving 2d6 results awaiting assignment (random method)
-    skills:[],              // {skill, rank, specialty}
-    traits:[]               // {type:'edge'|'flaw', name, text}
+    name:"", player:"", species:"Human", profession:"Scientist", method:"pointbuy",
+    base:{Strength:0,Agility:0,Intellect:0,Vitality:0,Presence:0,Perception:0},
+    rollPool:[],
+    speciesSkills:[],    // {base, spec}  (Step 1, each +1)
+    personal:null,       // {pkg, entries:[{base,spec,lvl}], edge, flaw}
+    professional:null,   // {pkg, entries:[{base,spec,lvl}], edge}
+    edges:[],            // {name, source}
+    flaws:[]             // {name, source}
   };
 
-  /* --- dice (NON-exploding: chargen ignores exploding dice) --- */
+  /* ---- dice (non-exploding at chargen) ---- */
   function d6(){ return 1 + Math.floor(Math.random()*6); }
-  function roll2d6(){ return d6()+d6(); }
-
-  /* Random method: roll 2d6 nine times, drop three lowest, keep six. */
   function rollAttributePool(){
-    const r = DB.rules.randomRoll;
-    let rolls = [];
-    for(let i=0;i<r.rolls;i++) rolls.push(roll2d6());
+    const r = DB.rules.randomRoll; let rolls=[];
+    for(let i=0;i<r.rolls;i++) rolls.push(d6()+d6());
     rolls.sort((a,b)=>a-b);
-    const kept = rolls.slice(r.dropLowest);   // drop the lowest three
-    character.rollPool = kept.slice().sort((a,b)=>b-a);
+    character.rollPool = rolls.slice(r.dropLowest).sort((a,b)=>b-a);
     return character.rollPool;
   }
-
-  /* Look up an attribute modifier from the table (clamped). */
   function modifier(score){
-    const t = DB.modifierTable;
+    const t=DB.modifierTable;
     if(score in t) return t[score];
-    const keys = Object.keys(t).map(Number).sort((a,b)=>a-b);
-    if(score < keys[0]) return t[keys[0]];
-    return t[keys[keys.length-1]];
+    const k=Object.keys(t).map(Number).sort((a,b)=>a-b);
+    return score<k[0]?t[k[0]]:t[k[k.length-1]];
   }
-
-  /* Apply species adjustments to a base-score map -> final scores.
-     Species mods are the ONLY way to exceed the cap of 12. */
   function finalScores(){
-    const sp = DB.species[character.species] || {adjust:{}};
-    const out = {};
-    DB.attributes.forEach(a=>{
-      const adj = (sp.adjust && sp.adjust[a]) ? sp.adjust[a] : 0;
-      out[a] = (character.base[a]||0) + adj;
-    });
+    const sp=DB.species[character.species]||{adjust:{}}; const out={};
+    DB.attributes.forEach(a=>{ out[a]=(character.base[a]||0)+((sp.adjust&&sp.adjust[a])||0); });
     return out;
   }
-
-  /* Validate the pre-species cap of 12 on base scores. */
   function attributeErrors(){
-    const cap = DB.rules.maxStartAttributeBeforeSpecies;
-    const errs = [];
-    DB.attributes.forEach(a=>{
-      if((character.base[a]||0) > cap)
-        errs.push(a+" base "+character.base[a]+" exceeds the pre-species cap of "+cap+".");
-    });
+    const cap=DB.rules.maxStartAttributeBeforeSpecies, errs=[];
+    DB.attributes.forEach(a=>{ if((character.base[a]||0)>cap) errs.push(a+" base "+character.base[a]+" exceeds the pre-species cap of "+cap+"."); });
     return errs;
   }
-
-  /* Point-buy bonus-points accounting: spent above the base pool. */
   function pointBuyState(){
-    const pool = DB.rules.pointBuy.baseScores.slice().sort((a,b)=>a-b);
-    const cur  = DB.attributes.map(a=>character.base[a]||0).sort((a,b)=>a-b);
-    let spent = 0;
-    for(let i=0;i<pool.length;i++) spent += Math.max(0, cur[i]-pool[i]);
-    return { total:DB.rules.pointBuy.bonusPoints, spent, remaining:DB.rules.pointBuy.bonusPoints - spent };
+    const pool=DB.rules.pointBuy.baseScores.slice().sort((a,b)=>a-b);
+    const cur=DB.attributes.map(a=>character.base[a]||0).sort((a,b)=>a-b);
+    let spent=0; for(let i=0;i<pool.length;i++) spent+=Math.max(0,cur[i]-pool[i]);
+    return {total:DB.rules.pointBuy.bonusPoints, spent, remaining:DB.rules.pointBuy.bonusPoints-spent};
   }
 
-  /* ---- Derived statistics (all formulas from DB.rules) ---- */
+  /* ---- Psi ---- */
+  function speciesPsi(){ return (DB.species[character.species]||{}).psionic; }   // auto|allowed|forbidden
+  function hasPsionicEdge(){ return character.edges.some(e=>e.name==="Psionic"); }
+  function hasPsi(){ const p=speciesPsi(); return p==="auto" || (p!=="forbidden" && hasPsionicEdge()); }
+  function psiScore(){ return hasPsi()?DB.rules.psi.startLevel:null; }
+
+  /* ---- reactions / derived ---- */
   function derived(){
-    const sp = DB.species[character.species] || {adjust:{}, bonuses:{}};
-    const bonuses = sp.bonuses || {};
-    const f = finalScores();
-    const mod = {}; DB.attributes.forEach(a=> mod[a]=modifier(f[a]));
-
-    // reactions: best modifier of the two governing attributes (+ species reaction bonuses)
-    const react = {};
-    for(const r in DB.rules.reactions){
-      const govs = DB.rules.reactions[r];
-      react[r] = Math.max.apply(null, govs.map(g=>mod[g]));
-    }
-    if(bonuses.reactionStamina) react.Stamina += bonuses.reactionStamina;
-
-    let health = f.Vitality + mod.Strength;                 // Vitality score + Strength mod
-    // Klingon Brak'lul (+1 Health) handled via ability text; apply if present in abilities.
-    if(character.species==="Klingon") health += 1;
-
-    const defense = 7 + mod.Agility;                        // 7 + Agility mod
-    const courage = DB.rules.baseCourage + (bonuses.courage||0);
-    const renown  = DB.rules.baseRenown;
-    const totalMod = DB.attributes.reduce((s,a)=>s+mod[a],0);
-
-    return { finalScores:f, mod, reactions:react, health, defense, courage, renown, totalMod };
+    const sp=DB.species[character.species]||{adjust:{},bonuses:{}}; const b=sp.bonuses||{};
+    const f=finalScores(); const mod={}; DB.attributes.forEach(a=>mod[a]=modifier(f[a]));
+    const react={}; for(const r in DB.rules.reactions) react[r]=Math.max.apply(null,DB.rules.reactions[r].map(x=>mod[x]));
+    if(b.reactionStamina) react.Stamina+=b.reactionStamina;
+    let health=f.Vitality+mod.Strength+(b.healthBonus||0);
+    const defense=7+mod.Agility;
+    const courage=DB.rules.baseCourage+(b.courage||0);
+    const renown=DB.rules.baseRenown;
+    const totalMod=DB.attributes.reduce((s,a)=>s+mod[a],0);
+    const ps=psiScore();
+    return {finalScores:f, mod, reactions:react, health, defense, courage, renown, totalMod,
+            psi: ps==null?null:{score:ps, modifier:modifier(ps)}};
   }
 
-  /* ---- Skill validation ----
-     A base skill cannot be repeated, UNLESS the new entry carries a
-     DISTINCT specialty (and the existing one(s) also are specialised
-     or differ). Identical (skill, specialty) pairs are always rejected. */
-  function addSkill(skillName, rank, specialty){
-    skillName = (skillName||"").trim();
-    specialty = (specialty||"").trim();
-    rank = parseInt(rank,10);
-    if(!skillName) return {ok:false, msg:"Choose a skill."};
-    if(!(skillName in DB.skills)) return {ok:false, msg:"Unknown skill."};
-    if(!(rank>=1)) return {ok:false, msg:"Rank must be 1 or higher."};
+  /* ---- skill aggregation ----
+     Merges every source into a map keyed by BASE skill. Levels add (cap shown
+     against max 6); specialties accumulate into a set; professional flag set if
+     the source is a species/professional skill or the base is on the profession list. */
+  function isPsionicSkill(base){ return base in DB.psionicSkills; }
+  function profList(){ return (DB.professions[character.profession]||{list:[]}).list; }
 
-    const sameBase = character.skills.filter(s=>s.skill===skillName);
-    if(sameBase.length){
-      if(!DB.rules.skills.allowSameSkillDistinctSpecialty)
-        return {ok:false, msg:"Duplicate base skill not allowed."};
-      // need a specialty, and it must differ from existing ones
-      if(!specialty)
-        return {ok:false, msg:'"'+skillName+'" already taken — add a distinct specialty to take it again.'};
-      const clash = sameBase.some(s => (s.specialty||"").toLowerCase()===specialty.toLowerCase());
-      if(clash)
-        return {ok:false, msg:'"'+skillName+' ('+specialty+')" already exists.'};
-      // also block a bare duplicate sitting next to a specialised one is fine; we required specialty above
-    }
-    character.skills.push({skill:skillName, rank:rank, specialty:specialty||null,
-                           key:DB.skills[skillName].key});
-    return {ok:true};
+  function gatherSources(){
+    const src=[]; // {base, spec, lvl, professional, source}
+    // species skill bonuses
+    (DB.species[character.species].skillBonuses||[]).forEach(e=> src.push({base:e.base,spec:e.spec,lvl:e.lvl,professional:true,source:"Species ability"}));
+    // Step 1 species skills (each +1, professional)
+    character.speciesSkills.forEach(e=> src.push({base:e.base,spec:e.spec,lvl:1,professional:true,source:"Species skills"}));
+    // Step 2 personal (non-professional unless on prof list)
+    if(character.personal) character.personal.entries.forEach(e=> src.push({base:e.base,spec:e.spec,lvl:e.lvl,professional:profList().indexOf(e.base)>=0,source:"Personal dev"}));
+    // Step 3 professional (always professional)
+    if(character.professional) character.professional.entries.forEach(e=> src.push({base:e.base,spec:e.spec,lvl:e.lvl,professional:true,source:"Professional dev"}));
+    return src;
   }
-  function removeSkill(i){ character.skills.splice(i,1); }
-
-  /* ---- Trait (edge/flaw) validation ---- */
-  function addTrait(value){
-    if(!value) return {ok:false, msg:"Choose a trait."};
-    const [type,name] = value.split("::");
-    if(character.traits.some(t=>t.name===name && t.type===type))
-      return {ok:false, msg:name+" already added."};
-    const pool = type==="edge"?DB.traits.edges:DB.traits.flaws;
-    const def = pool.find(t=>t.name===name);
-    character.traits.push({type, name, text:def?def.text:""});
-    return {ok:true};
+  function finalSkills(){
+    const map={};
+    gatherSources().forEach(e=>{
+      if(!e.base) return;
+      if(!map[e.base]) map[e.base]={base:e.base, level:0, specialties:[], professional:false, sources:[]};
+      const m=map[e.base];
+      m.level+=e.lvl||0;
+      if(e.spec && m.specialties.indexOf(e.spec)<0) m.specialties.push(e.spec);
+      if(e.professional) m.professional=true;
+      if(e.source && m.sources.indexOf(e.source)<0) m.sources.push(e.source);
+    });
+    return Object.keys(map).sort().map(k=>map[k]);
   }
-  function removeTrait(i){ character.traits.splice(i,1); }
+  function skillWarnings(){
+    const cap=DB.rules.maxStartSkillLevel, w=[];
+    finalSkills().forEach(s=>{ if(s.level>cap) w.push(s.base+" is at "+s.level+" (exceeds the starting cap of "+cap+")."); });
+    return w;
+  }
 
-  /* ---- Serialization: full character export object ---- */
+  /* ---- edges / flaws ---- */
+  function recomputeTraits(){
+    // rebuild edges/flaws from package picks + any manual ones (manual kept via source 'Manual')
+    const manualE=character.edges.filter(e=>e.source==="Manual");
+    const manualF=character.flaws.filter(e=>e.source==="Manual");
+    const E=[], F=[];
+    if(character.personal){ if(character.personal.edge) E.push({name:character.personal.edge,source:"Personal dev"});
+      if(character.personal.flaw) F.push({name:character.personal.flaw,source:"Personal dev"}); }
+    if(character.professional && character.professional.edge) E.push({name:character.professional.edge,source:"Professional dev"});
+    // species auto Psionic edge
+    if(speciesPsi()==="auto") E.push({name:"Psionic",source:"Species"});
+    character.edges=E.concat(manualE);
+    character.flaws=F.concat(manualF);
+  }
+  function addManualTrait(value){
+    if(!value) return {ok:false,msg:"Choose a trait."};
+    const [type,name]=value.split("::");
+    const arr=type==="edge"?character.edges:character.flaws;
+    if(arr.some(t=>t.name===name)) return {ok:false,msg:name+" already present."};
+    if(type==="flaw" && character.flaws.length>=2) return {ok:false,msg:"Maximum of two flaws at start."};
+    arr.push({name,source:"Manual"}); return {ok:true};
+  }
+
+  /* ---- serialization ---- */
   function exportObject(){
-    const d = derived();
+    const d=derived();
     return {
-      meta:{ system:"Star Trek Roleplaying Game (Coda System)", generator:"offline-char-creator", version:1 },
-      name:character.name, player:character.player,
-      species:character.species, profession:character.profession,
+      meta:{system:"Star Trek Roleplaying Game (Coda System)", generator:"offline-char-creator", version:2},
+      name:character.name, player:character.player, species:character.species, profession:character.profession,
       attributeMethod:character.method,
-      attributes: DB.attributes.reduce((o,a)=>{
-        o[a] = { base:character.base[a]||0,
-                 speciesAdjust:(DB.species[character.species].adjust||{})[a]||0,
-                 final:d.finalScores[a],
-                 modifier:d.mod[a] };
-        return o;
-      },{}),
-      reactions: d.reactions,
-      derived: { health:d.health, defense:d.defense, courage:d.courage,
-                 renown:d.renown, totalModifier:d.totalMod },
-      skills: character.skills.map(s=>({skill:s.skill, rank:s.rank, specialty:s.specialty, keyAttribute:s.key})),
-      traits: character.traits.map(t=>({type:t.type, name:t.name, description:t.text})),
-      speciesAbilities: (DB.species[character.species].abilities||[]).map(a=>a.name+": "+a.text)
+      attributes:DB.attributes.reduce((obj,a)=>{ obj[a]={base:character.base[a]||0, speciesAdjust:(DB.species[character.species].adjust||{})[a]||0, final:d.finalScores[a], modifier:d.mod[a]}; return obj; },{}),
+      psi: d.psi ? {score:d.psi.score, modifier:d.psi.modifier} : null,
+      reactions:d.reactions,
+      derived:{health:d.health, defense:d.defense, courage:d.courage, renown:d.renown, totalModifier:d.totalMod},
+      skills: finalSkills().map(s=>({skill:s.base, level:s.level, specialties:s.specialties, professional:s.professional, sources:s.sources})),
+      edges: character.edges.map(e=>e.name),
+      flaws: character.flaws.map(f=>f.name),
+      development:{
+        speciesSkillsBudget: (d.finalScores.Intellect*2),
+        personalPackage: character.personal?character.personal.pkg:null,
+        professionalPackage: character.professional?character.professional.pkg:null
+      },
+      speciesAbilities:(DB.species[character.species].abilities||[]).map(a=>a.name+": "+a.text)
     };
   }
-  function exportJSON(){ return JSON.stringify(exportObject(), null, 2); }
+  function exportJSON(){ return JSON.stringify(exportObject(),null,2); }
 
-  return { DB, character, d6, roll2d6, rollAttributePool, modifier, finalScores,
-           attributeErrors, pointBuyState, derived, addSkill, removeSkill,
-           addTrait, removeTrait, exportObject, exportJSON };
+  return { DB, character, d6, rollAttributePool, modifier, finalScores, attributeErrors, pointBuyState,
+           speciesPsi, hasPsi, psiScore, derived, isPsionicSkill, profList, finalSkills, skillWarnings,
+           recomputeTraits, addManualTrait, exportObject, exportJSON };
 })();
 /* ====================== END SECTION 2 ====================== */
 
 
 /* ================================================================
-   SECTION 3 (part B): UI / DOM WIRING
-   ----------------------------------------------------------------
-   Populates selectors from Section 1's JSON, listens for input,
-   calls Section 2's engine, and renders results.
+   SECTION 3: UI / DOM WIRING
    ================================================================ */
 (function(){
-  const $ = id => document.getElementById(id);
-  const C = Engine.character, DB = Engine.DB;
+  const $=id=>document.getElementById(id);
+  const C=Engine.character, DB=Engine.DB;
+  const fmt=n=>(n>=0?"+":"")+n;
 
-  /* ---------- populate static selectors from JSON ---------- */
-  function fillSelect(sel, items, builder){
-    sel.innerHTML = items.map(builder).join("");
+  /* ---------- static selectors ---------- */
+  $("species").innerHTML=Object.keys(DB.species).map(s=>`<option value="${s}">${s}${DB.species[s].placeholder?" (placeholder)":""}</option>`).join("");
+  $("profession").innerHTML=Object.keys(DB.professions).map(p=>`<option value="${p}">${p}</option>`).join("");
+  $("ssSkill").innerHTML=DB.speciesSkillOptions.map((o,i)=>`<option value="${i}">${o.label}</option>`).join("");
+  $("perPkg").innerHTML=`<option value="-1">— choose —</option>`+DB.personalPackages.map((p,i)=>`<option value="${i}">${p.name}</option>`).join("");
+  $("traitSel").innerHTML=`<optgroup label="Edges">${DB.traits.edges.map(t=>`<option value="edge::${t}">${t}</option>`).join("")}</optgroup>`+
+    `<optgroup label="Flaws">${DB.traits.flaws.map(t=>`<option value="flaw::${t}">${t}</option>`).join("")}</optgroup>`;
+  C.species=$("species").value; C.profession=$("profession").value;
+
+  /* ---------- option label helper ---------- */
+  function optLabel(opt){
+    if(opt.group){
+      if(opt.base==="__any__") return "Any one skill";
+      if(opt.base==="__psionic__") return "Any one Psionic skill";
+      return "Any one "+opt.base+" skill";
+    }
+    return opt.base+(opt.spec?` (${opt.spec})`:"");
   }
-  fillSelect($("species"), Object.keys(DB.species),
-    s => `<option value="${s}">${s}${DB.species[s].placeholder?" (placeholder)":""}</option>`);
-  fillSelect($("profession"), Object.keys(DB.professions), p=>`<option value="${p}">${p}</option>`);
-  fillSelect($("skillSel"), Object.keys(DB.skills),
-    s => `<option value="${s}">${s}${DB.skills[s].group?" *":""} — ${DB.skills[s].key.slice(0,3)}</option>`);
-  $("traitSel").innerHTML =
-     `<optgroup label="Edges">${DB.traits.edges.map(t=>`<option value="edge::${t.name}">${t.name}</option>`).join("")}</optgroup>`+
-     `<optgroup label="Flaws">${DB.traits.flaws.map(t=>`<option value="flaw::${t.name}">${t.name}</option>`).join("")}</optgroup>`;
+  /* resolves a chosen option (incl. group choice + specialty) into {base,spec} */
+  function groupChoices(opt){
+    if(opt.base==="__any__") return Object.keys(DB.skills);
+    if(opt.base==="__psionic__") return Object.keys(DB.psionicSkills);
+    return [opt.base];
+  }
 
-  C.species = $("species").value;
-  C.profession = $("profession").value;
-
-  /* ---------- attribute table rows ---------- */
+  /* ---------- attribute rows ---------- */
   function buildAttrRows(){
-    $("attrBody").innerHTML = DB.attributes.map(a=>`
-      <tr>
-        <td class="name">${a}</td>
-        <td><input type="number" data-attr="${a}" min="0" max="20" value="${C.base[a]||0}"></td>
-        <td class="mod" id="adj-${a}">+0</td>
-        <td class="final" id="fin-${a}">0</td>
-        <td class="mod" id="mod-${a}">+0</td>
-      </tr>`).join("");
-    $("attrBody").querySelectorAll("input[data-attr]").forEach(inp=>{
-      inp.addEventListener("input", e=>{
-        C.base[e.target.dataset.attr] = parseInt(e.target.value||"0",10)||0;
-        renderAll();
+    $("attrBody").innerHTML=DB.attributes.map(a=>`<tr><td class="name">${a}</td>
+      <td><input type="number" data-attr="${a}" min="0" max="20" value="${C.base[a]||0}"></td>
+      <td class="mod" id="adj-${a}">+0</td><td class="final" id="fin-${a}">0</td><td class="mod" id="mod-${a}">+0</td></tr>`).join("");
+    $("attrBody").querySelectorAll("input[data-attr]").forEach(inp=>inp.addEventListener("input",e=>{
+      C.base[e.target.dataset.attr]=parseInt(e.target.value||"0",10)||0; renderAll(); }));
+  }
+
+  /* ---------- STEP 1: species skills ---------- */
+  $("ssAdd").addEventListener("click",()=>{
+    const opt=DB.speciesSkillOptions[+$("ssSkill").value];
+    const spec=($("ssSpec").value||"").trim() || opt.spec;
+    const d=Engine.derived(); const budget=d.finalScores.Intellect*2;
+    if(C.speciesSkills.length>=budget){ $("ssErr").textContent="No species-skill picks left (Int × 2 = "+budget+")."; return; }
+    if(!spec){ $("ssErr").textContent="Add a specialty (your species or homeworld)."; return; }
+    // max 6 per base skill across all sources
+    const cur=Engine.finalSkills().find(s=>s.base===opt.base);
+    if(cur && cur.level>=DB.rules.maxStartSkillLevel){ $("ssErr").textContent=opt.base+" is already at the starting cap of 6."; return; }
+    $("ssErr").textContent=""; $("ssSpec").value="";
+    C.speciesSkills.push({base:opt.base, spec:spec}); renderAll();
+  });
+  function renderStep1(){
+    const d=Engine.derived(); const budget=d.finalScores.Intellect*2;
+    $("ssBudget").textContent=budget; $("ssMax").textContent=budget;
+    const used=C.speciesSkills.length; const el=$("ssUsed"); el.textContent=used;
+    el.className="budget "+(used>budget?"over":(used===budget?"ok":""));
+    $("ssList").innerHTML=C.speciesSkills.map((s,i)=>`<span class="chip prof"><b>${s.base}</b> <span class="muted">(${s.spec})</span> +1
+      <span class="x" data-rmss="${i}">✕</span></span>`).join("")||`<span class="muted small">No species skills yet.</span>`;
+    $("ssList").querySelectorAll("[data-rmss]").forEach(x=>x.onclick=()=>{C.speciesSkills.splice(+x.dataset.rmss,1);renderAll();});
+  }
+
+  /* ---------- STEP 2: personal development ---------- */
+  function renderPersonalForm(){
+    const idx=+$("perPkg").value;
+    if(idx<0){ $("perBlurb").textContent=""; $("perBody").innerHTML=""; return; }
+    const p=DB.personalPackages[idx];
+    $("perBlurb").innerHTML=`<em>${p.blurb}</em>`;
+    let html="";
+    // pick1
+    html+=`<label style="margin-top:8px">Pick 1 skill at +2</label><div class="opts" id="per1">`+
+      p.pick1.map((opt,i)=>`<label><input type="radio" name="per1" value="${i}"> ${optLabel(opt)} ${opt.group?'<span class="muted">(choose)</span>':''}</label>`).join("")+`</div>`;
+    html+=`<div id="per1g"></div>`;
+    // pick3
+    html+=`<label>Pick 3 skills at +1 (choose three)</label><div class="opts" id="per3">`+
+      p.pick3.map((opt,i)=>`<label><input type="checkbox" name="per3" value="${i}"> ${optLabel(opt)}</label>`).join("")+`</div>`;
+    html+=`<div id="per3g"></div>`;
+    // edge
+    html+=`<label>Pick 1 edge${p.twoEdges?' (this package grants two)':''}</label><select id="perEdge">`+
+      p.edges.map(e=>`<option>${e}</option>`).join("")+`</select>`;
+    if(p.twoEdges) html+=`<select id="perEdge2" style="margin-top:6px">`+p.edges.map(e=>`<option>${e}</option>`).join("")+`</select>`;
+    if(p.mandatoryFlaw) html+=`<div class="hint">Mandatory flaw: <b>${p.mandatoryFlaw}</b> (grants the extra edge above).</div>`;
+    $("perBody").innerHTML=html;
+    // group/any specialty resolvers
+    $("per1").addEventListener("change",()=>renderPickGroupInputs(p,"per1","per1g","radio"));
+    $("per3").addEventListener("change",()=>renderPickGroupInputs(p,"per3","per3g","checkbox"));
+  }
+  function renderPickGroupInputs(p,fromId,intoId,kind){
+    const pickArr=fromId==="per1"?p.pick1:p.pick3;
+    const sel=[...$(fromId).querySelectorAll("input")].filter(i=>i.checked).map(i=>+i.value);
+    let html="";
+    sel.forEach(i=>{ const opt=pickArr[i];
+      if(opt.group){ const choices=groupChoices(opt);
+        html+=`<div class="row" style="margin:4px 0"><div><label>${optLabel(opt)} → which skill?</label>
+          <select data-grp="${fromId}-${i}">`+choices.map(c=>`<option>${c}</option>`).join("")+`</select></div>
+          <div><label>Specialty (optional)</label><input type="text" data-grpspec="${fromId}-${i}" placeholder="optional"></div></div>`;
+      }
+    });
+    $(intoId).innerHTML=html;
+  }
+  $("perApply").addEventListener("click",()=>{
+    const idx=+$("perPkg").value; if(idx<0){ $("perErr").textContent="Choose a package first."; return; }
+    const p=DB.personalPackages[idx];
+    const one=$("per1").querySelector("input:checked");
+    if(!one){ $("perErr").textContent="Choose your +2 skill."; return; }
+    const three=[...$("per3").querySelectorAll("input:checked")].map(i=>+i.value);
+    if(three.length!==3){ $("perErr").textContent="Choose exactly three +1 skills."; return; }
+    const entries=[]; let bad="";
+    const resolve=(opt,key,lvl)=>{
+      let base=opt.base, spec=opt.spec;
+      if(opt.group){ const gs=$(`[data-grp="${key}"]`); base=gs?gs.value:null; const sp=$(`[data-grpspec="${key}"]`); spec=sp&&sp.value.trim()?sp.value.trim():null;
+        if(!base) bad="Resolve the 'choose' skill(s)."; }
+      entries.push({base,spec,lvl});
+    };
+    resolve(p.pick1[+one.value], `per1-${one.value}`, 2);
+    three.forEach(i=>resolve(p.pick3[i], `per3-${i}`, 1));
+    if(bad){ $("perErr").textContent=bad; return; }
+    $("perErr").textContent="";
+    const edge=$("perEdge")?$("perEdge").value:null;
+    const flaw=p.mandatoryFlaw||null;
+    C.personal={pkg:p.name, entries, edge, flaw};
+    // second edge (Genetic Resequencing) -> add as manual so it persists
+    Engine.recomputeTraits();
+    if(p.twoEdges && $("perEdge2")) C.edges.push({name:$("perEdge2").value, source:"Personal dev"});
+    renderAll();
+    $("perApplied").style.display="block";
+    $("perApplied").innerHTML=`<b>Applied:</b> ${p.name} — `+entries.map(e=>`${e.base}${e.spec?` (${e.spec})`:""} +${e.lvl}`).join(", ")+
+      `; edge: <b>${edge}</b>`+(flaw?`; flaw: <b>${flaw}</b>`:"");
+  });
+
+  /* ---------- STEP 3: professional development ---------- */
+  function professionalPackagesFor(prof){
+    const named=(DB.professionalPackages[prof]||[]).slice();
+    named.push({name:"Custom (distribute 20 levels)", custom:true,
+      blurb:"Assign 20 skill levels across this profession's skill list (a specialty counts as a level)."});
+    return named;
+  }
+  function renderProForm(){
+    const prof=C.profession; const pkgs=professionalPackagesFor(prof);
+    $("proPkg").innerHTML=`<option value="-1">— choose —</option>`+pkgs.map((p,i)=>`<option value="${i}">${p.name}</option>`).join("");
+    $("proBlurb").textContent=""; $("proBody").innerHTML="";
+  }
+  function renderProBody(){
+    const idx=+$("proPkg").value; const prof=C.profession; const pkgs=professionalPackagesFor(prof);
+    if(idx<0){ $("proBlurb").textContent=""; $("proBody").innerHTML=""; return; }
+    const p=pkgs[idx]; $("proBlurb").innerHTML=`<em>${p.blurb||""}</em>`;
+    const list=Engine.profList();
+    let html="";
+    if(p.custom){
+      html+=`<div class="grant">Distribute <b id="cust20">20</b> levels across professional skills (specialty optional). Used: <b id="custUsed" class="budget">0</b>/20</div>`;
+      html+=`<table class="skilltbl"><tr><th>Skill</th><th>Level</th><th>Specialty</th></tr>`+
+        list.map((b,i)=>`<tr><td>${b}${DB.skills[b]&&DB.skills[b].group?' *':''}</td>
+          <td><input class="num" type="number" min="0" max="6" value="0" data-cust="${i}" data-base="${b}"></td>
+          <td><input type="text" data-custspec="${i}" placeholder="optional"></td></tr>`).join("")+`</table>`;
+    } else {
+      html+=`<div class="grant"><b>Auto-granted skills:</b> `+p.skills.map(s=>{
+        const label=s.group?`any ${s.base}`:s.base+(s.spec?` (${s.spec})`:"");
+        return `${label} +${s.lvl}`; }).join(", ")+`</div>`;
+      // resolve grouped grants
+      const grp=p.skills.map((s,i)=>({s,i})).filter(x=>x.s.group);
+      if(grp.length){ html+=`<label style="margin-top:8px">Resolve grouped grants</label>`;
+        grp.forEach(({s,i})=>{ html+=`<div class="row" style="margin:4px 0"><div><label>any ${s.base} +${s.lvl} → which?</label>
+          <select data-prog="${i}">`+(DB.skills[s.base]?DB.skills[s.base].spec:[]).map(sp=>`<option value="${sp}">${s.base} (${sp})</option>`).join("")+
+          `<option value="">${s.base} (no specialty)</option></select></div></div>`; });
+      }
+    }
+    // 5 free picks
+    html+=`<label style="margin-top:8px">Pick 5: +1 to any professional skills</label>`;
+    for(let i=0;i<5;i++){ html+=`<div class="row" style="margin:4px 0"><div><select data-pro5="${i}"><option value="">— skill —</option>`+
+      list.map(b=>`<option value="${b}">${b}</option>`).join("")+`</select></div>
+      <div><input type="text" data-pro5spec="${i}" placeholder="specialty (optional)"></div></div>`; }
+    // edge
+    const edges=(p.edges||DB.traits.edges);
+    html+=`<label>Pick 1 edge</label><select id="proEdge">`+edges.map(e=>`<option>${e}</option>`).join("")+`</select>`;
+    $("proBody").innerHTML=html;
+    if(p.custom) $("proBody").querySelectorAll("[data-cust]").forEach(inp=>inp.addEventListener("input",updateCustUsed));
+  }
+  function updateCustUsed(){
+    let used=0; $("proBody").querySelectorAll("[data-cust]").forEach(i=>used+=parseInt(i.value||"0",10)||0);
+    const el=$("custUsed"); if(el){ el.textContent=used; el.className="budget "+(used>20?"over":(used===20?"ok":"")); }
+  }
+  $("proApply").addEventListener("click",()=>{
+    const idx=+$("proPkg").value; if(idx<0){ $("proErr").textContent="Choose a package first."; return; }
+    const prof=C.profession; const p=professionalPackagesFor(prof)[idx]; const entries=[]; let err="";
+    if(p.custom){
+      let used=0;
+      $("proBody").querySelectorAll("[data-cust]").forEach(inp=>{
+        const lvl=parseInt(inp.value||"0",10)||0; used+=lvl;
+        if(lvl>0){ const i=inp.dataset.cust; const sp=$(`[data-custspec="${i}"]`); entries.push({base:inp.dataset.base, spec:sp&&sp.value.trim()?sp.value.trim():null, lvl}); }
       });
+      if(used!==20){ $("proErr").textContent="Distribute exactly 20 levels (currently "+used+")."; return; }
+    } else {
+      p.skills.forEach((s,i)=>{ let spec=s.spec;
+        if(s.group){ const gs=$(`[data-prog="${i}"]`); spec=gs?gs.value||null:null; }
+        entries.push({base:s.base, spec, lvl:s.lvl}); });
+    }
+    // 5 free picks
+    let picks=0;
+    for(let i=0;i<5;i++){ const sel=$(`[data-pro5="${i}"]`); if(sel&&sel.value){ const sp=$(`[data-pro5spec="${i}"]`);
+      entries.push({base:sel.value, spec:sp&&sp.value.trim()?sp.value.trim():null, lvl:1}); picks++; } }
+    if(picks<5){ $("proErr").textContent="Assign all five +1 professional picks (assigned "+picks+")."; return; }
+    $("proErr").textContent="";
+    const edge=$("proEdge")?$("proEdge").value:null;
+    C.professional={pkg:p.name, entries, edge};
+    Engine.recomputeTraits(); renderAll();
+    $("proApplied").style.display="block";
+    $("proApplied").innerHTML=`<b>Applied:</b> ${p.name} (+ 5 picks); edge: <b>${edge}</b>.`;
+  });
+
+  /* ---------- traits ---------- */
+  $("addTrait").addEventListener("click",()=>{
+    const res=Engine.addManualTrait($("traitSel").value);
+    $("edgeNote").textContent=res.ok?"":res.msg; if(res.ok) renderAll();
+  });
+  function renderTraits(){
+    const all=C.edges.map(e=>({...e,type:"edge"})).concat(C.flaws.map(f=>({...f,type:"flaw"})));
+    $("traitList").innerHTML=all.map((t,i)=>`<span class="chip ${t.type==='edge'?'good':'bad'}"><b>${t.name}</b>
+      <span class="muted">${t.type}${t.source?'·'+t.source.replace(' dev',''):''}</span>${t.source==="Manual"?`<span class="x" data-rmtrait="${t.type}:${t.name}">✕</span>`:""}</span>`).join("")
+      ||`<span class="muted small">No traits yet.</span>`;
+    $("edgeNote").textContent=`Edges: ${C.edges.length} · Flaws: ${C.flaws.length}/2. Every character starts with 1 edge; each flaw grants +1 edge.`;
+    $("traitList").querySelectorAll("[data-rmtrait]").forEach(x=>x.onclick=()=>{
+      const [type,name]=x.dataset.rmtrait.split(":");
+      const arr=type==="edge"?C.edges:C.flaws; const i=arr.findIndex(t=>t.name===name&&t.source==="Manual"); if(i>=0)arr.splice(i,1); renderAll();
     });
   }
 
-  function fmt(n){ return (n>=0?"+":"")+n; }
+  /* ---------- final skills table ---------- */
+  function renderSkills(){
+    const skills=Engine.finalSkills();
+    $("skillCount").textContent=skills.length;
+    if(!skills.length){ $("skillTableWrap").innerHTML=`<div class="small muted">Acquire skills via Steps 1–3.</div>`; return; }
+    $("skillTableWrap").innerHTML=`<table class="skilltbl"><tr><th>Skill</th><th>Lvl</th><th>Key</th><th>Specialties</th></tr>`+
+      skills.map(s=>{ const def=DB.skills[s.base]||DB.psionicSkills[s.base]||{key:"?"};
+        const over=s.level>DB.rules.maxStartSkillLevel;
+        return `<tr><td>${s.professional?'★ ':''}${s.base}</td>
+          <td class="${over?'over6':'lvl'}">${s.level}</td><td class="muted">${def.key}</td>
+          <td class="muted">${s.specialties.join(", ")||"—"}</td></tr>`; }).join("")+`</table>`;
+  }
 
   /* ---------- master render ---------- */
   function renderAll(){
-    // species panel
-    const sp = DB.species[C.species];
-    $("spName").textContent = C.species + (sp.placeholder?"  (placeholder — modifiers not yet defined)":"");
-    const adj = sp.adjust||{};
-    const adjStr = Object.keys(adj).length
-      ? Object.keys(adj).map(k=>`${k} ${fmt(adj[k])}`).join(", ")
-      : "No attribute adjustments.";
-    $("spAdj").textContent = "Adjustments: " + adjStr;
-    $("spAbilities").innerHTML = (sp.abilities||[]).map(ab=>`<li><b>${ab.name}</b> — ${ab.text}</li>`).join("")
-      || `<li class="muted">No special abilities defined.</li>`;
+    Engine.recomputeTraits();
+    const sp=DB.species[C.species];
+    $("spName").textContent=C.species+(sp.placeholder?"  (placeholder — modifiers not yet defined)":"");
+    const adj=sp.adjust||{};
+    $("spAdj").textContent="Adjustments: "+(Object.keys(adj).length?Object.keys(adj).map(k=>`${k} ${fmt(adj[k])}`).join(", "):"No attribute adjustments.")
+      +"  ·  Psionic: "+sp.psionic;
+    $("spAbilities").innerHTML=(sp.abilities||[]).map(a=>`<li><b>${a.name}</b> — ${a.text}</li>`).join("")||`<li class="muted">No special abilities defined.</li>`;
 
-    // attribute table
-    const f = Engine.finalScores();
-    DB.attributes.forEach(a=>{
-      const inp = $("attrBody").querySelector(`input[data-attr="${a}"]`);
-      if(inp && document.activeElement!==inp) inp.value = C.base[a]||0;
-      $("adj-"+a).textContent = fmt((adj[a]||0));
-      $("fin-"+a).textContent = f[a];
-      $("mod-"+a).textContent = fmt(Engine.modifier(f[a]));
-    });
+    const f=Engine.finalScores();
+    DB.attributes.forEach(a=>{ const inp=$("attrBody").querySelector(`input[data-attr="${a}"]`);
+      if(inp&&document.activeElement!==inp) inp.value=C.base[a]||0;
+      $("adj-"+a).textContent=fmt(adj[a]||0); $("fin-"+a).textContent=f[a]; $("mod-"+a).textContent=fmt(Engine.modifier(f[a])); });
+    $("attrErr").textContent=Engine.attributeErrors().join("  ");
+    if(C.method==="pointbuy"){ const pb=Engine.pointBuyState(); $("pbRemaining").textContent=pb.remaining;
+      $("pbRemaining").style.color=pb.remaining<0?"var(--bad)":(pb.remaining===0?"var(--good)":"var(--accent)"); }
 
-    // errors + point-buy remaining
-    const errs = Engine.attributeErrors();
-    $("attrErr").textContent = errs.join("  ");
-    if(C.method==="pointbuy"){
-      const pb = Engine.pointBuyState();
-      $("pbRemaining").textContent = pb.remaining;
-      $("pbRemaining").style.color = pb.remaining<0?"var(--bad)":(pb.remaining===0?"var(--good)":"var(--accent)");
-    }
+    const d=Engine.derived();
+    $("dHealth").textContent=d.health; $("dDefense").textContent=d.defense; $("dCourage").textContent=d.courage;
+    $("dQuick").textContent=fmt(d.reactions.Quickness); $("dSavvy").textContent=fmt(d.reactions.Savvy);
+    $("dStamina").textContent=fmt(d.reactions.Stamina); $("dWill").textContent=fmt(d.reactions.Willpower);
+    $("dRenown").textContent=d.renown;
+    if(d.psi){ $("psiStat").style.display="block"; $("dPsi").textContent=d.psi.score+" ("+fmt(d.psi.modifier)+")"; }
+    else $("psiStat").style.display="none";
+    // Psi explanation row under attributes
+    const psiInfo=$("psiRow");
+    if(Engine.speciesPsi()==="forbidden"){ psiInfo.style.display="block"; psiInfo.innerHTML=`<b>Psi:</b> ${C.species} are psionically "mute" — they cannot take the Psionic edge or psionic skills.`; }
+    else if(d.psi){ psiInfo.style.display="block"; psiInfo.innerHTML=`<b>Psi attribute:</b> ${d.psi.score} (mod ${fmt(d.psi.modifier)}) — from the Psionic edge${Engine.speciesPsi()==="auto"?" (automatic for "+C.species+")":""}. Psionic skills (Empathy, Mind Control, Mind Shield, Telepathy) use Psi.`; }
+    else { psiInfo.style.display="block"; psiInfo.innerHTML=`<b>Psi:</b> none. Add the <b>Psionic</b> edge to gain a Psi attribute (start 4) and unlock psionic skills.`; }
 
-    // derived
-    const d = Engine.derived();
-    $("dHealth").textContent  = d.health;
-    $("dDefense").textContent = d.defense;
-    $("dCourage").textContent = d.courage;
-    $("dQuick").textContent   = fmt(d.reactions.Quickness);
-    $("dSavvy").textContent   = fmt(d.reactions.Savvy);
-    $("dStamina").textContent = fmt(d.reactions.Stamina);
-    $("dWill").textContent    = fmt(d.reactions.Willpower);
-    $("dRenown").textContent  = d.renown;
-    $("dTotMod").textContent  = fmt(d.totalMod);
-    $("derivedNote").textContent =
-      "Health = Vitality + Str mod · Defense = 7 + Agl mod · Courage 3"
-      + (sp.bonuses&&sp.bonuses.courage?(" +"+sp.bonuses.courage+" (species)"):"")
-      + " · Renown 0 at start.";
+    $("derivedNote").textContent="Health = Vitality + Str mod"+(sp.bonuses&&sp.bonuses.healthBonus?" +"+sp.bonuses.healthBonus+" (species)":"")
+      +" · Defense = 7 + Agl mod · Courage 3"+(sp.bonuses&&sp.bonuses.courage?" +"+sp.bonuses.courage:"")+" · Renown 0.";
 
-    renderSkills(); renderTraits(); renderProfSkills();
+    renderStep1(); renderSkills(); renderTraits();
+    const w=Engine.skillWarnings(); // surface cap warnings inline on step errors area
     refreshJSON();
   }
 
-  /* ---------- skills ---------- */
-  function renderSkills(){
-    $("skillList").innerHTML = C.skills.map((s,i)=>`
-      <span class="chip good"><b>${s.skill}</b>${s.specialty?` <span class="muted">(${s.specialty})</span>`:""} · r${s.rank}
-      <span class="x" data-rmskill="${i}">✕</span></span>`).join("")
-      || `<span class="muted small">No skills added yet.</span>`;
-    $("skillList").querySelectorAll("[data-rmskill]").forEach(x=>
-      x.onclick=()=>{ Engine.removeSkill(+x.dataset.rmskill); renderAll(); });
-  }
-  function renderTraits(){
-    $("traitList").innerHTML = C.traits.map((t,i)=>`
-      <span class="chip ${t.type==='edge'?'good':'bad'}"><b>${t.name}</b>
-      <span class="muted">${t.type}</span><span class="x" data-rmtrait="${i}">✕</span></span>`).join("")
-      || `<span class="muted small">No traits added yet.</span>`;
-    $("traitList").querySelectorAll("[data-rmtrait]").forEach(x=>
-      x.onclick=()=>{ Engine.removeTrait(+x.dataset.rmtrait); renderAll(); });
-  }
-  function renderProfSkills(){
-    const p = DB.professions[C.profession];
-    $("profSkills").innerHTML = `<div class="small"><b style="color:var(--accent2)">Favored:</b> ${p.favored}
-      &nbsp; <b style="color:var(--accent2)">Reaction:</b> ${p.reaction}</div>
-      <div class="tag-list" style="margin-top:8px">${p.skills.map(s=>`<span class="chip">${s}</span>`).join("")}</div>
-      <div class="hint">* = skill group (choose one specialty per pick).</div>`;
-  }
+  /* ---------- JSON ---------- */
+  function refreshJSON(){ $("json").value=Engine.exportJSON(); }
+  function flash(msg,cls){ const el=$("ioMsg"); el.textContent=msg; el.className="small "+(cls||""); setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; },2600); }
 
-  /* ---------- JSON output ---------- */
-  function refreshJSON(){ $("json").value = Engine.exportJSON(); }
+  /* ---------- identity / method events ---------- */
+  $("charName").addEventListener("input",e=>{C.name=e.target.value;refreshJSON();});
+  $("playerName").addEventListener("input",e=>{C.player=e.target.value;refreshJSON();});
+  $("species").addEventListener("change",e=>{C.species=e.target.value;renderAll();});
+  $("profession").addEventListener("change",e=>{C.profession=e.target.value; C.professional=null; $("proApplied").style.display="none"; renderProForm(); renderAll();});
+  $("methodBar").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    $("methodBar").querySelectorAll("button").forEach(x=>x.classList.remove("active")); b.classList.add("active"); C.method=b.dataset.method;
+    $("pointbuyControls").style.display=C.method==="pointbuy"?"block":"none";
+    $("randomControls").style.display=C.method==="random"?"block":"none";
+    $("manualControls").style.display=C.method==="manual"?"block":"none";
+    if(C.method==="pointbuy") applyPointBuyBase(); renderAll();
+  }));
+  function applyPointBuyBase(){ const pool=DB.rules.pointBuy.baseScores; DB.attributes.forEach((a,i)=>C.base[a]=pool[i]!=null?pool[i]:0); }
+  $("pbReset").addEventListener("click",()=>{applyPointBuyBase();renderAll();});
+  $("rollBtn").addEventListener("click",()=>{ const pool=Engine.rollAttributePool();
+    $("rollPool").innerHTML="Assign these six: "+pool.map(n=>`<b style="color:var(--accent)">${n}</b>`).join(", ");
+    DB.attributes.forEach((a,i)=>C.base[a]=pool[i]!=null?pool[i]:0); renderAll(); });
 
-  /* ================= EVENT LISTENERS ================= */
-  $("charName").addEventListener("input", e=>{ C.name=e.target.value; refreshJSON(); });
-  $("playerName").addEventListener("input", e=>{ C.player=e.target.value; refreshJSON(); });
-  $("species").addEventListener("change", e=>{ C.species=e.target.value; renderAll(); });
-  $("profession").addEventListener("change", e=>{ C.profession=e.target.value; renderAll(); });
+  /* ---------- step selectors ---------- */
+  $("perPkg").addEventListener("change",()=>{ C.personal=null; $("perApplied").style.display="none"; renderPersonalForm(); renderAll(); });
+  $("proPkg").addEventListener("change",()=>{ renderProBody(); });
 
-  // attribute method toggle
-  $("methodBar").querySelectorAll("button").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      $("methodBar").querySelectorAll("button").forEach(x=>x.classList.remove("active"));
-      b.classList.add("active");
-      C.method = b.dataset.method;
-      $("pointbuyControls").style.display = C.method==="pointbuy"?"block":"none";
-      $("randomControls").style.display   = C.method==="random"?"block":"none";
-      $("manualControls").style.display   = C.method==="manual"?"block":"none";
-      if(C.method==="pointbuy") applyPointBuyBase();
-      renderAll();
-    });
-  });
-
-  // point-buy: seed the base pool (largest score -> first attribute)
-  function applyPointBuyBase(){
-    const pool = DB.rules.pointBuy.baseScores;
-    DB.attributes.forEach((a,i)=> C.base[a] = pool[i]!=null?pool[i]:0 );
-  }
-  $("pbReset").addEventListener("click", ()=>{ applyPointBuyBase(); renderAll(); });
-
-  // random roll
-  $("rollBtn").addEventListener("click", ()=>{
-    const pool = Engine.rollAttributePool();
-    $("rollPool").innerHTML = "Assign these six: " + pool.map(n=>`<b style="color:var(--accent)">${n}</b>`).join(", ");
-    DB.attributes.forEach((a,i)=> C.base[a] = pool[i]!=null?pool[i]:0 );
-    renderAll();
-  });
-
-  // add skill
-  $("addSkill").addEventListener("click", ()=>{
-    const res = Engine.addSkill($("skillSel").value, $("skillRank").value, $("skillSpec").value);
-    $("skillErr").textContent = res.ok?"":res.msg;
-    if(res.ok){ $("skillSpec").value=""; renderAll(); }
-  });
-  // add trait
-  $("addTrait").addEventListener("click", ()=>{
-    const res = Engine.addTrait($("traitSel").value);
-    $("traitErr").textContent = res.ok?"":res.msg;
-    if(res.ok) renderAll();
-  });
-
-  // JSON tools
-  $("refreshJson").addEventListener("click", refreshJSON);
-  $("copyBtn").addEventListener("click", async ()=>{
-    const text = Engine.exportJSON();
-    try{
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        await navigator.clipboard.writeText(text);
-      } else {
-        const ta=$("json"); ta.removeAttribute("readonly"); ta.select();
-        document.execCommand("copy"); ta.setAttribute("readonly","readonly");
-      }
-      flash("Copied to clipboard ✓","ok");
-    }catch(err){ flash("Copy failed — select the text and copy manually.","bad"); }
-  });
-  $("downloadBtn").addEventListener("click", ()=>{
-    const blob = new Blob([Engine.exportJSON()], {type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const safe = (C.name||"startrek-character").replace(/[^\w\-]+/g,"_");
-    a.href=url; a.download=safe+".json";
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-    flash("Downloaded "+safe+".json ✓","ok");
-  });
-  function flash(msg,cls){
-    const el=$("ioMsg"); el.textContent=msg; el.className="small "+(cls||"");
-    setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; }, 2600);
-  }
+  /* ---------- JSON tools ---------- */
+  $("refreshJson").addEventListener("click",refreshJSON);
+  $("copyBtn").addEventListener("click",async()=>{ const text=Engine.exportJSON();
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); }
+      else { const ta=$("json"); ta.removeAttribute("readonly"); ta.select(); document.execCommand("copy"); ta.setAttribute("readonly","readonly"); }
+      flash("Copied to clipboard ✓","ok"); }catch(err){ flash("Copy failed — select & copy manually.","bad"); } });
+  $("downloadBtn").addEventListener("click",()=>{ const blob=new Blob([Engine.exportJSON()],{type:"application/json"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a"); const safe=(C.name||"startrek-character").replace(/[^\w\-]+/g,"_");
+    a.href=url; a.download=safe+".json"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); flash("Downloaded "+safe+".json ✓","ok"); });
 
   /* ---------- boot ---------- */
-  buildAttrRows();
-  applyPointBuyBase();   // start in point-buy with the base pool seeded
-  renderAll();
+  buildAttrRows(); applyPointBuyBase(); renderPersonalForm(); renderProForm(); renderAll();
 })();
 /* ====================== END SECTION 3 ====================== */
 </script>
