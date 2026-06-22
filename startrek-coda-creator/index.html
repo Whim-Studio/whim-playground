@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Trek RPG (Coda System) — Character Creator</title>
+<style>
+  /* ============================================================
+     SECTION 3 (part A): UI PRESENTATION — embedded CSS only.
+     No external libraries, no CDNs.
+     ============================================================ */
+  :root{
+    --bg:#06080f; --panel:#0d1322; --panel2:#121a2e; --edge:#22304d;
+    --ink:#e8eefc; --muted:#8fa1c4; --accent:#f5b301; --accent2:#3aa0ff;
+    --good:#37d39b; --bad:#ff6b6b; --chip:#1b2a4a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(1200px 700px at 70% -10%,#10203f 0%,var(--bg) 60%);
+    color:var(--ink); font:14px/1.5 "Segoe UI",system-ui,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header.app{
+    padding:18px 22px; border-bottom:1px solid var(--edge);
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(180deg,#0b1228 0,transparent 100%);
+  }
+  header.app h1{margin:0; font-size:20px; letter-spacing:.5px}
+  header.app h1 span{color:var(--accent)}
+  header.app .tag{color:var(--muted); font-size:12px}
+  .wrap{max-width:1180px; margin:0 auto; padding:18px 22px 60px}
+  .grid{display:grid; grid-template-columns:1.15fr .85fr; gap:18px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--panel) 0,var(--panel2) 100%);
+    border:1px solid var(--edge); border-radius:12px; padding:16px 16px 18px;
+    margin-bottom:18px; box-shadow:0 8px 26px rgba(0,0,0,.35);
+  }
+  .card h2{
+    margin:0 0 12px; font-size:13px; text-transform:uppercase;
+    letter-spacing:1.4px; color:var(--accent2);
+    border-bottom:1px solid var(--edge); padding-bottom:8px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  label{display:block; font-size:12px; color:var(--muted); margin:0 0 4px}
+  input,select,textarea,button{font:inherit; color:inherit}
+  input[type=text],input[type=number],select,textarea{
+    width:100%; background:#0a1124; border:1px solid var(--edge);
+    border-radius:8px; padding:8px 10px; color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:1px solid var(--accent2); border-color:var(--accent2)}
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .row>div{flex:1; min-width:120px}
+  .btn{
+    cursor:pointer; border:1px solid var(--edge); background:#15203a;
+    color:var(--ink); border-radius:8px; padding:8px 14px; font-weight:600;
+    transition:.12s; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent2); background:#1b2a4a}
+  .btn.primary{background:linear-gradient(180deg,#f5b301,#d99800); color:#1a1200; border-color:#a87900}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:5px 10px; font-size:12px}
+  .pillbar{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap}
+  .pillbar .btn{flex:1}
+  .pillbar .btn.active{background:var(--accent2); border-color:var(--accent2); color:#021227}
+
+  table{width:100%; border-collapse:collapse}
+  .attrs td{padding:5px 4px; border-bottom:1px solid #16203a; vertical-align:middle}
+  .attrs .name{font-weight:600; width:120px}
+  .attrs input{width:62px; text-align:center}
+  .attrs .mod{width:48px; text-align:center; color:var(--accent); font-weight:700}
+  .attrs .final{width:64px; text-align:center; font-weight:700; color:var(--good)}
+  .small{font-size:11px; color:var(--muted)}
+  .hint{font-size:11px; color:var(--muted); margin-top:6px}
+
+  .derived{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  .stat{
+    background:#0a1124; border:1px solid var(--edge); border-radius:10px;
+    padding:10px; text-align:center;
+  }
+  .stat .v{font-size:24px; font-weight:800; color:var(--accent)}
+  .stat .k{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
+
+  .tablerow{display:flex; gap:8px; align-items:center; margin-bottom:6px}
+  .tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .chip{
+    background:#15203a; border:1px solid var(--edge); border-radius:20px;
+    padding:4px 10px; font-size:12px; display:flex; align-items:center; gap:8px;
+  }
+  .chip.good{border-color:#1f6b52} .chip.bad{border-color:#7a3030}
+  .chip b{color:var(--ink)} .chip .x{cursor:pointer; color:var(--bad); font-weight:700}
+  .ability-list{margin:8px 0 0; padding:0; list-style:none}
+  .ability-list li{font-size:12px; padding:3px 0; border-bottom:1px dashed #16203a}
+  .ability-list li b{color:var(--accent)}
+  textarea#json{height:300px; font-family:ui-monospace,Consolas,monospace; font-size:12px; white-space:pre}
+  .toolbar{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+  .err{color:var(--bad); font-size:12px; min-height:16px; margin-top:4px}
+  .ok{color:var(--good)}
+  .muted{color:var(--muted)}
+  .flexsplit{display:flex; gap:8px} .flexsplit>*{flex:1}
+  .badge{font-size:10px; background:#15203a; border:1px solid var(--edge); border-radius:6px; padding:1px 6px; color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="app">
+  <h1>Star <span>Trek</span> RPG <span style="color:var(--accent2)">Coda</span> — Character Creator</h1>
+  <span class="tag">Offline · Vanilla JS · single-file · embedded JSON ruleset</span>
+</header>
+
+<div class="wrap">
+<div class="grid">
+
+  <!-- ===================== LEFT COLUMN ===================== -->
+  <div>
+
+    <!-- Identity / Species / Profession -->
+    <div class="card">
+      <h2>Identity</h2>
+      <div class="row">
+        <div>
+          <label>Character Name</label>
+          <input type="text" id="charName" placeholder="e.g. Lt. T'Vel">
+        </div>
+        <div>
+          <label>Player</label>
+          <input type="text" id="playerName" placeholder="(optional)">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label>Species</label>
+          <select id="species"></select>
+        </div>
+        <div>
+          <label>Profession</label>
+          <select id="profession"></select>
+        </div>
+      </div>
+      <div id="speciesInfo" class="card" style="margin:12px 0 0; background:#0a1124">
+        <strong id="spName" class="muted">—</strong>
+        <div id="spAdj" class="small" style="margin-top:4px"></div>
+        <ul id="spAbilities" class="ability-list"></ul>
+      </div>
+    </div>
+
+    <!-- Attribute generation -->
+    <div class="card">
+      <h2>Attributes <span class="badge">cap 12 before species</span></h2>
+      <div class="pillbar" id="methodBar">
+        <button class="btn active" data-method="pointbuy">Point-Buy</button>
+        <button class="btn" data-method="random">Random Roll</button>
+        <button class="btn" data-method="manual">Manual</button>
+      </div>
+
+      <div id="pointbuyControls">
+        <div class="hint">Base pool <b>10, 9, 7, 7, 5, 4</b> then distribute <b id="pbRemaining">8</b> bonus points. No base attribute above 12.</div>
+        <button class="btn sm" id="pbReset" style="margin-top:8px">Reset base pool</button>
+      </div>
+      <div id="randomControls" style="display:none">
+        <div class="hint">Roll 2d6 nine times, drop the three lowest, then assign the six survivors.</div>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn sm" id="rollBtn">Roll 9×2d6</button>
+          <span id="rollPool" class="small"></span>
+        </div>
+      </div>
+      <div id="manualControls" style="display:none">
+        <div class="hint">Type any base scores directly (still capped at 12 before species).</div>
+      </div>
+
+      <table class="attrs" style="margin-top:10px">
+        <thead><tr>
+          <td class="small">Attribute</td>
+          <td class="small" style="text-align:center">Base</td>
+          <td class="small" style="text-align:center">Species</td>
+          <td class="small" style="text-align:center">Final</td>
+          <td class="small" style="text-align:center">Mod</td>
+        </tr></thead>
+        <tbody id="attrBody"></tbody>
+      </table>
+      <div class="err" id="attrErr"></div>
+    </div>
+
+    <!-- Skills -->
+    <div class="card">
+      <h2>Skills <span class="badge">no duplicate base skill · specialties allowed</span></h2>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:2"><label>Skill</label><select id="skillSel"></select></div>
+        <div style="max-width:90px"><label>Rank</label><input type="number" id="skillRank" min="1" max="7" value="1"></div>
+        <div style="flex:1.4"><label>Specialty (optional)</label><input type="text" id="skillSpec" placeholder="e.g. Warp Drive"></div>
+        <div style="max-width:110px"><button class="btn primary" id="addSkill" style="width:100%">Add</button></div>
+      </div>
+      <div class="err" id="skillErr"></div>
+      <div class="tag-list" id="skillList"></div>
+    </div>
+
+    <!-- Edges & Flaws -->
+    <div class="card">
+      <h2>Edges &amp; Flaws (Traits)</h2>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:2"><label>Trait</label><select id="traitSel"></select></div>
+        <div style="max-width:120px"><button class="btn primary" id="addTrait" style="width:100%">Add</button></div>
+      </div>
+      <div class="err" id="traitErr"></div>
+      <div class="tag-list" id="traitList"></div>
+    </div>
+
+  </div>
+
+  <!-- ===================== RIGHT COLUMN ===================== -->
+  <div>
+
+    <div class="card">
+      <h2>Derived Statistics</h2>
+      <div class="derived">
+        <div class="stat"><div class="v" id="dHealth">0</div><div class="k">Health</div></div>
+        <div class="stat"><div class="v" id="dDefense">0</div><div class="k">Defense</div></div>
+        <div class="stat"><div class="v" id="dCourage">0</div><div class="k">Courage</div></div>
+        <div class="stat"><div class="v" id="dQuick">0</div><div class="k">Quickness</div></div>
+        <div class="stat"><div class="v" id="dSavvy">0</div><div class="k">Savvy</div></div>
+        <div class="stat"><div class="v" id="dStamina">0</div><div class="k">Stamina</div></div>
+        <div class="stat"><div class="v" id="dWill">0</div><div class="k">Willpower</div></div>
+        <div class="stat"><div class="v" id="dRenown">0</div><div class="k">Renown</div></div>
+        <div class="stat"><div class="v" id="dTotMod">0</div><div class="k">Total Mod</div></div>
+      </div>
+      <div class="hint" id="derivedNote"></div>
+    </div>
+
+    <div class="card">
+      <h2>Character JSON
+        <span><button class="btn sm ghost" id="refreshJson">Refresh</button></span>
+      </h2>
+      <div class="toolbar">
+        <button class="btn primary" id="copyBtn">Copy to Clipboard</button>
+        <button class="btn" id="downloadBtn">Download JSON</button>
+        <span id="ioMsg" class="small"></span>
+      </div>
+      <label>Display Final JSON</label>
+      <textarea id="json" spellcheck="false" readonly></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Profession Skills</h2>
+      <div id="profSkills" class="small muted">Select a profession to see its professional skill list.</div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+/* ================================================================
+   SECTION 1: CORE DOMAIN & EMBEDDED JSON  (the data dictionaries)
+   ----------------------------------------------------------------
+   Everything the ruleset needs lives in these plain objects. To
+   extend the game, edit the JSON literals below — nothing else in
+   the file hard-codes species names, skills, or modifiers.
+   ================================================================ */
+const DB = {
+
+  /* The six primary attributes (Coda System). */
+  attributes: ["Strength","Agility","Intellect","Vitality","Presence","Perception"],
+
+  /* Attribute-score -> modifier lookup (Table 4.1).
+     Calibrated to the rulebook worked examples: 4-7 => +0,
+     10-11 => +2, 12 => +3, 8-9 => +1. Edit freely to re-tune. */
+  modifierTable: {
+    "0":-3,"1":-2,"2":-1,"3":-1,"4":0,"5":0,"6":0,"7":0,
+    "8":1,"9":1,"10":2,"11":2,"12":3,"13":3,"14":4,"15":4,
+    "16":4,"17":5,"18":5,"19":6,"20":6
+  },
+
+  /* Character-generation rules / constants. */
+  rules: {
+    maxStartAttributeBeforeSpecies: 12,   // hard cap on base+bonus, pre-species
+    explodingDiceDuringCreation: false,   // exploding dice do NOT apply at chargen
+    pointBuy: { baseScores:[10,9,7,7,5,4], bonusPoints:8 },
+    randomRoll: { rolls:9, dice:2, sides:6, dropLowest:3 },
+    baseCourage: 3,
+    baseRenown: 0,
+    /* Derived-value formulas (documented for the engine + reader). */
+    derived: {
+      health:   "Vitality score + Strength modifier",
+      defense:  "7 + Agility modifier",
+      quickness:"best modifier of Perception or Agility",
+      savvy:    "best modifier of Presence or Perception",
+      stamina:  "best modifier of Strength or Vitality",
+      willpower:"best modifier of Intellect or Vitality"
+    },
+    /* Reaction -> the two governing attributes (pick best modifier). */
+    reactions: {
+      Quickness: ["Perception","Agility"],
+      Savvy:     ["Presence","Perception"],
+      Stamina:   ["Strength","Vitality"],
+      Willpower: ["Intellect","Vitality"]
+    },
+    skills: {
+      noDuplicateBaseSkill: true,        // same base skill twice = illegal...
+      allowSameSkillDistinctSpecialty: true // ...unless the specialty differs
+    }
+  },
+
+  /* ---------------------------------------------------------------
+     SPECIES ROSTER.
+     `adjust` keys are attribute names; values are integer modifiers
+     applied AFTER the pre-species cap of 12 (and may exceed 12).
+     `abilities` are descriptive species traits. `bonuses` carry
+     machine-readable tweaks the engine consumes (e.g. courage).
+     Ocampa / Talaxian / Trill are intentionally excluded.
+     Romulan is present but left as an unfilled placeholder.
+     --------------------------------------------------------------- */
+  species: {
+    "Bajoran": {
+      adjust: {},
+      abilities: [
+        {name:"Artistic",   text:"+1 Craft"},
+        {name:"Faithful",   text:"+2 Religion"},
+        {name:"Pagh",       text:"+1 Courage point"}
+      ],
+      bonuses: { courage:1 }
+    },
+    "Betazoid": {
+      adjust: { Presence:1 },
+      abilities: [
+        {name:"Psionic",    text:"Begins with the Psionic edge (Psi attribute)"},
+        {name:"Peaceful",   text:"+4 Negotiate"},
+        {name:"Telepathy 2",text:"Innate telepathy, level 2"}
+      ],
+      bonuses: {}
+    },
+    "Cardassian": {
+      adjust: { Perception:1, Vitality:1, Agility:-1, Presence:-1 },
+      abilities: [
+        {name:"Eidetic Memory",     text:"Total recall of seen/heard information"},
+        {name:"High Pain Threshold",text:"Resists pain and interrogation"},
+        {name:"Devious",            text:"+2 Influence"},
+        {name:"Prying",             text:"+2 Inquire"},
+        {name:"Vesala",             text:"Cultural discipline / loyalty trait"}
+      ],
+      bonuses: {}
+    },
+    "Ferengi": {
+      adjust: { Presence:1, Perception:1, Strength:-2 },
+      abilities: [
+        {name:"Keen Hearing",       text:"Enlarged lobes grant acute hearing"},
+        {name:"Eye for Profit",     text:"Instinct for the value of a deal"},
+        {name:"Four-Lobed Brain",   text:"Resistant to telepathy"},
+        {name:"Head for Numbers",   text:"+ to commerce / mathematics tests"},
+        {name:"Lobes for Business", text:"Bonus to Negotiate / Appraise"}
+      ],
+      bonuses: {}
+    },
+    "Human": {
+      adjust: {},
+      abilities: [
+        {name:"Adaptable",  text:"+1 skill pick of choice (favored flexibility)"},
+        {name:"Skilled",    text:"Broadly trained; no attribute penalties"}
+      ],
+      bonuses: {}
+    },
+    "Klingon": {
+      adjust: { Strength:1, Vitality:1, Intellect:-1, Perception:-1 },
+      abilities: [
+        {name:"Brak'lul",   text:"Redundant organs; +1 Health"},
+        {name:"Bloodlust",  text:"Combat ferocity (Klingon rage)"},
+        {name:"Stamina+2",  text:"+2 Stamina reaction bonus"}
+      ],
+      bonuses: { reactionStamina:2 }
+    },
+    "Vulcan": {
+      adjust: { Intellect:1, Strength:2, Presence:-3 },
+      abilities: [
+        {name:"Psionic",         text:"Begins with the Psionic edge (Psi attribute)"},
+        {name:"Nerve Pinch",     text:"Vulcan neuro-pressure technique"},
+        {name:"Logical",         text:"+ to Willpower vs emotion"},
+        {name:"Mind Meld",       text:"Telepathic contact via touch"}
+      ],
+      bonuses: {}
+    },
+
+    /* PLACEHOLDER — fill in adjust/abilities to enable. */
+    "Romulan": {
+      adjust: {},                 // TODO: define species attribute modifiers
+      abilities: [],              // TODO: define species abilities
+      bonuses: {},
+      placeholder: true
+    }
+  },
+
+  /* ---------------------------------------------------------------
+     PROFESSIONS (overview professions + Starship Officer roles).
+     `skills` = professional skill list for that profession.
+     A `*` denotes a skill GROUP (choose one each time it is taken).
+     --------------------------------------------------------------- */
+  professions: {
+    "Diplomat": {
+      favored:"Presence", reaction:"Savvy",
+      skills:["Culture","Influence","Inquire","Knowledge*","Language","Negotiate","Observe","Persuade","Politics","World Knowledge*"]
+    },
+    "Merchant": {
+      favored:"Presence", reaction:"Savvy",
+      skills:["Appraise","Computer Use","Influence","Inquire","Knowledge*","Negotiate","Persuade","Streetwise","System Operation","World Knowledge*"]
+    },
+    "Mystic": {
+      favored:"Presence", reaction:"Stamina",
+      skills:["Culture","Empathy","Influence","Knowledge*","Observe","Persuade","Religion","World Knowledge*"]
+    },
+    "Rogue": {
+      favored:"Agility", reaction:"Quickness",
+      skills:["Appraise","Athletics","Disguise","Forgery","Influence","Observe","Sleight of Hand","Stealth","Streetwise","Unarmed Combat*"]
+    },
+    "Scientist": {
+      favored:"Intellect", reaction:"Stamina",
+      skills:["Computer Use","Construct","Craft","Engineering*","Investigate","Knowledge*","Medicine","Observe","Science*","System Operation"]
+    },
+    "Soldier": {
+      favored:"Agility", reaction:"Quickness",
+      skills:["Armed Combat*","Athletics","Demolitions","First Aid","Inquire","Investigate","Observe","Ranged Combat*","Repair","Survival","Tactics","Unarmed Combat*"]
+    },
+    "Starship Officer (Command)": {
+      favored:"Presence", reaction:"Savvy",
+      skills:["Administration","Computer Use","Influence","Inquire","Knowledge*","Observe","Persuade","System Operation","Tactics","World Knowledge*"]
+    },
+    "Starship Officer (Flight Control)": {
+      favored:"Agility", reaction:"Quickness",
+      skills:["Athletics","Computer Use","Navigation","Observe","Repair","Shipboard Systems","System Operation","Vehicle Operation"]
+    },
+    "Starship Officer (Engineer)": {
+      favored:"Intellect", reaction:"Stamina",
+      skills:["Computer Use","Construct","Demolitions","Engineering*","Repair","Science*","Shipboard Systems","System Operation"]
+    },
+    "Starship Officer (Security)": {
+      favored:"Agility", reaction:"Quickness",
+      skills:["Armed Combat*","Athletics","Investigate","Observe","Ranged Combat*","Search","System Operation","Tactics","Unarmed Combat*"]
+    },
+    "Starship Officer (Counselor)": {
+      favored:"Presence", reaction:"Savvy",
+      skills:["Culture","Empathy","Influence","Inquire","Knowledge*","Medicine","Observe","Persuade","World Knowledge*"]
+    },
+    "Starship Officer (Medical)": {
+      favored:"Intellect", reaction:"Stamina",
+      skills:["Computer Use","First Aid","Inquire","Investigate","Knowledge*","Medicine","Observe","Science*","Treatment"]
+    },
+    "Starship Officer (Science)": {
+      favored:"Intellect", reaction:"Stamina",
+      skills:["Computer Use","Construct","Investigate","Knowledge*","Navigation","Observe","Science*","System Operation"]
+    }
+  },
+
+  /* ---------------------------------------------------------------
+     SKILLS dictionary. `key` = governing attribute. `group:true`
+     marks a skill group (specialties strongly encouraged). `spec`
+     lists sample specialties. Add entries to extend the system.
+     --------------------------------------------------------------- */
+  skills: {
+    "Administration":   {key:"Intellect", spec:["Starfleet","Bureaucracy"]},
+    "Appraise":         {key:"Perception", spec:["Art","Technology","Gems"]},
+    "Armed Combat":     {key:"Agility", group:true, spec:["Blade","Bat'leth","Club"]},
+    "Athletics":        {key:"Strength", spec:["Climbing","Running","Swimming"]},
+    "Computer Use":     {key:"Intellect", spec:["Programming","Hacking","Research"]},
+    "Construct":        {key:"Intellect", spec:["Mechanical","Electronic"]},
+    "Craft":            {key:"Agility", spec:["Painting","Sculpture","Music"]},
+    "Culture":          {key:"Intellect", spec:["Federation","Klingon","Bajoran"]},
+    "Demolitions":      {key:"Intellect", spec:["Defusing","Setting Charges"]},
+    "Disguise":         {key:"Presence", spec:["Impersonation","Costume"]},
+    "Empathy":          {key:"Presence", spec:["Sense Emotion","Project"]},
+    "Engineering":      {key:"Intellect", group:true, spec:["Warp Drive","Structural","Propulsion"]},
+    "First Aid":        {key:"Intellect", spec:["Field Medicine","Resuscitation"]},
+    "Forgery":          {key:"Agility", spec:["Documents","Credentials"]},
+    "Influence":        {key:"Presence", spec:["Charm","Intimidate"]},
+    "Inquire":          {key:"Presence", spec:["Interview","Interrogate"]},
+    "Investigate":      {key:"Intellect", spec:["Forensics","Research","Deduction"]},
+    "Knowledge":        {key:"Intellect", group:true, spec:["History","Law","Religion","Astronomy"]},
+    "Language":         {key:"Intellect", spec:["Klingon","Vulcan","Romulan","Cardassian"]},
+    "Medicine":         {key:"Intellect", spec:["Humans","Vulcans","Xenobiology"]},
+    "Navigation":       {key:"Intellect", spec:["Stellar","Planetary"]},
+    "Negotiate":        {key:"Presence", spec:["Mediate","Bargain"]},
+    "Observe":          {key:"Perception", spec:["Spot","Listen","Search"]},
+    "Persuade":         {key:"Presence", spec:["Oratory","Debate"]},
+    "Politics":         {key:"Presence", spec:["Federation","Local"]},
+    "Ranged Combat":    {key:"Agility", group:true, spec:["Phaser","Disruptor","Thrown"]},
+    "Religion":         {key:"Presence", spec:["Bajoran Prophets","Klingon"]},
+    "Repair":           {key:"Intellect", spec:["Electronics","Mechanical"]},
+    "Science":          {key:"Intellect", group:true, spec:["Physics","Biology","Chemistry","Astrophysics"]},
+    "Search":           {key:"Perception", spec:["Concealed","Tracking"]},
+    "Shipboard Systems":{key:"Intellect", spec:["Sensors","Helm","Tactical"]},
+    "Sleight of Hand":  {key:"Agility", spec:["Pickpocket","Conceal"]},
+    "Stealth":          {key:"Agility", spec:["Hide","Move Silently"]},
+    "Streetwise":       {key:"Presence", spec:["Black Market","Rumors"]},
+    "Survival":         {key:"Perception", spec:["Desert","Arctic","Jungle"]},
+    "System Operation": {key:"Intellect", spec:["Sensors","Communications","Transporter"]},
+    "Tactics":          {key:"Intellect", spec:["Ship","Ground","Fleet"]},
+    "Treatment":        {key:"Intellect", spec:["Surgery","Psychology","Pharmacology"]},
+    "Unarmed Combat":   {key:"Strength", group:true, spec:["Brawling","Martial Arts","Nerve Pinch"]},
+    "Vehicle Operation":{key:"Agility", spec:["Shuttle","Ground Vehicle"]},
+    "World Knowledge":  {key:"Intellect", group:true, spec:["Earth","Qo'noS","Bajor"]}
+  },
+
+  /* ---------------------------------------------------------------
+     TRAITS — edges (positive) and flaws (negative).
+     --------------------------------------------------------------- */
+  traits: {
+    edges: [
+      {name:"Psionic",          text:"Unlocks psionic skills; creates the Psi attribute (start 4)."},
+      {name:"Eidetic Memory",   text:"Total recall of anything seen or heard."},
+      {name:"Promotion",        text:"Formal rank above the starting rank."},
+      {name:"Command",          text:"Bonus to leadership and morale tests."},
+      {name:"Sense of Direction",text:"Never lost; bonus to Navigation."},
+      {name:"Night Vision",     text:"See in dim light; reduce darkness penalties."},
+      {name:"Resolute",         text:"+2 to Willpower reaction tests."},
+      {name:"Toughness",        text:"+3 bonus to Stamina reactions vs injury."},
+      {name:"Famous",           text:"Begin play with extra Renown."},
+      {name:"Wealth",           text:"Above-average personal resources."}
+    ],
+    flaws: [
+      {name:"Code of Honor",    text:"Bound by a strict personal/cultural code."},
+      {name:"Impulsive",        text:"Acts before thinking; -2 to some Savvy tests."},
+      {name:"Intolerance",      text:"Prejudice against a group; social penalties."},
+      {name:"Medical Problem",  text:"Chronic condition imposing test penalties."},
+      {name:"Obligation",       text:"A debt or duty that complicates life."},
+      {name:"Phobia",           text:"Irrational fear forcing Willpower tests."},
+      {name:"Rival",            text:"A recurring adversary who opposes you."},
+      {name:"Weakness",         text:"-2 to a specified reaction or attribute area."}
+    ]
+  }
+};
+/* ====================== END SECTION 1 ====================== */
+
+
+/* ================================================================
+   SECTION 2: LOGIC ENGINE & RULE VALIDATION  (Vanilla JS controller)
+   ----------------------------------------------------------------
+   Pure functions over the live `character` state object. No DOM
+   here except where the UI layer (Section 3) calls in.
+   ================================================================ */
+const Engine = (function(){
+
+  /* Current working character state. */
+  const character = {
+    name:"", player:"", species:"Human", profession:"Scientist",
+    method:"pointbuy",
+    base:{ Strength:0, Agility:0, Intellect:0, Vitality:0, Presence:0, Perception:0 },
+    rollPool:[],            // surviving 2d6 results awaiting assignment (random method)
+    skills:[],              // {skill, rank, specialty}
+    traits:[]               // {type:'edge'|'flaw', name, text}
+  };
+
+  /* --- dice (NON-exploding: chargen ignores exploding dice) --- */
+  function d6(){ return 1 + Math.floor(Math.random()*6); }
+  function roll2d6(){ return d6()+d6(); }
+
+  /* Random method: roll 2d6 nine times, drop three lowest, keep six. */
+  function rollAttributePool(){
+    const r = DB.rules.randomRoll;
+    let rolls = [];
+    for(let i=0;i<r.rolls;i++) rolls.push(roll2d6());
+    rolls.sort((a,b)=>a-b);
+    const kept = rolls.slice(r.dropLowest);   // drop the lowest three
+    character.rollPool = kept.slice().sort((a,b)=>b-a);
+    return character.rollPool;
+  }
+
+  /* Look up an attribute modifier from the table (clamped). */
+  function modifier(score){
+    const t = DB.modifierTable;
+    if(score in t) return t[score];
+    const keys = Object.keys(t).map(Number).sort((a,b)=>a-b);
+    if(score < keys[0]) return t[keys[0]];
+    return t[keys[keys.length-1]];
+  }
+
+  /* Apply species adjustments to a base-score map -> final scores.
+     Species mods are the ONLY way to exceed the cap of 12. */
+  function finalScores(){
+    const sp = DB.species[character.species] || {adjust:{}};
+    const out = {};
+    DB.attributes.forEach(a=>{
+      const adj = (sp.adjust && sp.adjust[a]) ? sp.adjust[a] : 0;
+      out[a] = (character.base[a]||0) + adj;
+    });
+    return out;
+  }
+
+  /* Validate the pre-species cap of 12 on base scores. */
+  function attributeErrors(){
+    const cap = DB.rules.maxStartAttributeBeforeSpecies;
+    const errs = [];
+    DB.attributes.forEach(a=>{
+      if((character.base[a]||0) > cap)
+        errs.push(a+" base "+character.base[a]+" exceeds the pre-species cap of "+cap+".");
+    });
+    return errs;
+  }
+
+  /* Point-buy bonus-points accounting: spent above the base pool. */
+  function pointBuyState(){
+    const pool = DB.rules.pointBuy.baseScores.slice().sort((a,b)=>a-b);
+    const cur  = DB.attributes.map(a=>character.base[a]||0).sort((a,b)=>a-b);
+    let spent = 0;
+    for(let i=0;i<pool.length;i++) spent += Math.max(0, cur[i]-pool[i]);
+    return { total:DB.rules.pointBuy.bonusPoints, spent, remaining:DB.rules.pointBuy.bonusPoints - spent };
+  }
+
+  /* ---- Derived statistics (all formulas from DB.rules) ---- */
+  function derived(){
+    const sp = DB.species[character.species] || {adjust:{}, bonuses:{}};
+    const bonuses = sp.bonuses || {};
+    const f = finalScores();
+    const mod = {}; DB.attributes.forEach(a=> mod[a]=modifier(f[a]));
+
+    // reactions: best modifier of the two governing attributes (+ species reaction bonuses)
+    const react = {};
+    for(const r in DB.rules.reactions){
+      const govs = DB.rules.reactions[r];
+      react[r] = Math.max.apply(null, govs.map(g=>mod[g]));
+    }
+    if(bonuses.reactionStamina) react.Stamina += bonuses.reactionStamina;
+
+    let health = f.Vitality + mod.Strength;                 // Vitality score + Strength mod
+    // Klingon Brak'lul (+1 Health) handled via ability text; apply if present in abilities.
+    if(character.species==="Klingon") health += 1;
+
+    const defense = 7 + mod.Agility;                        // 7 + Agility mod
+    const courage = DB.rules.baseCourage + (bonuses.courage||0);
+    const renown  = DB.rules.baseRenown;
+    const totalMod = DB.attributes.reduce((s,a)=>s+mod[a],0);
+
+    return { finalScores:f, mod, reactions:react, health, defense, courage, renown, totalMod };
+  }
+
+  /* ---- Skill validation ----
+     A base skill cannot be repeated, UNLESS the new entry carries a
+     DISTINCT specialty (and the existing one(s) also are specialised
+     or differ). Identical (skill, specialty) pairs are always rejected. */
+  function addSkill(skillName, rank, specialty){
+    skillName = (skillName||"").trim();
+    specialty = (specialty||"").trim();
+    rank = parseInt(rank,10);
+    if(!skillName) return {ok:false, msg:"Choose a skill."};
+    if(!(skillName in DB.skills)) return {ok:false, msg:"Unknown skill."};
+    if(!(rank>=1)) return {ok:false, msg:"Rank must be 1 or higher."};
+
+    const sameBase = character.skills.filter(s=>s.skill===skillName);
+    if(sameBase.length){
+      if(!DB.rules.skills.allowSameSkillDistinctSpecialty)
+        return {ok:false, msg:"Duplicate base skill not allowed."};
+      // need a specialty, and it must differ from existing ones
+      if(!specialty)
+        return {ok:false, msg:'"'+skillName+'" already taken — add a distinct specialty to take it again.'};
+      const clash = sameBase.some(s => (s.specialty||"").toLowerCase()===specialty.toLowerCase());
+      if(clash)
+        return {ok:false, msg:'"'+skillName+' ('+specialty+')" already exists.'};
+      // also block a bare duplicate sitting next to a specialised one is fine; we required specialty above
+    }
+    character.skills.push({skill:skillName, rank:rank, specialty:specialty||null,
+                           key:DB.skills[skillName].key});
+    return {ok:true};
+  }
+  function removeSkill(i){ character.skills.splice(i,1); }
+
+  /* ---- Trait (edge/flaw) validation ---- */
+  function addTrait(value){
+    if(!value) return {ok:false, msg:"Choose a trait."};
+    const [type,name] = value.split("::");
+    if(character.traits.some(t=>t.name===name && t.type===type))
+      return {ok:false, msg:name+" already added."};
+    const pool = type==="edge"?DB.traits.edges:DB.traits.flaws;
+    const def = pool.find(t=>t.name===name);
+    character.traits.push({type, name, text:def?def.text:""});
+    return {ok:true};
+  }
+  function removeTrait(i){ character.traits.splice(i,1); }
+
+  /* ---- Serialization: full character export object ---- */
+  function exportObject(){
+    const d = derived();
+    return {
+      meta:{ system:"Star Trek Roleplaying Game (Coda System)", generator:"offline-char-creator", version:1 },
+      name:character.name, player:character.player,
+      species:character.species, profession:character.profession,
+      attributeMethod:character.method,
+      attributes: DB.attributes.reduce((o,a)=>{
+        o[a] = { base:character.base[a]||0,
+                 speciesAdjust:(DB.species[character.species].adjust||{})[a]||0,
+                 final:d.finalScores[a],
+                 modifier:d.mod[a] };
+        return o;
+      },{}),
+      reactions: d.reactions,
+      derived: { health:d.health, defense:d.defense, courage:d.courage,
+                 renown:d.renown, totalModifier:d.totalMod },
+      skills: character.skills.map(s=>({skill:s.skill, rank:s.rank, specialty:s.specialty, keyAttribute:s.key})),
+      traits: character.traits.map(t=>({type:t.type, name:t.name, description:t.text})),
+      speciesAbilities: (DB.species[character.species].abilities||[]).map(a=>a.name+": "+a.text)
+    };
+  }
+  function exportJSON(){ return JSON.stringify(exportObject(), null, 2); }
+
+  return { DB, character, d6, roll2d6, rollAttributePool, modifier, finalScores,
+           attributeErrors, pointBuyState, derived, addSkill, removeSkill,
+           addTrait, removeTrait, exportObject, exportJSON };
+})();
+/* ====================== END SECTION 2 ====================== */
+
+
+/* ================================================================
+   SECTION 3 (part B): UI / DOM WIRING
+   ----------------------------------------------------------------
+   Populates selectors from Section 1's JSON, listens for input,
+   calls Section 2's engine, and renders results.
+   ================================================================ */
+(function(){
+  const $ = id => document.getElementById(id);
+  const C = Engine.character, DB = Engine.DB;
+
+  /* ---------- populate static selectors from JSON ---------- */
+  function fillSelect(sel, items, builder){
+    sel.innerHTML = items.map(builder).join("");
+  }
+  fillSelect($("species"), Object.keys(DB.species),
+    s => `<option value="${s}">${s}${DB.species[s].placeholder?" (placeholder)":""}</option>`);
+  fillSelect($("profession"), Object.keys(DB.professions), p=>`<option value="${p}">${p}</option>`);
+  fillSelect($("skillSel"), Object.keys(DB.skills),
+    s => `<option value="${s}">${s}${DB.skills[s].group?" *":""} — ${DB.skills[s].key.slice(0,3)}</option>`);
+  $("traitSel").innerHTML =
+     `<optgroup label="Edges">${DB.traits.edges.map(t=>`<option value="edge::${t.name}">${t.name}</option>`).join("")}</optgroup>`+
+     `<optgroup label="Flaws">${DB.traits.flaws.map(t=>`<option value="flaw::${t.name}">${t.name}</option>`).join("")}</optgroup>`;
+
+  C.species = $("species").value;
+  C.profession = $("profession").value;
+
+  /* ---------- attribute table rows ---------- */
+  function buildAttrRows(){
+    $("attrBody").innerHTML = DB.attributes.map(a=>`
+      <tr>
+        <td class="name">${a}</td>
+        <td><input type="number" data-attr="${a}" min="0" max="20" value="${C.base[a]||0}"></td>
+        <td class="mod" id="adj-${a}">+0</td>
+        <td class="final" id="fin-${a}">0</td>
+        <td class="mod" id="mod-${a}">+0</td>
+      </tr>`).join("");
+    $("attrBody").querySelectorAll("input[data-attr]").forEach(inp=>{
+      inp.addEventListener("input", e=>{
+        C.base[e.target.dataset.attr] = parseInt(e.target.value||"0",10)||0;
+        renderAll();
+      });
+    });
+  }
+
+  function fmt(n){ return (n>=0?"+":"")+n; }
+
+  /* ---------- master render ---------- */
+  function renderAll(){
+    // species panel
+    const sp = DB.species[C.species];
+    $("spName").textContent = C.species + (sp.placeholder?"  (placeholder — modifiers not yet defined)":"");
+    const adj = sp.adjust||{};
+    const adjStr = Object.keys(adj).length
+      ? Object.keys(adj).map(k=>`${k} ${fmt(adj[k])}`).join(", ")
+      : "No attribute adjustments.";
+    $("spAdj").textContent = "Adjustments: " + adjStr;
+    $("spAbilities").innerHTML = (sp.abilities||[]).map(ab=>`<li><b>${ab.name}</b> — ${ab.text}</li>`).join("")
+      || `<li class="muted">No special abilities defined.</li>`;
+
+    // attribute table
+    const f = Engine.finalScores();
+    DB.attributes.forEach(a=>{
+      const inp = $("attrBody").querySelector(`input[data-attr="${a}"]`);
+      if(inp && document.activeElement!==inp) inp.value = C.base[a]||0;
+      $("adj-"+a).textContent = fmt((adj[a]||0));
+      $("fin-"+a).textContent = f[a];
+      $("mod-"+a).textContent = fmt(Engine.modifier(f[a]));
+    });
+
+    // errors + point-buy remaining
+    const errs = Engine.attributeErrors();
+    $("attrErr").textContent = errs.join("  ");
+    if(C.method==="pointbuy"){
+      const pb = Engine.pointBuyState();
+      $("pbRemaining").textContent = pb.remaining;
+      $("pbRemaining").style.color = pb.remaining<0?"var(--bad)":(pb.remaining===0?"var(--good)":"var(--accent)");
+    }
+
+    // derived
+    const d = Engine.derived();
+    $("dHealth").textContent  = d.health;
+    $("dDefense").textContent = d.defense;
+    $("dCourage").textContent = d.courage;
+    $("dQuick").textContent   = fmt(d.reactions.Quickness);
+    $("dSavvy").textContent   = fmt(d.reactions.Savvy);
+    $("dStamina").textContent = fmt(d.reactions.Stamina);
+    $("dWill").textContent    = fmt(d.reactions.Willpower);
+    $("dRenown").textContent  = d.renown;
+    $("dTotMod").textContent  = fmt(d.totalMod);
+    $("derivedNote").textContent =
+      "Health = Vitality + Str mod · Defense = 7 + Agl mod · Courage 3"
+      + (sp.bonuses&&sp.bonuses.courage?(" +"+sp.bonuses.courage+" (species)"):"")
+      + " · Renown 0 at start.";
+
+    renderSkills(); renderTraits(); renderProfSkills();
+    refreshJSON();
+  }
+
+  /* ---------- skills ---------- */
+  function renderSkills(){
+    $("skillList").innerHTML = C.skills.map((s,i)=>`
+      <span class="chip good"><b>${s.skill}</b>${s.specialty?` <span class="muted">(${s.specialty})</span>`:""} · r${s.rank}
+      <span class="x" data-rmskill="${i}">✕</span></span>`).join("")
+      || `<span class="muted small">No skills added yet.</span>`;
+    $("skillList").querySelectorAll("[data-rmskill]").forEach(x=>
+      x.onclick=()=>{ Engine.removeSkill(+x.dataset.rmskill); renderAll(); });
+  }
+  function renderTraits(){
+    $("traitList").innerHTML = C.traits.map((t,i)=>`
+      <span class="chip ${t.type==='edge'?'good':'bad'}"><b>${t.name}</b>
+      <span class="muted">${t.type}</span><span class="x" data-rmtrait="${i}">✕</span></span>`).join("")
+      || `<span class="muted small">No traits added yet.</span>`;
+    $("traitList").querySelectorAll("[data-rmtrait]").forEach(x=>
+      x.onclick=()=>{ Engine.removeTrait(+x.dataset.rmtrait); renderAll(); });
+  }
+  function renderProfSkills(){
+    const p = DB.professions[C.profession];
+    $("profSkills").innerHTML = `<div class="small"><b style="color:var(--accent2)">Favored:</b> ${p.favored}
+      &nbsp; <b style="color:var(--accent2)">Reaction:</b> ${p.reaction}</div>
+      <div class="tag-list" style="margin-top:8px">${p.skills.map(s=>`<span class="chip">${s}</span>`).join("")}</div>
+      <div class="hint">* = skill group (choose one specialty per pick).</div>`;
+  }
+
+  /* ---------- JSON output ---------- */
+  function refreshJSON(){ $("json").value = Engine.exportJSON(); }
+
+  /* ================= EVENT LISTENERS ================= */
+  $("charName").addEventListener("input", e=>{ C.name=e.target.value; refreshJSON(); });
+  $("playerName").addEventListener("input", e=>{ C.player=e.target.value; refreshJSON(); });
+  $("species").addEventListener("change", e=>{ C.species=e.target.value; renderAll(); });
+  $("profession").addEventListener("change", e=>{ C.profession=e.target.value; renderAll(); });
+
+  // attribute method toggle
+  $("methodBar").querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      $("methodBar").querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      C.method = b.dataset.method;
+      $("pointbuyControls").style.display = C.method==="pointbuy"?"block":"none";
+      $("randomControls").style.display   = C.method==="random"?"block":"none";
+      $("manualControls").style.display   = C.method==="manual"?"block":"none";
+      if(C.method==="pointbuy") applyPointBuyBase();
+      renderAll();
+    });
+  });
+
+  // point-buy: seed the base pool (largest score -> first attribute)
+  function applyPointBuyBase(){
+    const pool = DB.rules.pointBuy.baseScores;
+    DB.attributes.forEach((a,i)=> C.base[a] = pool[i]!=null?pool[i]:0 );
+  }
+  $("pbReset").addEventListener("click", ()=>{ applyPointBuyBase(); renderAll(); });
+
+  // random roll
+  $("rollBtn").addEventListener("click", ()=>{
+    const pool = Engine.rollAttributePool();
+    $("rollPool").innerHTML = "Assign these six: " + pool.map(n=>`<b style="color:var(--accent)">${n}</b>`).join(", ");
+    DB.attributes.forEach((a,i)=> C.base[a] = pool[i]!=null?pool[i]:0 );
+    renderAll();
+  });
+
+  // add skill
+  $("addSkill").addEventListener("click", ()=>{
+    const res = Engine.addSkill($("skillSel").value, $("skillRank").value, $("skillSpec").value);
+    $("skillErr").textContent = res.ok?"":res.msg;
+    if(res.ok){ $("skillSpec").value=""; renderAll(); }
+  });
+  // add trait
+  $("addTrait").addEventListener("click", ()=>{
+    const res = Engine.addTrait($("traitSel").value);
+    $("traitErr").textContent = res.ok?"":res.msg;
+    if(res.ok) renderAll();
+  });
+
+  // JSON tools
+  $("refreshJson").addEventListener("click", refreshJSON);
+  $("copyBtn").addEventListener("click", async ()=>{
+    const text = Engine.exportJSON();
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta=$("json"); ta.removeAttribute("readonly"); ta.select();
+        document.execCommand("copy"); ta.setAttribute("readonly","readonly");
+      }
+      flash("Copied to clipboard ✓","ok");
+    }catch(err){ flash("Copy failed — select the text and copy manually.","bad"); }
+  });
+  $("downloadBtn").addEventListener("click", ()=>{
+    const blob = new Blob([Engine.exportJSON()], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safe = (C.name||"startrek-character").replace(/[^\w\-]+/g,"_");
+    a.href=url; a.download=safe+".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    flash("Downloaded "+safe+".json ✓","ok");
+  });
+  function flash(msg,cls){
+    const el=$("ioMsg"); el.textContent=msg; el.className="small "+(cls||"");
+    setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; }, 2600);
+  }
+
+  /* ---------- boot ---------- */
+  buildAttrRows();
+  applyPointBuyBase();   // start in point-buy with the base pool seeded
+  renderAll();
+})();
+/* ====================== END SECTION 3 ====================== */
+</script>
+</body>
+</html>
