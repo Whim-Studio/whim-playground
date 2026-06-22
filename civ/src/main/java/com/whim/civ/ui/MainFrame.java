@@ -45,7 +45,7 @@ public final class MainFrame extends JFrame {
     private final GameState state;
     private final EngineServices engine;
     private final TurnManager turnManager;
-    private final EconomyView econ = new SimpleEconomyView();
+    private EconomyView econ = new SimpleEconomyView();
 
     private final MapPanel mapPanel;
     private final UnitCommandPanel commandPanel;
@@ -57,6 +57,17 @@ public final class MainFrame extends JFrame {
     private final JLabel ratesLabel = new JLabel();
 
     private Unit selectedUnit;
+
+    /**
+     * Inject the economy view used by city screens. Lets {@code Main} wire the real
+     * engine-backed {@code EconomyView} (e.g. {@code EngineEconomyView}) so city numbers
+     * reflect the live engine instead of the UI-side {@link SimpleEconomyView} fallback.
+     */
+    public void setEconomyView(EconomyView view) {
+        if (view != null) {
+            this.econ = view;
+        }
+    }
 
     public MainFrame(GameState state, EngineServices engine) {
         super("Civilization (1991) — Java 8 Swing");
