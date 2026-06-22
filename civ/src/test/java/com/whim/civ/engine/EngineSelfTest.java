@@ -184,6 +184,13 @@ public class EngineSelfTest {
 
     private static GameState grasslandState(Government gov) {
         GameMap map = new GameMap(12, 12);
+        // The real domain defaults every tile to OCEAN; paint the map grassland so this
+        // helper matches its name and a city actually works land tiles around its center.
+        for (int x = 0; x < map.getWidth(); x++) {
+            for (int y = 0; y < map.getHeight(); y++) {
+                map.getTile(x, y).setTerrain(Terrain.GRASSLAND);
+            }
+        }
         GameState state = new GameState(map);
         Civilization civ = new Civilization(0, "Test", true);
         civ.setGovernment(gov);
