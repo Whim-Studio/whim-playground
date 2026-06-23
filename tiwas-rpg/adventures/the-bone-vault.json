@@ -1,0 +1,57 @@
+{
+  "title": "The Bone Vault",
+  "author": "Tiwas Demo",
+  "description": "A short delve beneath the ruined town of Hollowmere. Three scenes, three foes — enough to put a freshly-rolled hero through the exertion engine.",
+  "scenes": [
+    {
+      "id": "gate",
+      "title": "1. The Sunken Gate",
+      "narrative": "Floodwater laps at a half-buried iron gate. A goblin scout perched on the lintel looses an arrow the moment you step into the open. Roll Reflexes to take cover, or Might to wrench the gate aside.",
+      "npcNames": ["Goblin Scout"]
+    },
+    {
+      "id": "guardroom",
+      "title": "2. The Drowned Guardroom",
+      "narrative": "A town guard, long dead but still patrolling out of grim habit, levels a rusted spear. The water here is waist-deep and cold — every strained roll bleeds you faster.",
+      "npcNames": ["Town Guard"]
+    },
+    {
+      "id": "vault",
+      "title": "3. The Bone Vault",
+      "narrative": "At the heart of the ruin an Arcane Lich turns its hollow gaze upon you. Its Mind-Spike reaches across the chamber. Manage your pools — overreaching here will burn your own life force.",
+      "npcNames": ["Arcane Lich"]
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Goblin Scout",
+      "tier": "Minion",
+      "hp": 24, "mp": 0, "pe": 14,
+      "speed": 70, "movement": 5,
+      "armorRating": 2, "damageModifier": 4,
+      "defaultSkill": 25,
+      "special": "Minion: drops at 0 HP or any hit >= 12 damage. Pack Evades as one roll.",
+      "skills": { "Agility": 40, "Reflexes": 38 }
+    },
+    {
+      "name": "Town Guard",
+      "tier": "Standard",
+      "hp": 70, "mp": 30, "pe": 30,
+      "speed": 60, "movement": 4,
+      "armorRating": 3, "damageModifier": 6,
+      "defaultSkill": 30,
+      "special": "Hold the Line: may Block as a free Reaction once per round.",
+      "skills": { "Impact": 45, "Brawn": 40, "Poise": 40 }
+    },
+    {
+      "name": "Arcane Lich",
+      "tier": "Boss",
+      "hp": 90, "mp": 140, "pe": 20,
+      "speed": 80, "movement": 4,
+      "armorRating": 6, "damageModifier": 5,
+      "defaultSkill": 40,
+      "special": "Phylactery: at 0 HP drops but is not destroyed unless the phylactery is broken. Owl-Ward folded into Armor 6.",
+      "skills": { "Dominate": 55, "Mind-Spike": 60, "Willpower": 65, "Resolve": 60 }
+    }
+  ]
+}
