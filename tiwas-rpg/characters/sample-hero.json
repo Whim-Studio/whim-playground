@@ -1,0 +1,252 @@
+{
+  "name": "Rhando the Hawk",
+  "attributes": {
+    "bpp": 37,
+    "bps": 65,
+    "bpe": 86,
+    "bpx": 45,
+    "bsp": 81,
+    "bss": 55,
+    "bse": 69,
+    "bsx": 50,
+    "bep": 51,
+    "bes": 35,
+    "bee": 1,
+    "bex": 13,
+    "mpp": 9,
+    "mps": 12,
+    "mpe": 96,
+    "mpx": 63,
+    "msp": 62,
+    "mss": 39,
+    "mse": 8,
+    "msx": 80,
+    "mep": 43,
+    "mes": 25,
+    "mee": 84,
+    "mex": 52
+  },
+  "skills": [
+    {
+      "name": "Might",
+      "tier": 1,
+      "attributeCodes": [
+        "bpp"
+      ],
+      "value": 18,
+      "weaponClass": null
+    },
+    {
+      "name": "Impact",
+      "tier": 1,
+      "attributeCodes": [
+        "bps"
+      ],
+      "value": 32,
+      "weaponClass": null
+    },
+    {
+      "name": "Brawn",
+      "tier": 1,
+      "attributeCodes": [
+        "bpe"
+      ],
+      "value": 43,
+      "weaponClass": null
+    },
+    {
+      "name": "Presence",
+      "tier": 1,
+      "attributeCodes": [
+        "bpx"
+      ],
+      "value": 22,
+      "weaponClass": null
+    },
+    {
+      "name": "Agility",
+      "tier": 1,
+      "attributeCodes": [
+        "bsp"
+      ],
+      "value": 40,
+      "weaponClass": null
+    },
+    {
+      "name": "Reflexes",
+      "tier": 1,
+      "attributeCodes": [
+        "bss"
+      ],
+      "value": 27,
+      "weaponClass": null
+    },
+    {
+      "name": "Quickness",
+      "tier": 1,
+      "attributeCodes": [
+        "bse"
+      ],
+      "value": 34,
+      "weaponClass": null
+    },
+    {
+      "name": "Grace",
+      "tier": 1,
+      "attributeCodes": [
+        "bsx"
+      ],
+      "value": 25,
+      "weaponClass": null
+    },
+    {
+      "name": "Toughness",
+      "tier": 1,
+      "attributeCodes": [
+        "bep"
+      ],
+      "value": 25,
+      "weaponClass": null
+    },
+    {
+      "name": "Stamina",
+      "tier": 1,
+      "attributeCodes": [
+        "bes"
+      ],
+      "value": 17,
+      "weaponClass": null
+    },
+    {
+      "name": "Vitality",
+      "tier": 1,
+      "attributeCodes": [
+        "bee"
+      ],
+      "value": 0,
+      "weaponClass": null
+    },
+    {
+      "name": "Poise",
+      "tier": 1,
+      "attributeCodes": [
+        "bex"
+      ],
+      "value": 6,
+      "weaponClass": null
+    },
+    {
+      "name": "Cunning",
+      "tier": 1,
+      "attributeCodes": [
+        "mpp"
+      ],
+      "value": 4,
+      "weaponClass": null
+    },
+    {
+      "name": "Wits",
+      "tier": 1,
+      "attributeCodes": [
+        "mps"
+      ],
+      "value": 6,
+      "weaponClass": null
+    },
+    {
+      "name": "Willpower",
+      "tier": 1,
+      "attributeCodes": [
+        "mpe"
+      ],
+      "value": 48,
+      "weaponClass": null
+    },
+    {
+      "name": "Glamour",
+      "tier": 1,
+      "attributeCodes": [
+        "mpx"
+      ],
+      "value": 31,
+      "weaponClass": null
+    },
+    {
+      "name": "Acuity",
+      "tier": 1,
+      "attributeCodes": [
+        "msp"
+      ],
+      "value": 31,
+      "weaponClass": null
+    },
+    {
+      "name": "Perception",
+      "tier": 1,
+      "attributeCodes": [
+        "mss"
+      ],
+      "value": 19,
+      "weaponClass": null
+    },
+    {
+      "name": "Alacrity",
+      "tier": 1,
+      "attributeCodes": [
+        "mse"
+      ],
+      "value": 4,
+      "weaponClass": null
+    },
+    {
+      "name": "Charm",
+      "tier": 1,
+      "attributeCodes": [
+        "msx"
+      ],
+      "value": 40,
+      "weaponClass": null
+    },
+    {
+      "name": "Focus",
+      "tier": 1,
+      "attributeCodes": [
+        "mep"
+      ],
+      "value": 21,
+      "weaponClass": null
+    },
+    {
+      "name": "Discipline",
+      "tier": 1,
+      "attributeCodes": [
+        "mes"
+      ],
+      "value": 12,
+      "weaponClass": null
+    },
+    {
+      "name": "Resolve",
+      "tier": 1,
+      "attributeCodes": [
+        "mee"
+      ],
+      "value": 42,
+      "weaponClass": null
+    },
+    {
+      "name": "Composure",
+      "tier": 1,
+      "attributeCodes": [
+        "mex"
+      ],
+      "value": 26,
+      "weaponClass": null
+    }
+  ],
+  "currentHP": 588,
+  "currentPE": 87,
+  "currentMP": 573,
+  "generalXP": 0,
+  "inventory": []
+}
