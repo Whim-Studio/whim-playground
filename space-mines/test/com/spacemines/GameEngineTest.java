@@ -54,6 +54,7 @@ public class GameEngineTest {
 
         int moneyBefore = s.money;
         int minesBefore = s.mines;
+        int populationBefore = s.population;   // food is bought against the pre-turn population
 
         PlayerActions a = new PlayerActions();
         a.minesToBuy = 3;
@@ -65,7 +66,7 @@ public class GameEngineTest {
 
         int expectedMoney = moneyBefore
                 - 3 * GameConstants.MINE_COST
-                - s.population * 1;   // food bought at price 1
+                - populationBefore * 1;   // food bought at price 1, before population dynamics
 
         assertEquals("mines increased by 3", minesBefore + 3, s.mines);
         assertEquals("money debited by mines + food cost", expectedMoney, s.money);
@@ -90,6 +91,7 @@ public class GameEngineTest {
         int priceAtTrade = s.foodPrice;
         int moneyBefore = s.money;
         int oreBefore = s.storedOre;
+        int populationBefore = s.population;   // food is bought against the pre-turn population
 
         PlayerActions a = new PlayerActions();
         a.minesToBuy = 0;
@@ -102,7 +104,7 @@ public class GameEngineTest {
         // sell 100 ore at 5 (+500), buy 100 food at 5 (-500) => net 0.
         int expectedMoney = moneyBefore
                 + 100 * priceAtTrade
-                - s.population * priceAtTrade;
+                - populationBefore * priceAtTrade;
         int expectedOre = oreBefore - 100;   // mines==0 so no production
 
         assertEquals("ore reduced by amount sold", expectedOre, s.storedOre);
