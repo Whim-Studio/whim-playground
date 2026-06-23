@@ -35,7 +35,7 @@ public class KlahKlokFrame extends JFrame {
     private final Map<Symbol, BetCell> cells = new LinkedHashMap<Symbol, BetCell>();
     private final DiceBox[] diceBoxes = new DiceBox[3];
     private JButton rollButton;
-    private Timer animTimer;
+    private javax.swing.Timer animTimer;
 
     public KlahKlokFrame(GameState state, ResolutionEngine engine, AIController ai,
                          Die[] dice, boolean vsComputer) {
@@ -210,7 +210,7 @@ public class KlahKlokFrame extends JFrame {
         if (animTimer != null && animTimer.isRunning()) {
             animTimer.stop();
         }
-        animTimer = new Timer(70, null);
+        animTimer = new javax.swing.Timer(70, null);
         animTimer.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 ticks[0]++;
