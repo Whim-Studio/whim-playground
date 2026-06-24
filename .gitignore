@@ -9,3 +9,6 @@ coverage/
 
 # Java build output
 target/
+
+# Da Guai Lu Zi compiled output
+daguailuzi/out/

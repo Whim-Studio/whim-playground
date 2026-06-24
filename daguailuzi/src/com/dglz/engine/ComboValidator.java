@@ -26,7 +26,7 @@ public final class ComboValidator {
      * Return the single best legal Combination these cards form (applying jokers as
      * wildcards to complete 5-card hands), or null if they form no legal combination.
      */
-    public Combination identify(List<Card> cards) {
+    public static Combination identify(List<Card> cards) {
         if (cards == null) {
             return null;
         }
@@ -49,13 +49,13 @@ public final class ComboValidator {
         }
     }
 
-    private Combination identifySingle(List<Card> cards) {
+    private static Combination identifySingle(List<Card> cards) {
         Card c = cards.get(0);
         // A bare joker is its own rank; never a wildcard fill in a single.
         return new Combination(Road.SINGLE, ComboType.SINGLE, copy(cards), c.rank(), 0);
     }
 
-    private Combination identifyNOfAKind(List<Card> cards, Road road, ComboType type) {
+    private static Combination identifyNOfAKind(List<Card> cards, Road road, ComboType type) {
         Rank best = bestSameRank(cards);
         if (best == null) {
             return null;
@@ -64,7 +64,7 @@ public final class ComboValidator {
         return new Combination(road, type, copy(cards), best, wild);
     }
 
-    private Combination identifyFive(List<Card> cards) {
+    private static Combination identifyFive(List<Card> cards) {
         int jokers = countJokers(cards);
 
         // 1. FIVE_OF_A_KIND
@@ -105,7 +105,7 @@ public final class ComboValidator {
     // ---- helpers ----
 
     /** Number of wildcards (jokers) needed for all cards to serve as rank R, or -1 if impossible. */
-    private int serveAs(List<Card> cards, Rank r) {
+    private static int serveAs(List<Card> cards, Rank r) {
         int used = 0;
         for (int i = 0; i < cards.size(); i++) {
             Card c = cards.get(i);
@@ -128,7 +128,7 @@ public final class ComboValidator {
     }
 
     /** Highest-order rank that all cards can serve as, or null. */
-    private Rank bestSameRank(List<Card> cards) {
+    private static Rank bestSameRank(List<Card> cards) {
         Rank best = null;
         for (Rank r : Rank.values()) {
             if (serveAs(cards, r) >= 0) {
@@ -140,7 +140,7 @@ public final class ComboValidator {
         return best;
     }
 
-    private int countJokers(List<Card> cards) {
+    private static int countJokers(List<Card> cards) {
         int j = 0;
         for (int i = 0; i < cards.size(); i++) {
             if (cards.get(i).isWildcard()) {
@@ -151,7 +151,7 @@ public final class ComboValidator {
     }
 
     /** Straight or straight-flush over the 5 cards. requireFlush controls the suit constraint. */
-    private Combination tryStraight(List<Card> cards, int jokers, boolean requireFlush) {
+    private static Combination tryStraight(List<Card> cards, int jokers, boolean requireFlush) {
         Rank[] nat = Rank.naturalAscending();
         Combination best = null;
 
@@ -168,7 +168,7 @@ public final class ComboValidator {
     }
 
     /** suit == null means mixed-suit straight; otherwise all naturals must be that suit. */
-    private Combination straightForSuit(List<Card> cards, Rank[] nat, Suit suit, int jokers) {
+    private static Combination straightForSuit(List<Card> cards, Rank[] nat, Suit suit, int jokers) {
         Set<Rank> naturalRanks = new HashSet<Rank>();
         for (int i = 0; i < cards.size(); i++) {
             Card c = cards.get(i);
@@ -209,7 +209,7 @@ public final class ComboValidator {
         return best;
     }
 
-    private Combination tryFourPlusOne(List<Card> cards) {
+    private static Combination tryFourPlusOne(List<Card> cards) {
         Combination best = null;
         for (int leftover = 0; leftover < cards.size(); leftover++) {
             List<Card> quad = new ArrayList<Card>(4);
@@ -229,7 +229,7 @@ public final class ComboValidator {
         return best;
     }
 
-    private Combination tryFullHouse(List<Card> cards, int jokers) {
+    private static Combination tryFullHouse(List<Card> cards, int jokers) {
         Rank[] nat = Rank.naturalAscending();
         // count naturals per rank
         int[] count = new int[Rank.values().length];
@@ -272,7 +272,7 @@ public final class ComboValidator {
         return new Combination(Road.FIVE, ComboType.FULL_HOUSE, copy(cards), bestA, jokers);
     }
 
-    private Combination tryFlush(List<Card> cards, int jokers) {
+    private static Combination tryFlush(List<Card> cards, int jokers) {
         for (Suit suit : RANKED_SUITS) {
             boolean ok = true;
             Rank maxNatural = null;
@@ -308,12 +308,12 @@ public final class ComboValidator {
         return null;
     }
 
-    public boolean sameRoad(Combination a, Combination b) {
+    public static boolean sameRoad(Combination a, Combination b) {
         return a.road() == b.road();
     }
 
     /** candidate must be the same Road as lead and beat it. */
-    public boolean isLegalFollow(Combination lead, Combination candidate) {
+    public static boolean isLegalFollow(Combination lead, Combination candidate) {
         if (lead == null || candidate == null) {
             return false;
         }
@@ -329,7 +329,7 @@ public final class ComboValidator {
      * The FIVE road is enumerated exhaustively over all C(n,5) card subsets of the hand
      * (n <= 27), which is bounded and fast for realistic hand sizes (see README).
      */
-    public List<Combination> enumerate(List<Card> hand, Road leadRoad, Combination toBeat) {
+    public static List<Combination> enumerate(List<Card> hand, Road leadRoad, Combination toBeat) {
         List<Combination> out = new ArrayList<Combination>();
         if (hand == null || leadRoad == null) {
             return out;
@@ -343,7 +343,7 @@ public final class ComboValidator {
         return out;
     }
 
-    private void combine(List<Card> hand, int k, int start, List<Card> acc,
+    private static void combine(List<Card> hand, int k, int start, List<Card> acc,
                          List<Combination> out, Set<String> seen, Road leadRoad, Combination toBeat) {
         if (acc.size() == k) {
             Combination combo = identify(acc);
@@ -367,7 +367,7 @@ public final class ComboValidator {
         }
     }
 
-    private String comboKey(Combination combo) {
+    private static String comboKey(Combination combo) {
         List<String> faces = new ArrayList<String>();
         for (Card c : combo.cards()) {
             faces.add(c.shortName());

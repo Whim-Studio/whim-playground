@@ -24,7 +24,7 @@ public final class GameEngine {
     private static final int PER_PLAYER = 27;
     private static final int HUMAN_SEAT = 0;
 
-    private final long seed;
+    private long seed;
     private final String[] playerNames;
     private final ComboValidator validator = new ComboValidator();
 
@@ -39,6 +39,12 @@ public final class GameEngine {
         }
         this.seed = seed;
         this.playerNames = playerNames.clone();
+    }
+
+    /** Re-seed and deal a fresh game (used by the UI's "New Game" so each deal differs). */
+    public void start(long newSeed) {
+        this.seed = newSeed;
+        start();
     }
 
     /** Build deck, shuffle with seed, deal 27 each, set first leader (seat 0). */

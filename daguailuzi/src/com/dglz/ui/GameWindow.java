@@ -274,7 +274,7 @@ public class GameWindow extends JFrame {
 
     private void onNewGame() {
         aiTimer.stop();
-        engine.start(); // re-deal and reset the same engine (keeps injected strategy)
+        engine.start(System.nanoTime()); // fresh deal each New Game (keeps injected strategy)
         clearMessage();
         coachText.setText("");
         refreshAll();
