@@ -1,10 +1,18 @@
 package com.tycoon.ui;
 
 import com.tycoon.core.AutoTurnEngine;
+import com.tycoon.core.Employee;
+import com.tycoon.core.Facility;
 import com.tycoon.core.FacilityType;
+import com.tycoon.core.GameProject;
 import com.tycoon.core.GameState;
+import com.tycoon.core.Genre;
+import com.tycoon.core.GenreTopicMatch;
 import com.tycoon.core.Interrupt;
+import com.tycoon.core.Room;
 import com.tycoon.core.RoomType;
+import com.tycoon.core.Technology;
+import com.tycoon.core.Topic;
 import com.tycoon.core.TurnProcessor;
 import com.tycoon.sim.SimTurnProcessor;
 
@@ -16,10 +24,12 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
@@ -28,6 +38,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridLayout;
 import java.util.List;
 
 /**
@@ -137,6 +148,10 @@ public class TycoonApp extends JFrame {
         ((JSpinner.DefaultEditor) maxHours.getEditor()).getTextField().setColumns(5);
         bar.add(maxHours);
 
+        JButton newProject = new JButton("New Game Project");
+        newProject.addActionListener(e -> showNewProjectDialog());
+        bar.add(newProject);
+
         JButton advance = new JButton("Advance");
         advance.addActionListener(e -> {
             int max = (Integer) maxHours.getValue();
@@ -153,6 +168,126 @@ public class TycoonApp extends JFrame {
         bar.add(step);
 
         return bar;
+    }
+
+    // ---- new game project (genre/topic/engine) -----------------------------
+
+    private int projectCounter = 0;
+
+    /**
+     * Prompt for a title, genre, topic and engine, showing the live genre/topic fit so the
+     * player can chase authentic Mad Games Tycoon pairings. On OK, creates the project and
+     * auto-assigns idle employees to it (and to any free desks on the floor).
+     */
+    private void showNewProjectDialog() {
+        final JTextField title = new JTextField("Untitled Game " + (projectCounter + 1));
+        final JComboBox<Genre> genre = new JComboBox<Genre>(Genre.values());
+        final JComboBox<Topic> topic = new JComboBox<Topic>(Topic.values());
+
+        // Engines: only those unlocked by the current in-game week.
+        List<Technology> unlocked = Technology.unlockedAtWeek(state.week());
+        final JComboBox<Technology> engine =
+                new JComboBox<Technology>(unlocked.toArray(new Technology[0]));
+        engine.setSelectedItem(Technology.bestAtWeek(state.week()));
+
+        final JLabel fit = new JLabel();
+        Runnable updateFit = new Runnable() {
+            @Override public void run() {
+                GenreTopicMatch.Rating r = GenreTopicMatch.rate(
+                        (Genre) genre.getSelectedItem(), (Topic) topic.getSelectedItem());
+                fit.setText(r.label() + "  (x" + String.format("%.2f", r.multiplier())
+                        + " review quality)");
+                fit.setForeground(ratingColor(r));
+            }
+        };
+        genre.addActionListener(e -> updateFit.run());
+        topic.addActionListener(e -> updateFit.run());
+        updateFit.run();
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
+        form.add(new JLabel("Title:"));
+        form.add(title);
+        form.add(new JLabel("Genre:"));
+        form.add(genre);
+        form.add(new JLabel("Topic:"));
+        form.add(topic);
+        form.add(new JLabel("Engine:"));
+        form.add(engine);
+        form.add(new JLabel("Genre/Topic fit:"));
+        form.add(fit);
+
+        int ok = JOptionPane.showConfirmDialog(this, form, "Start a New Game Project",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String id = "proj-" + (projectCounter++);
+        GameProject project = new GameProject(id, title.getText().trim().isEmpty()
+                ? id : title.getText().trim(),
+                (Genre) genre.getSelectedItem(), (Topic) topic.getSelectedItem(),
+                (Technology) engine.getSelectedItem());
+        state.player().projects().add(project);
+
+        int assigned = autoAssignToProject(project);
+        GenreTopicMatch.Rating r = project.matchRating();
+        logLine("Started \"" + project.title() + "\" — " + project.genre().display()
+                + " / " + project.topic().display() + " on " + project.technology().display()
+                + ". Fit: " + r.label() + " (x" + String.format("%.2f", r.multiplier())
+                + "). Assigned " + assigned + " employee(s).");
+        refreshStatus();
+    }
+
+    /** Assign every idle employee to the project, and seat them at any free desks. */
+    private int autoAssignToProject(GameProject project) {
+        java.util.List<com.tycoon.core.GridPos> desks = freeDesks();
+        int deskIdx = 0;
+        int count = 0;
+        for (Employee emp : state.player().employees()) {
+            if (emp.assignedProjectId() == null) {
+                emp.assignProject(project.id());
+                project.assignedEmployeeIds().add(emp.id());
+                if (emp.workstation() == null && deskIdx < desks.size()) {
+                    emp.assignWorkstation(desks.get(deskIdx++));
+                }
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Desk positions on the floor not already claimed by an employee. */
+    private java.util.List<com.tycoon.core.GridPos> freeDesks() {
+        java.util.List<com.tycoon.core.GridPos> taken = new java.util.ArrayList<com.tycoon.core.GridPos>();
+        for (Employee e : state.player().employees()) {
+            if (e.workstation() != null) {
+                taken.add(e.workstation());
+            }
+        }
+        java.util.List<com.tycoon.core.GridPos> free = new java.util.ArrayList<com.tycoon.core.GridPos>();
+        for (Room room : state.player().floorPlan().rooms()) {
+            for (Facility f : room.facilities()) {
+                if (f.type() == FacilityType.DESK && !taken.contains(f.pos())) {
+                    free.add(f.pos());
+                }
+            }
+        }
+        return free;
+    }
+
+    private static Color ratingColor(GenreTopicMatch.Rating r) {
+        switch (r) {
+            case PERFECT:
+            case GREAT:
+                return new Color(20, 130, 30);
+            case GOOD:
+                return new Color(60, 110, 40);
+            case POOR:
+            case BAD:
+                return new Color(170, 30, 30);
+            default:
+                return new Color(90, 90, 90);
+        }
     }
 
     private void reportInterrupts(String label, List<Interrupt> ints) {

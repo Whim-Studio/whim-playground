@@ -8,6 +8,7 @@ import com.tycoon.core.FloorPlan;
 import com.tycoon.core.GameProject;
 import com.tycoon.core.GameState;
 import com.tycoon.core.GameStudio;
+import com.tycoon.core.GenreTopicMatch;
 import com.tycoon.core.GridPos;
 import com.tycoon.core.Interrupt;
 import com.tycoon.core.InterruptType;
@@ -133,6 +134,18 @@ public final class SimTurnProcessor implements TurnProcessor {
      * unpredictable.
      */
     public static int reviewScore(double developmentPoints, double bugs, double polish, Random rng) {
+        return reviewScore(developmentPoints, bugs, polish, 1.0, 1.0, rng);
+    }
+
+    /**
+     * Review score with the authentic Mad Games Tycoon quality modifiers applied. The bug-penalised
+     * base (points + polish) is scaled by the genre/topic fit multiplier (see
+     * {@link com.tycoon.core.GenreTopicMatch}) and the engine quality bonus (see
+     * {@link com.tycoon.core.Technology}) BEFORE the bounded Reviewer-RNG variance, so a great
+     * pairing on a modern engine usually outscores a mismatched one built on the same effort.
+     */
+    public static int reviewScore(double developmentPoints, double bugs, double polish,
+                                  double matchMultiplier, double techMultiplier, Random rng) {
         double pointsComponent = 70.0 * clamp(developmentPoints / POINTS_FOR_FULL_REVIEW, 0.0, 1.0);
         double polishComponent = 30.0 * clamp(polish / 100.0, 0.0, 1.0);
         double base = pointsComponent + polishComponent;
@@ -140,6 +153,11 @@ public final class SimTurnProcessor implements TurnProcessor {
         // Bugs erode the score; the penalty is bounded by the base so it can't drive things wild.
         double bugPenalty = Math.min(base, Math.max(0.0, bugs) * 0.5);
         double scored = base - bugPenalty;
+
+        // Authentic fit/engine modifiers: a perfect genre/topic match on a modern engine lifts the
+        // ceiling; a poor match drags it down. Applied multiplicatively to the (post-bug) quality.
+        scored *= matchMultiplier;
+        scored *= techMultiplier;
 
         // Bounded variance in [-REVIEW_RNG_VARIANCE, +REVIEW_RNG_VARIANCE].
         int variance = rng.nextInt(2 * REVIEW_RNG_VARIANCE + 1) - REVIEW_RNG_VARIANCE;
@@ -250,13 +268,19 @@ public final class SimTurnProcessor implements TurnProcessor {
                     project.title() + " entered POLISH."));
         } else if (phase == ProjectPhase.POLISH && project.polish() >= POLISH_TARGET) {
             project.setPhase(ProjectPhase.RELEASED);
+            double matchMult = GenreTopicMatch.multiplier(project.genre(), project.topic());
+            double techMult = project.technology() != null ? project.technology().qualityBonus() : 1.0;
             int score = reviewScore(project.developmentPoints(), project.bugs(), project.polish(),
-                    state.rng());
+                    matchMult, techMult, state.rng());
             project.setReviewScore(score);
             interrupts.add(new Interrupt(InterruptType.DEVELOPMENT_MILESTONE, hour,
                     project.title() + " finished POLISH."));
+            String fit = project.genre() != null && project.topic() != null
+                    ? " [" + project.genre().display() + " / " + project.topic().display()
+                          + " — " + project.matchRating().label() + "]"
+                    : "";
             interrupts.add(new Interrupt(InterruptType.GAME_RELEASED, hour,
-                    project.title() + " released to a review score of " + score + "/100."));
+                    project.title() + " released to a review score of " + score + "/100." + fit));
         }
     }
 
