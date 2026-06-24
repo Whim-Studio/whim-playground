@@ -1048,7 +1048,7 @@
       el("div", { class: "role", text: role }),
       el("div", { class: "axis-name", text: info.name }),
       el("div", { class: "ps" }, [
-        document.createTextNode("Polarity Strength (Ps): "),
+        document.createTextNode("Polarization Score (Ps): "),
         el("b", { text: fmt(info.Ps, 1) })
       ])
     ]);
@@ -1104,7 +1104,7 @@
     });
 
     // Ranked table
-    resultsBody.appendChild(el("div", { class: "section-title", text: "Axes Ranked by Polarity Strength" }));
+    resultsBody.appendChild(el("div", { class: "section-title", text: "Axes Ranked by Polarization Score" }));
     var tbody = el("tbody");
     (result.ranked || []).forEach(function (r, i) {
       tbody.appendChild(el("tr", {}, [
