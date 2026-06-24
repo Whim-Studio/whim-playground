@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whole Brain — Four-Quadrant Cognitive Preference Assessment</title>
+
+<!-- ============================================================
+     EMBEDDED QUESTION DATA  (Layer 1 — Core Domain & JSON)
+     116 original questions, 29 per quadrant.
+     Quadrants:  A = Analytical, B = Sequential,
+                 C = Interpersonal, D = Imaginative
+     Each item: { id, text, quadrant, weight }
+     ============================================================ -->
+<script id="question-data" type="application/json">
+{
+  "scale": { "min": 1, "max": 5, "labels": ["Strongly Disagree","Disagree","Neutral","Agree","Strongly Agree"] },
+  "quadrants": {
+    "A": { "name": "Analytical",    "color": "#2f6fb0", "blurb": "Logical · fact-based · quantitative" },
+    "B": { "name": "Sequential",    "color": "#2e9e6b", "blurb": "Organized · detailed · planned" },
+    "C": { "name": "Interpersonal", "color": "#e0883a", "blurb": "Feeling-based · kinesthetic · emotional" },
+    "D": { "name": "Imaginative",   "color": "#a05bc6", "blurb": "Holistic · intuitive · synthesizing" }
+  },
+  "questions": [
+    { "id": "A1",  "quadrant": "A", "weight": 1, "text": "I enjoy solving problems by breaking them down into measurable parts." },
+    { "id": "A2",  "quadrant": "A", "weight": 1, "text": "I trust data and statistics more than personal opinions." },
+    { "id": "A3",  "quadrant": "A", "weight": 1, "text": "I like analyzing numbers to find the underlying pattern." },
+    { "id": "A4",  "quadrant": "A", "weight": 1, "text": "I prefer arguments backed by hard evidence." },
+    { "id": "A5",  "quadrant": "A", "weight": 1, "text": "I naturally question claims until they are proven with facts." },
+    { "id": "A6",  "quadrant": "A", "weight": 1, "text": "I find satisfaction in diagnosing why a system fails logically." },
+    { "id": "A7",  "quadrant": "A", "weight": 1, "text": "I evaluate options by weighing quantifiable costs and benefits." },
+    { "id": "A8",  "quadrant": "A", "weight": 1, "text": "I am comfortable working with complex calculations." },
+    { "id": "A9",  "quadrant": "A", "weight": 1, "text": "I prefer precise definitions over vague descriptions." },
+    { "id": "A10", "quadrant": "A", "weight": 1, "text": "I like to understand how things work at a technical level." },
+    { "id": "A11", "quadrant": "A", "weight": 1, "text": "I am skeptical of conclusions that lack supporting metrics." },
+    { "id": "A12", "quadrant": "A", "weight": 1, "text": "I enjoy debating ideas based on logic." },
+    { "id": "A13", "quadrant": "A", "weight": 1, "text": "I prefer to measure results rather than estimate them." },
+    { "id": "A14", "quadrant": "A", "weight": 1, "text": "I am drawn to puzzles that have one correct answer." },
+    { "id": "A15", "quadrant": "A", "weight": 1, "text": "I assess performance using objective criteria." },
+    { "id": "A16", "quadrant": "A", "weight": 1, "text": "I like reducing a messy problem to its essential variables." },
+    { "id": "A17", "quadrant": "A", "weight": 1, "text": "I value efficiency and the rational use of resources." },
+    { "id": "A18", "quadrant": "A", "weight": 1, "text": "I am energized by analyzing financial or technical reports." },
+    { "id": "A19", "quadrant": "A", "weight": 1, "text": "I prefer facts over feelings when making decisions." },
+    { "id": "A20", "quadrant": "A", "weight": 1, "text": "I enjoy identifying the root cause of a malfunction." },
+    { "id": "A21", "quadrant": "A", "weight": 1, "text": "I like comparing data sets to draw conclusions." },
+    { "id": "A22", "quadrant": "A", "weight": 1, "text": "I trust a well-reasoned formula over a gut feeling." },
+    { "id": "A23", "quadrant": "A", "weight": 1, "text": "I tend to spot logical inconsistencies quickly." },
+    { "id": "A24", "quadrant": "A", "weight": 1, "text": "I prefer to test a theory before accepting it." },
+    { "id": "A25", "quadrant": "A", "weight": 1, "text": "I enjoy quantifying things that others leave vague." },
+    { "id": "A26", "quadrant": "A", "weight": 1, "text": "I focus on the critical facts rather than the surrounding story." },
+    { "id": "A27", "quadrant": "A", "weight": 1, "text": "I like building models that predict outcomes." },
+    { "id": "A28", "quadrant": "A", "weight": 1, "text": "I am comfortable challenging assumptions with analysis." },
+    { "id": "A29", "quadrant": "A", "weight": 1, "text": "I prefer clarity and precision in technical discussions." },
+
+    { "id": "B1",  "quadrant": "B", "weight": 1, "text": "I like to plan my tasks step by step before starting." },
+    { "id": "B2",  "quadrant": "B", "weight": 1, "text": "I keep detailed lists to track what needs to be done." },
+    { "id": "B3",  "quadrant": "B", "weight": 1, "text": "I feel uneasy when a process lacks clear procedures." },
+    { "id": "B4",  "quadrant": "B", "weight": 1, "text": "I prefer to follow a proven, reliable method." },
+    { "id": "B5",  "quadrant": "B", "weight": 1, "text": "I organize my workspace so everything has its place." },
+    { "id": "B6",  "quadrant": "B", "weight": 1, "text": "I complete one task fully before moving to the next." },
+    { "id": "B7",  "quadrant": "B", "weight": 1, "text": "I pay close attention to small details others overlook." },
+    { "id": "B8",  "quadrant": "B", "weight": 1, "text": "I like schedules and tend to stick to them." },
+    { "id": "B9",  "quadrant": "B", "weight": 1, "text": "I prefer instructions that are clear and sequential." },
+    { "id": "B10", "quadrant": "B", "weight": 1, "text": "I double-check my work for accuracy and completeness." },
+    { "id": "B11", "quadrant": "B", "weight": 1, "text": "I am dependable about meeting deadlines." },
+    { "id": "B12", "quadrant": "B", "weight": 1, "text": "I like to establish routines that I can repeat." },
+    { "id": "B13", "quadrant": "B", "weight": 1, "text": "I prefer structure and predictability over surprises." },
+    { "id": "B14", "quadrant": "B", "weight": 1, "text": "I document my steps so the process can be repeated." },
+    { "id": "B15", "quadrant": "B", "weight": 1, "text": "I feel satisfied when a project is neatly organized." },
+    { "id": "B16", "quadrant": "B", "weight": 1, "text": "I plan for contingencies before they arise." },
+    { "id": "B17", "quadrant": "B", "weight": 1, "text": "I prefer to finish what I start in an orderly way." },
+    { "id": "B18", "quadrant": "B", "weight": 1, "text": "I like rules and guidelines that keep things consistent." },
+    { "id": "B19", "quadrant": "B", "weight": 1, "text": "I break large projects into a clear sequence of stages." },
+    { "id": "B20", "quadrant": "B", "weight": 1, "text": "I keep careful records of my commitments." },
+    { "id": "B21", "quadrant": "B", "weight": 1, "text": "I am methodical when tackling a complicated task." },
+    { "id": "B22", "quadrant": "B", "weight": 1, "text": "I prefer a tidy, well-ordered environment." },
+    { "id": "B23", "quadrant": "B", "weight": 1, "text": "I review the plan carefully before taking action." },
+    { "id": "B24", "quadrant": "B", "weight": 1, "text": "I value reliability and consistency in how work is done." },
+    { "id": "B25", "quadrant": "B", "weight": 1, "text": "I make sure every detail is accounted for." },
+    { "id": "B26", "quadrant": "B", "weight": 1, "text": "I like to set up systems that prevent mistakes." },
+    { "id": "B27", "quadrant": "B", "weight": 1, "text": "I prefer to proceed cautiously and in order." },
+    { "id": "B28", "quadrant": "B", "weight": 1, "text": "I keep my appointments and obligations carefully scheduled." },
+    { "id": "B29", "quadrant": "B", "weight": 1, "text": "I find comfort in a predictable, structured day." },
+
+    { "id": "C1",  "quadrant": "C", "weight": 1, "text": "I am sensitive to the moods and feelings of others." },
+    { "id": "C2",  "quadrant": "C", "weight": 1, "text": "I make decisions based on how they affect people." },
+    { "id": "C3",  "quadrant": "C", "weight": 1, "text": "I enjoy building close, supportive relationships." },
+    { "id": "C4",  "quadrant": "C", "weight": 1, "text": "I learn best by doing things with my hands." },
+    { "id": "C5",  "quadrant": "C", "weight": 1, "text": "I can easily sense when someone is upset." },
+    { "id": "C6",  "quadrant": "C", "weight": 1, "text": "I value harmony within a group." },
+    { "id": "C7",  "quadrant": "C", "weight": 1, "text": "I am moved by emotional stories and experiences." },
+    { "id": "C8",  "quadrant": "C", "weight": 1, "text": "I prefer to talk through problems with other people." },
+    { "id": "C9",  "quadrant": "C", "weight": 1, "text": "I trust my feelings when something matters to me." },
+    { "id": "C10", "quadrant": "C", "weight": 1, "text": "I enjoy helping people work through their difficulties." },
+    { "id": "C11", "quadrant": "C", "weight": 1, "text": "I express my emotions openly." },
+    { "id": "C12", "quadrant": "C", "weight": 1, "text": "I feel energized by warm, personal connections." },
+    { "id": "C13", "quadrant": "C", "weight": 1, "text": "I pay attention to body language and tone of voice." },
+    { "id": "C14", "quadrant": "C", "weight": 1, "text": "I care deeply about how others are treated." },
+    { "id": "C15", "quadrant": "C", "weight": 1, "text": "I like collaborative, people-centered activities." },
+    { "id": "C16", "quadrant": "C", "weight": 1, "text": "I find physical, hands-on activities satisfying." },
+    { "id": "C17", "quadrant": "C", "weight": 1, "text": "I am empathetic toward people who are struggling." },
+    { "id": "C18", "quadrant": "C", "weight": 1, "text": "I value teamwork and a sense of belonging." },
+    { "id": "C19", "quadrant": "C", "weight": 1, "text": "I respond strongly to the emotional tone of a room." },
+    { "id": "C20", "quadrant": "C", "weight": 1, "text": "I enjoy nurturing and encouraging others." },
+    { "id": "C21", "quadrant": "C", "weight": 1, "text": "I make an effort to understand different points of view." },
+    { "id": "C22", "quadrant": "C", "weight": 1, "text": "I am comfortable sharing my feelings with others." },
+    { "id": "C23", "quadrant": "C", "weight": 1, "text": "I prefer working with people over working alone." },
+    { "id": "C24", "quadrant": "C", "weight": 1, "text": "I am guided by my values and what feels right." },
+    { "id": "C25", "quadrant": "C", "weight": 1, "text": "I notice when someone needs support before they ask." },
+    { "id": "C26", "quadrant": "C", "weight": 1, "text": "I find meaning in my personal relationships." },
+    { "id": "C27", "quadrant": "C", "weight": 1, "text": "I learn by physically engaging with the material." },
+    { "id": "C28", "quadrant": "C", "weight": 1, "text": "I am attuned to the emotional needs of a team." },
+    { "id": "C29", "quadrant": "C", "weight": 1, "text": "I value kindness and compassion in my interactions." },
+
+    { "id": "D1",  "quadrant": "D", "weight": 1, "text": "I enjoy imagining new possibilities and future scenarios." },
+    { "id": "D2",  "quadrant": "D", "weight": 1, "text": "I see the big picture before the details." },
+    { "id": "D3",  "quadrant": "D", "weight": 1, "text": "I rely on intuition to guide my choices." },
+    { "id": "D4",  "quadrant": "D", "weight": 1, "text": "I like connecting ideas from very different fields." },
+    { "id": "D5",  "quadrant": "D", "weight": 1, "text": "I am energized by brainstorming unconventional solutions." },
+    { "id": "D6",  "quadrant": "D", "weight": 1, "text": "I prefer exploring concepts over following set procedures." },
+    { "id": "D7",  "quadrant": "D", "weight": 1, "text": "I often think in images, metaphors, and analogies." },
+    { "id": "D8",  "quadrant": "D", "weight": 1, "text": "I enjoy questions that have many possible answers." },
+    { "id": "D9",  "quadrant": "D", "weight": 1, "text": "I trust hunches even when I cannot fully explain them." },
+    { "id": "D10", "quadrant": "D", "weight": 1, "text": "I like to experiment with novel approaches." },
+    { "id": "D11", "quadrant": "D", "weight": 1, "text": "I synthesize scattered information into a unified vision." },
+    { "id": "D12", "quadrant": "D", "weight": 1, "text": "I am drawn to creative and artistic expression." },
+    { "id": "D13", "quadrant": "D", "weight": 1, "text": "I enjoy speculating about what could be." },
+    { "id": "D14", "quadrant": "D", "weight": 1, "text": "I see patterns and connections that others miss." },
+    { "id": "D15", "quadrant": "D", "weight": 1, "text": "I prefer flexibility over rigid structure." },
+    { "id": "D16", "quadrant": "D", "weight": 1, "text": "I like to challenge conventional ways of thinking." },
+    { "id": "D17", "quadrant": "D", "weight": 1, "text": "I generate many ideas quickly." },
+    { "id": "D18", "quadrant": "D", "weight": 1, "text": "I am comfortable with ambiguity and open-ended problems." },
+    { "id": "D19", "quadrant": "D", "weight": 1, "text": "I enjoy reframing a problem in a completely new way." },
+    { "id": "D20", "quadrant": "D", "weight": 1, "text": "I am inspired by visionary, big-picture thinking." },
+    { "id": "D21", "quadrant": "D", "weight": 1, "text": "I like to integrate diverse perspectives into a whole." },
+    { "id": "D22", "quadrant": "D", "weight": 1, "text": "I follow my imagination wherever it leads." },
+    { "id": "D23", "quadrant": "D", "weight": 1, "text": "I enjoy inventing things that do not yet exist." },
+    { "id": "D24", "quadrant": "D", "weight": 1, "text": "I grasp the overall meaning of a situation intuitively." },
+    { "id": "D25", "quadrant": "D", "weight": 1, "text": "I prefer innovation over tradition." },
+    { "id": "D26", "quadrant": "D", "weight": 1, "text": "I like playing with abstract and theoretical ideas." },
+    { "id": "D27", "quadrant": "D", "weight": 1, "text": "I trust my gut feeling about the direction to take." },
+    { "id": "D28", "quadrant": "D", "weight": 1, "text": "I enjoy combining unrelated concepts into something original." },
+    { "id": "D29", "quadrant": "D", "weight": 1, "text": "I am motivated by exploring the unknown." }
+  ]
+}
+</script>
+
+<style>
+  /* ============================================================
+     UI PRESENTATION  (Layer 3 — Layout & Styling)
+     ============================================================ */
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --ink:#1d2733; --muted:#5d6b7a;
+    --line:#e2e8f0; --accent:#3b5bdb; --accent-ink:#fff;
+    --A:#2f6fb0; --B:#2e9e6b; --C:#e0883a; --D:#a05bc6;
+    --radius:14px; --shadow:0 6px 22px rgba(20,40,80,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:840px;margin:0 auto;padding:28px 18px 60px}
+  header.app{text-align:center;margin-bottom:22px}
+  header.app h1{font-size:1.55rem;margin:0 0 6px}
+  header.app p{color:var(--muted);margin:0;font-size:.95rem}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px}
+
+  /* progress */
+  .progress-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.85rem;color:var(--muted)}
+  .bar{height:10px;background:#e9eef6;border-radius:99px;overflow:hidden;margin-bottom:22px}
+  .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3b5bdb,#7048e8);transition:width .35s ease}
+
+  /* questions */
+  .q{padding:16px 4px;border-bottom:1px solid var(--line)}
+  .q:last-child{border-bottom:none}
+  .q .qtext{font-weight:600;margin-bottom:12px;font-size:1.02rem}
+  .q .qnum{color:var(--muted);font-weight:700;margin-right:8px}
+  .likert{display:flex;gap:8px;flex-wrap:wrap}
+  .likert label{
+    flex:1 1 0;min-width:120px;cursor:pointer;border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 8px;text-align:center;font-size:.82rem;color:var(--muted);
+    transition:all .15s ease;background:#fafbfd;user-select:none;
+  }
+  .likert input{position:absolute;opacity:0;width:0;height:0}
+  .likert label .dot{display:block;font-weight:800;font-size:1.05rem;color:var(--ink);margin-bottom:2px}
+  .likert label:hover{border-color:#b9c4d6}
+  .likert label.sel{border-color:var(--accent);background:#eef2ff;color:var(--ink)}
+  .likert label.sel .dot{color:var(--accent)}
+  .q.unanswered{background:#fff7f7;border-radius:10px;outline:1px solid #ffd5d5}
+
+  /* nav */
+  .nav{display:flex;justify-content:space-between;align-items:center;margin-top:22px;gap:12px}
+  button{font:inherit;font-weight:600;cursor:pointer;border:none;border-radius:10px;padding:12px 20px;transition:transform .05s ease, opacity .15s ease}
+  button:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent);color:var(--accent-ink)}
+  .btn-ghost{background:#eef1f6;color:var(--ink)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .hint{font-size:.82rem;color:var(--muted);text-align:center;flex:1}
+  .hint.warn{color:#c0392b;font-weight:600}
+
+  /* intro legend */
+  .quad-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 22px}
+  .quad-legend .qc{border:1px solid var(--line);border-radius:10px;padding:12px;border-left-width:5px}
+  .quad-legend .qc h4{margin:0 0 2px;font-size:.95rem}
+  .quad-legend .qc small{color:var(--muted)}
+
+  /* RESULTS */
+  #results{display:none}
+  .quadrant-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px;margin:0 auto 26px}
+  .qm-cell{border-radius:14px;color:#fff;padding:16px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;min-height:150px}
+  .qm-cell .pct{font-size:2.3rem;font-weight:800;line-height:1}
+  .qm-cell .nm{font-weight:700}
+  .qm-cell .bl{font-size:.75rem;opacity:.9}
+  .qm-cell .rank{position:absolute;top:10px;right:12px;font-size:.7rem;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;font-weight:700}
+
+  .bars .row{display:flex;align-items:center;gap:12px;margin:10px 0}
+  .bars .row .name{width:120px;font-weight:600;font-size:.9rem}
+  .bars .row .track{flex:1;background:#eef1f6;border-radius:99px;height:22px;overflow:hidden}
+  .bars .row .track > i{display:block;height:100%;border-radius:99px;transition:width .6s ease;min-width:2px}
+  .bars .row .val{width:52px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .summary{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:8px}
+  .summary h3{margin:0 0 8px;font-size:1.05rem}
+  .summary p{margin:6px 0;color:#33414f;font-size:.95rem}
+  .dom-tag{display:inline-block;color:#fff;border-radius:8px;padding:2px 10px;font-weight:700;font-size:.85rem}
+
+  .footer-note{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px}
+
+  @media (max-width:560px){
+    .quad-legend{grid-template-columns:1fr}
+    .bars .row .name{width:90px}
+  }
+
+  /* PRINT */
+  @media print{
+    body{background:#fff}
+    .no-print{display:none !important}
+    .panel{box-shadow:none;border:none;padding:0}
+    .wrap{max-width:100%;padding:0}
+    .qm-cell,.bars .row .track > i,.dom-tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <h1>Whole Brain — Four-Quadrant Cognitive Preference Profile</h1>
+    <p>An original 116-item self-assessment of thinking-style preference. Runs fully offline.</p>
+  </header>
+
+  <!-- ===================== INTRO ===================== -->
+  <section id="intro" class="panel no-print">
+    <h2 style="margin-top:0">How it works</h2>
+    <p style="color:var(--muted)">You'll rate 116 short statements on a 1–5 scale (Strongly Disagree → Strongly Agree).
+       Answer honestly and quickly — your first instinct is usually most accurate. At the end you'll see your
+       dominance across four cognitive quadrants and can print or save a report.</p>
+    <div class="quad-legend" id="legend"></div>
+    <p style="font-size:.82rem;color:var(--muted)">
+      Inspired by whole-brain / four-quadrant models. Questions are entirely original and for self-reflection only —
+      this is not a clinical instrument or the proprietary HBDI®.
+    </p>
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn-primary" id="startBtn" style="padding:14px 38px">Begin Assessment →</button>
+    </div>
+  </section>
+
+  <!-- ===================== ASSESSMENT WIZARD ===================== -->
+  <section id="assessment" class="panel no-print" style="display:none">
+    <div class="progress-head">
+      <span id="pageLabel">Page 1</span>
+      <span id="answeredLabel">0 / 116 answered</span>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+    <div id="questionContainer"></div>
+    <div class="nav">
+      <button class="btn-ghost" id="prevBtn">← Back</button>
+      <span class="hint" id="navHint"></span>
+      <button class="btn-primary" id="nextBtn">Next →</button>
+    </div>
+  </section>
+
+  <!-- ===================== RESULTS ===================== -->
+  <section id="results" class="panel">
+    <h2 style="margin-top:0">Your Whole-Brain Profile</h2>
+    <p style="color:var(--muted);margin-top:0">Percentage dominance across the four cognitive quadrants.</p>
+    <div class="quadrant-map" id="quadMap"></div>
+    <div class="bars" id="barChart"></div>
+    <div class="summary" id="summaryBox"></div>
+    <div class="nav no-print" style="margin-top:24px">
+      <button class="btn-ghost" id="retakeBtn">↺ Retake</button>
+      <span class="hint"></span>
+      <button class="btn-primary" id="printBtn">🖨 Print / Save Report (PDF)</button>
+    </div>
+    <p class="footer-note">Generated locally in your browser · No data leaves this device.</p>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   APP CONTROLLER + SCORING ENGINE (Layer 2 — Logic)
+   ScoreEngine is pure (numbers in, numbers out) and decoupled
+   from all DOM manipulation, which lives in the UI layer below.
+   ============================================================ */
+
+const DATA = JSON.parse(document.getElementById('question-data').textContent);
+const QUESTIONS = DATA.questions;
+const QUADS = DATA.quadrants;
+const SCALE = DATA.scale;
+const PER_PAGE = 8;
+
+/* deterministic seeded shuffle so quadrants interleave but order is stable */
+function shuffle(arr, seed){
+  const a = arr.slice(); let s = seed;
+  for(let i=a.length-1;i>0;i--){
+    s = (s*1103515245 + 12345) & 0x7fffffff;
+    const j = s % (i+1);
+    const t = a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+const ORDER = shuffle(QUESTIONS, 20260624);
+
+/* ---- pure scoring engine ---- */
+const ScoreEngine = {
+  findMissing(responses){
+    return QUESTIONS.filter(q => !(q.id in responses)).map(q => q.id);
+  },
+  score(responses){
+    const raw = {A:0,B:0,C:0,D:0}, maxRaw = {A:0,B:0,C:0,D:0};
+    QUESTIONS.forEach(q => {
+      const v = responses[q.id] || 0;
+      raw[q.quadrant]    += v * q.weight;
+      maxRaw[q.quadrant] += SCALE.max * q.weight;
+    });
+    const grandTotal = raw.A + raw.B + raw.C + raw.D;
+    const pct = {}, intensity = {};
+    ['A','B','C','D'].forEach(k => {
+      pct[k]       = grandTotal ? (raw[k]/grandTotal)*100 : 0;
+      intensity[k] = maxRaw[k]  ? (raw[k]/maxRaw[k])*100  : 0;
+    });
+    const ranked = ['A','B','C','D'].sort((x,y)=>pct[y]-pct[x]);
+    return { raw, maxRaw, grandTotal, pct, intensity, ranked,
+             dominant: ranked[0], secondary: ranked[1] };
+  }
+};
+
+/* ---- app state ---- */
+const state = { page:0, responses:{} };
+const totalPages = Math.ceil(ORDER.length / PER_PAGE);
+const $ = id => document.getElementById(id);
+
+/* ---- intro legend ---- */
+$('legend').innerHTML = ['A','B','C','D'].map(k=>{
+  const q = QUADS[k];
+  return `<div class="qc" style="border-left-color:${q.color}">
+            <h4 style="color:${q.color}">${k} · ${q.name}</h4><small>${q.blurb}</small></div>`;
+}).join('');
+
+/* ---- wizard rendering ---- */
+function renderPage(){
+  const start = state.page * PER_PAGE;
+  const slice = ORDER.slice(start, start + PER_PAGE);
+  $('questionContainer').innerHTML = slice.map((q, i) => {
+    const num = start + i + 1;
+    const cur = state.responses[q.id];
+    const opts = SCALE.labels.map((lab, idx)=>{
+      const val = SCALE.min + idx;
+      return `<label class="opt${cur===val?' sel':''}" data-qid="${q.id}" data-val="${val}">
+                <input type="radio" name="${q.id}" value="${val}" ${cur===val?'checked':''}>
+                <span class="dot">${val}</span><span class="lbltxt">${lab}</span></label>`;
+    }).join('');
+    return `<div class="q" id="q-${q.id}">
+              <div class="qtext"><span class="qnum">${num}.</span>${q.text}</div>
+              <div class="likert">${opts}</div></div>`;
+  }).join('');
+
+  $('questionContainer').querySelectorAll('.opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const qid = el.dataset.qid, val = parseInt(el.dataset.val,10);
+      state.responses[qid] = val;
+      el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
+      el.classList.add('sel');
+      el.querySelector('input').checked = true;
+      $('q-'+qid).classList.remove('unanswered');
+      updateChrome();
+    });
+  });
+
+  $('pageLabel').textContent = `Page ${state.page+1} of ${totalPages}`;
+  $('prevBtn').disabled = state.page === 0;
+  $('nextBtn').textContent = state.page === totalPages-1 ? 'See Results →' : 'Next →';
+  updateChrome();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function pageAnswered(){
+  const start = state.page * PER_PAGE;
+  return ORDER.slice(start, start + PER_PAGE).every(q => q.id in state.responses);
+}
+
+function updateChrome(){
+  const answered = Object.keys(state.responses).length;
+  $('answeredLabel').textContent = `${answered} / ${ORDER.length} answered`;
+  $('barFill').style.width = (answered/ORDER.length*100) + '%';
+  const done = pageAnswered();
+  $('nextBtn').disabled = !done;
+  const hint = $('navHint');
+  if(!done){
+    const start = state.page * PER_PAGE;
+    const remaining = ORDER.slice(start,start+PER_PAGE).filter(q=>!(q.id in state.responses)).length;
+    hint.textContent = `${remaining} unanswered on this page`;
+    hint.classList.add('warn');
+  } else {
+    hint.textContent = state.page === totalPages-1 ? 'All set — view your profile.' : '';
+    hint.classList.remove('warn');
+  }
+}
+
+function nextPage(){
+  if(!pageAnswered()){ flagUnanswered(); return; }
+  if(state.page < totalPages-1){ state.page++; renderPage(); }
+  else finish();
+}
+function prevPage(){ if(state.page>0){ state.page--; renderPage(); } }
+
+function flagUnanswered(){
+  const start = state.page * PER_PAGE;
+  const slice = ORDER.slice(start,start+PER_PAGE);
+  slice.forEach(q=>{ if(!(q.id in state.responses)) $('q-'+q.id).classList.add('unanswered'); });
+  const first = slice.find(q=>!(q.id in state.responses));
+  if(first) $('q-'+first.id).scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* ---- finish → engine → results ---- */
+function finish(){
+  const missing = ScoreEngine.findMissing(state.responses);
+  if(missing.length){
+    const idx = ORDER.findIndex(q=>q.id===missing[0]);
+    state.page = Math.floor(idx/PER_PAGE);
+    renderPage();
+    flagUnanswered();
+    return;
+  }
+  renderResults(ScoreEngine.score(state.responses));
+  $('assessment').style.display='none';
+  $('intro').style.display='none';
+  $('results').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderResults(r){
+  /* classic whole-brain 2x2: A top-left, D top-right, B bottom-left, C bottom-right */
+  const layout = ['A','D','B','C'];
+  $('quadMap').innerHTML = layout.map(k=>{
+    const q = QUADS[k], rank = r.ranked.indexOf(k)+1;
+    return `<div class="qm-cell" style="background:${q.color}">
+              <span class="rank">#${rank}</span>
+              <div><div class="nm">${k} · ${q.name}</div><div class="bl">${q.blurb}</div></div>
+              <div class="pct">${r.pct[k].toFixed(1)}%</div></div>`;
+  }).join('');
+
+  $('barChart').innerHTML = r.ranked.map(k=>{
+    const q = QUADS[k];
+    return `<div class="row"><div class="name" style="color:${q.color}">${q.name}</div>
+              <div class="track"><i style="width:${r.pct[k]}%;background:${q.color}"></i></div>
+              <div class="val">${r.pct[k].toFixed(1)}%</div></div>`;
+  }).join('');
+
+  const dom = QUADS[r.dominant], sec = QUADS[r.secondary];
+  const spread = r.pct[r.ranked[0]] - r.pct[r.ranked[3]];
+  const balanced = spread < 8;
+  $('summaryBox').innerHTML = `
+    <h3>Primary preference:
+      <span class="dom-tag" style="background:${dom.color}">${r.dominant} · ${dom.name}</span></h3>
+    <p>Your strongest cognitive preference is <strong>${dom.name}</strong> (${r.pct[r.dominant].toFixed(1)}%),
+       followed by <strong>${sec.name}</strong> (${r.pct[r.secondary].toFixed(1)}%).</p>
+    <p>${balanced
+        ? 'Your profile is relatively <strong>balanced</strong> — you draw on all four modes with no single quadrant strongly dominating.'
+        : `There is a clear lean toward the <strong>${dom.name.toLowerCase()}</strong> mode of thinking, suggesting you naturally gravitate to ${dom.blurb.toLowerCase()} approaches.`}</p>
+    <p style="font-size:.85rem;color:var(--muted)">Intensity (how strongly you endorsed each set, independent of the others):
+       A ${r.intensity.A.toFixed(0)}% · B ${r.intensity.B.toFixed(0)}% · C ${r.intensity.C.toFixed(0)}% · D ${r.intensity.D.toFixed(0)}%.</p>`;
+}
+
+/* ---- wire controls ---- */
+$('startBtn').addEventListener('click', ()=>{
+  $('intro').style.display='none';
+  $('assessment').style.display='block';
+  renderPage();
+});
+$('nextBtn').addEventListener('click', nextPage);
+$('prevBtn').addEventListener('click', prevPage);
+$('printBtn').addEventListener('click', ()=>window.print());
+$('retakeBtn').addEventListener('click', ()=>{
+  state.page=0; state.responses={};
+  $('results').style.display='none';
+  $('intro').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+/* ---- self-check: 116 items, 29 per quadrant ---- */
+(function(){
+  const c={A:0,B:0,C:0,D:0}; QUESTIONS.forEach(q=>c[q.quadrant]++);
+  console.log(`Loaded ${QUESTIONS.length} questions →`, c);
+})();
+</script>
+</body>
+</html>
