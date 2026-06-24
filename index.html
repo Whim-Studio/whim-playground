@@ -1,71 +1,1192 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Whim Asteroids</title>
-    <meta
-      name="description"
-      content="A minimal Whim-themed HTML5 canvas asteroid game."
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div id="app" class="app-shell">
-      <header class="scorebar" aria-label="Game stats">
-        <div class="scorebar__stats">
-          <span class="stat">
-            <span class="stat__label">Points</span>
-            <strong id="score">000000</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Time</span>
-            <strong id="roundTime">00:00</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Lives</span>
-            <strong id="lives">&#9829;&#9829;&#9829;</strong>
-          </span>
-          <span class="stat">
-            <span class="stat__label">Health</span>
-            <div id="healthBar" class="health-bar" aria-label="Player health">
-              <div class="health-bar__fill" id="healthBarFill"></div>
-            </div>
-          </span>
-        </div>
-      </header>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TVAD Personality Assessment</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg-2: #1e293b;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --faint: #64748b;
+    --accent: #38bdf8;
+    --accent-2: #818cf8;
+    --gold: #fbbf24;
+    --poleA: #38bdf8;
+    --poleB: #f472b6;
+    --danger: #f87171;
+    --ok: #34d399;
+    --radius: 12px;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
 
-      <main class="game-shell" aria-label="Whim Asteroids game">
-        <canvas
-          id="gameCanvas"
-          aria-label="Whim Asteroids canvas. Move with arrow keys, pointer drag, or touch. Press Space to shoot."
-        ></canvas>
-        <button
-          id="shootButton"
-          class="shoot-button"
-          type="button"
-          aria-label="Shoot"
-        >
-          <span aria-hidden="true"></span>
-        </button>
-        <div id="gameOverlay" class="game-overlay" hidden>
-          <div class="game-overlay__panel">
-            <span id="overlayEyebrow" class="game-overlay__eyebrow">Ready</span>
-            <strong id="overlayTitle">Whim Asteroids</strong>
-            <p id="overlayCopy" class="game-overlay__copy">
-              Arrow keys or drag to move. Space shoots. Clear shards and keep
-              the face moving.
-            </p>
-            <button id="restartButton" type="button">Start</button>
-          </div>
-        </div>
-      </main>
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(56,189,248,0.10), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(129,140,248,0.10), transparent 55%),
+      var(--bg);
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header.app-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .brand h1 {
+    font-size: 1.7rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.5px;
+  }
+  .brand .tag {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+  .brand .short {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.35);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-bottom: 10px;
+    background: rgba(56,189,248,0.08);
+  }
+
+  /* ---------- Survey ---------- */
+  .axis-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: var(--shadow);
+  }
+  .axis-head {
+    margin-bottom: 6px;
+  }
+  .axis-head h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+  .axis-head .tension {
+    color: var(--accent-2);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .axis-head .axis-desc {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 8px 0 0;
+  }
+  .pole-label {
+    margin: 20px 0 6px;
+    font-size: 0.74rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 700;
+  }
+  .pole-label.A { color: var(--poleA); }
+  .pole-label.B { color: var(--poleB); }
+
+  .q {
+    padding: 14px 0;
+    border-top: 1px solid rgba(51,65,85,0.6);
+  }
+  .q:first-of-type { border-top: none; }
+  .q .q-name {
+    font-weight: 600;
+    font-size: 0.98rem;
+  }
+  .q .q-prompt {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin: 2px 0 12px;
+  }
+
+  /* segmented rating */
+  .scale {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .scale .seg {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 56px;
+  }
+  .scale input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0; height: 0;
+  }
+  .scale label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    transition: all .12s ease;
+    text-align: center;
+    height: 100%;
+  }
+  .scale label .lab {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: var(--faint);
+    letter-spacing: 0.3px;
+    line-height: 1.1;
+  }
+  .scale label:hover { border-color: var(--accent); }
+  .scale input[type="radio"]:checked + label {
+    background: linear-gradient(180deg, rgba(56,189,248,0.25), rgba(56,189,248,0.10));
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 0 1px var(--accent) inset;
+  }
+  .scale input[type="radio"]:focus-visible + label {
+    outline: 2px solid var(--accent-2);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Action bar ---------- */
+  .actionbar {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(15,23,42,0), var(--bg) 40%);
+    padding: 18px 0 6px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .counter {
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+  .counter strong { color: var(--text); }
+  .counter.done strong { color: var(--ok); }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: transform .08s ease, opacity .15s ease, background .15s ease;
+  }
+  button:active { transform: translateY(1px); }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent), #0ea5e9);
+    color: #04293b;
+  }
+  .btn-primary:disabled {
+    background: var(--panel-2);
+    color: var(--faint);
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  /* ---------- Results ---------- */
+  .hidden { display: none !important; }
+
+  .results-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  .results-head h2 { margin: 0; font-size: 1.4rem; }
+  .results-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .hero-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card.primary { border-color: rgba(251,191,36,0.5); }
+  .hero-card.primary::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(400px 200px at 100% 0%, rgba(251,191,36,0.14), transparent 60%);
+    pointer-events: none;
+  }
+  .hero-card .role {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--gold);
+  }
+  .hero-card.aux .role { color: var(--accent-2); }
+  .hero-card .axis-name {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 6px 0 2px;
+  }
+  .hero-card .ps {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .hero-card .ps b { color: var(--text); font-size: 1.05rem; }
+
+  .composite {
+    background: linear-gradient(135deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .composite .clabel {
+    font-size: 0.95rem;
+    color: var(--muted);
+    letter-spacing: 0.4px;
+  }
+  .composite .cval {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  .axis-result {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin-bottom: 16px;
+  }
+  .axis-result .ar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .axis-result .ar-head h3 { margin: 0; font-size: 1.08rem; }
+  .axis-result .ar-tension {
+    color: var(--accent-2);
+    font-size: 0.72rem;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .ps-pill {
+    font-size: 0.78rem;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 12px;
+    color: var(--text);
+  }
+  .deadzone-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1a1305;
+    background: linear-gradient(180deg, var(--gold), #f59e0b);
+    border-radius: 999px;
+    padding: 4px 12px;
+    letter-spacing: 0.3px;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .bar-row .bl {
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-track {
+    background: var(--panel-2);
+    border-radius: 999px;
+    height: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width .5s ease;
+  }
+  .bar-fill.A { background: linear-gradient(90deg, #0ea5e9, var(--poleA)); }
+  .bar-fill.B { background: linear-gradient(90deg, #db2777, var(--poleB)); }
+  .bar-val {
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--text);
+  }
+
+  table.ranked {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  table.ranked th, table.ranked td {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+  table.ranked th {
+    background: var(--panel-2);
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  table.ranked tr:last-child td { border-bottom: none; }
+  table.ranked td.rank { color: var(--faint); width: 40px; }
+  table.ranked td.ps-col { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .section-title {
+    font-size: 0.78rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 700;
+    margin: 28px 0 12px;
+  }
+
+  .error-box {
+    background: rgba(248,113,113,0.12);
+    border: 1px solid rgba(248,113,113,0.4);
+    color: #fecaca;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 640px) {
+    .hero { grid-template-columns: 1fr; }
+    .bar-row { grid-template-columns: 100px 1fr 44px; }
+    .scale .seg { min-width: 48px; }
+  }
+
+  /* ---------- Print ---------- */
+  @media print {
+    body { background: #fff; color: #111; }
+    .wrap { max-width: 100%; padding: 0; }
+    .no-print, .actionbar, .results-actions, button { display: none !important; }
+    .axis-section, .axis-result, .hero-card, .composite, table.ranked {
+      box-shadow: none;
+      border-color: #ccc;
+      background: #fff;
+      color: #111;
+      break-inside: avoid;
+    }
+    .hero-card .axis-name, .composite .cval, .axis-result .ar-head h3 { color: #111; }
+    .bar-fill.A { background: #0369a1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bar-fill.B { background: #be185d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bar-track, .deadzone-badge, .ps-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .deadzone-badge { background: #fbbf24 !important; color: #000 !important; }
+    .muted, .bl, .ps { color: #444 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ SURVEY VIEW ============ -->
+  <section id="survey-view">
+    <header class="app-head">
+      <div class="brand">
+        <div class="short" id="brand-short">TVAD</div>
+        <h1 id="brand-name">Personality Assessment</h1>
+        <p class="tag">Rate each statement from 1 (Strongly Low) to 5 (Strongly High).</p>
+      </div>
+    </header>
+
+    <div id="survey-form"><!-- axes rendered here --></div>
+
+    <div class="actionbar">
+      <div class="counter" id="counter"><strong>0</strong> / 24 answered</div>
+      <button class="btn-primary" id="calc-btn" disabled>Calculate Results</button>
     </div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+  </section>
+
+  <!-- ============ RESULTS VIEW ============ -->
+  <section id="results-view" class="hidden">
+    <div class="results-head">
+      <h2>Assessment Report</h2>
+      <div class="results-actions no-print">
+        <button class="btn-ghost" id="print-btn">Print / Save Report</button>
+        <button class="btn-ghost" id="retake-btn">Retake</button>
+      </div>
+    </div>
+    <div id="results-body"><!-- results rendered here --></div>
+  </section>
+
+</div>
+
+<!-- ========================================================= -->
+<!-- TASK 1 — DATA MODEL (window.TVAD_DATA) -->
+<script>
+ window.TVAD_DATA = {
+  meta: { name: "Tiwa's Vector Allocation Dynamics", short: "TVAD", scaleMin: 1, scaleMax: 5 },
+  axes: [
+    {
+      id: "IMV",
+      name: "Information Metrology Vector",
+      tension: "Resolution vs. Scope",
+      description: "Measures the cognitive filter through which raw reality is captured and converted into actionable data points.",
+      poleA: {
+        id: "De",
+        name: "Data-Empirical",
+        subtraits: [
+          {
+            id: "Sr",
+            name: "Sensory Resolution",
+            description: "Granular precision of immediate physical data capture. High Sr detects minute changes; low Sr filters noise.",
+            prompt: "I immediately notice small physical changes and details in my environment that others miss."
+          },
+          {
+            id: "Mr",
+            name: "Metric Retention",
+            description: "Raw storage of exact numerical, factual, and historical values for later recall.",
+            prompt: "I can recall exact numbers, facts, and historical details long after I first encountered them."
+          },
+          {
+            id: "Ac",
+            name: "Actuarial Calibration",
+            description: "Spotting localized anomalies and statistical deviations against an expected baseline.",
+            prompt: "I quickly spot when a single data point or result deviates from what is statistically normal."
+          }
+        ]
+      },
+      poleB: {
+        id: "Sa",
+        name: "Structural-Abstract",
+        subtraits: [
+          {
+            id: "Px",
+            name: "Pattern Extrapolation",
+            description: "Projecting future trends and outcomes from incomplete or partial data.",
+            prompt: "I can confidently project future trends from incomplete information."
+          },
+          {
+            id: "Sm",
+            name: "Systemic Mapping",
+            description: "Manipulating complex multi-node theoretical structures in working memory.",
+            prompt: "I can hold and manipulate complex, multi-part theoretical systems in my head at once."
+          },
+          {
+            id: "Cs",
+            name: "Conceptual Synthesis",
+            description: "Merging disparate theories and frameworks into a single coherent model.",
+            prompt: "I enjoy merging unrelated theories and ideas into one unified model."
+          }
+        ]
+      }
+    },
+    {
+      id: "EAV",
+      name: "Energetic Allocation Vector",
+      tension: "Throughput vs. Efficiency",
+      description: "Measures the default operational strategy for managing metabolic and cognitive energy.",
+      poleA: {
+        id: "Ke",
+        name: "Kinetic-Expansive",
+        subtraits: [
+          {
+            id: "Vt",
+            name: "Volition Threshold",
+            description: "Raw burst-energy available to force a state change or overcome friction.",
+            prompt: "I can summon a burst of raw energy to push through obstacles and force things to change."
+          },
+          {
+            id: "Va",
+            name: "Variance Tolerance",
+            description: "Capacity to function optimally amid high instability and unpredictability.",
+            prompt: "I function at my best in highly unstable, unpredictable situations."
+          },
+          {
+            id: "Re",
+            name: "Resource Expenditure Rate",
+            description: "Willingness to rapidly burn capital for immediate high-leverage gains.",
+            prompt: "I am willing to rapidly spend resources for an immediate, high-leverage payoff."
+          }
+        ]
+      },
+      poleB: {
+        id: "Hp",
+        name: "Homeostatic-Preservative",
+        subtraits: [
+          {
+            id: "Tm",
+            name: "Threat Mitigation",
+            description: "Continuous identification and neutralization of environmental vulnerabilities.",
+            prompt: "I constantly scan for and neutralize potential threats and vulnerabilities around me."
+          },
+          {
+            id: "Ss",
+            name: "Systemic Stabilization",
+            description: "Enforcing order, routine, and predictability onto chaos.",
+            prompt: "I instinctively impose order and routine to make chaotic situations predictable."
+          },
+          {
+            id: "Cc",
+            name: "Cognitive Conservation",
+            description: "Automating routines to minimize energy drain.",
+            prompt: "I prefer to automate and routinize tasks so they drain as little of my energy as possible."
+          }
+        ]
+      }
+    },
+    {
+      id: "VOV",
+      name: "Valuative Optimization Vector",
+      tension: "Transactional Utility vs. Relational Equilibrium",
+      description: "Measures the metric used to calculate the success, failure, and yield of a decision.",
+      poleA: {
+        id: "Os",
+        name: "Objective-Systemic",
+        subtraits: [
+          {
+            id: "Tu",
+            name: "Transactional Utility",
+            description: "Maximizing the measurable material output of an interaction.",
+            prompt: "I judge an interaction mainly by how much measurable material value it produces."
+          },
+          {
+            id: "Fa",
+            name: "Structural Friction Analysis",
+            description: "Detecting logical inefficiencies and bottlenecks within a system.",
+            prompt: "I quickly detect the logical inefficiencies and bottlenecks in any system."
+          },
+          {
+            id: "Dx",
+            name: "Detached Execution",
+            description: "Firewalling decisions from emotional and social pressure.",
+            prompt: "I can make decisions while completely insulating them from emotional or social pressure."
+          }
+        ]
+      },
+      poleB: {
+        id: "Rc",
+        name: "Relational-Cohesive",
+        subtraits: [
+          {
+            id: "Ar",
+            name: "Affective Resonance",
+            description: "Reading and mirroring others' emotional states in real time.",
+            prompt: "I naturally read and mirror the emotional states of people around me in real time."
+          },
+          {
+            id: "Nc",
+            name: "Network Cohesion",
+            description: "Maintaining group alignment, mitigating conflict, and building trust.",
+            prompt: "I work to keep groups aligned, defuse conflict, and build trust between people."
+          },
+          {
+            id: "Sc",
+            name: "Social Capital Allocation",
+            description: "Strategic long-term investment in interpersonal equity.",
+            prompt: "I strategically invest in relationships to build long-term interpersonal equity."
+          }
+        ]
+      }
+    },
+    {
+      id: "VLV",
+      name: "Volitional Latency Vector",
+      tension: "Agility vs. Trajectory",
+      description: "Measures the execution mechanic of behavior when interacting with timelines and variable environments.",
+      poleA: {
+        id: "Ra",
+        name: "Reactive-Adaptive",
+        subtraits: [
+          {
+            id: "Fi",
+            name: "Feedback Integration Speed",
+            description: "Rapidly altering behavior based on incoming real-time feedback.",
+            prompt: "I rapidly change my behavior the moment I receive new real-time feedback."
+          },
+          {
+            id: "To",
+            name: "Tactical Opportunism",
+            description: "Instantly exploiting sudden, unplanned advantages.",
+            prompt: "I instantly seize sudden, unplanned opportunities when they appear."
+          },
+          {
+            id: "Sa",
+            name: "Sunk-Cost Abandonment",
+            description: "Instantly discarding failing strategies without emotional drag.",
+            prompt: "I can drop a failing plan immediately, without being held back by what I already invested."
+          }
+        ]
+      },
+      poleB: {
+        id: "Dl",
+        name: "Deterministic-Linear",
+        subtraits: [
+          {
+            id: "Sp",
+            name: "Sequential Processing",
+            description: "Step-by-step methodical execution, refusing to skip steps.",
+            prompt: "I work through tasks step by step and refuse to skip any part of the sequence."
+          },
+          {
+            id: "Tc",
+            name: "Trajectory Commitment",
+            description: "Resisting distraction and deviation once a target is locked.",
+            prompt: "Once I lock onto a goal, I resist any distraction or deviation from it."
+          },
+          {
+            id: "Dy",
+            name: "Delayed Yield Tolerance",
+            description: "Sustaining high-effort work without immediate reward.",
+            prompt: "I can sustain high-effort work for a long time even with no immediate reward."
+          }
+        ]
+      }
+    }
+  ]
+};
+</script>
+
+<!-- TASK 2 — MATH ENGINE (window.TVADEngine) -->
+<script>
+ /*
+ * TVAD personality assessment — scoring/math engine (Task 2)
+ *
+ * Exposes exactly one global:
+ *   window.TVADEngine = { validate, compute };
+ *
+ * Pure functions, no DOM. Consumes the data model from window.TVAD_DATA
+ * (owned by Task 1) and a `responses` object keyed by 2-letter subtrait id
+ * with integer values 1..5.
+ */
+(function (global) {
+  'use strict';
+
+  // ---- helpers ----------------------------------------------------------
+
+  // Collect the 24 expected subtrait ids from the data model, in pole order.
+  function expectedIds(data) {
+    var ids = [];
+    (data.axes || []).forEach(function (axis) {
+      [axis.poleA, axis.poleB].forEach(function (pole) {
+        (pole.subtraits || []).forEach(function (st) {
+          ids.push(st.id);
+        });
+      });
+    });
+    return ids;
+  }
+
+  function isIntInRange(v, lo, hi) {
+    return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= lo && v <= hi;
+  }
+
+  // Scale a single subtrait value (1..5) onto 0..100.
+  function scaleSub(value) {
+    return (value / 5) * 100;
+  }
+
+  // Scale a pole (sum of its 3 subtraits, 3..15) onto 0..100, rounded.
+  function scalePole(sumOf3) {
+    return Math.round((sumOf3 / 15) * 100);
+  }
+
+  // ---- validate ---------------------------------------------------------
+
+  function validate(responses, data) {
+    var ids = expectedIds(data);
+    var missing = [];
+    var invalid = [];
+    responses = responses || {};
+
+    ids.forEach(function (id) {
+      var v = responses[id];
+      if (v === undefined || v === null) {
+        missing.push(id);
+        return;
+      }
+      if (!isIntInRange(v, 1, 5)) {
+        invalid.push(id);
+      }
+    });
+
+    return { ok: missing.length === 0 && invalid.length === 0, missing: missing, invalid: invalid };
+  }
+
+  // ---- active-vector reference fn (spec) --------------------------------
+  // Vactive(Vbase, Ps, Ef) = (Vbase*Ps) + (Ef*(100-Ps))
+  // Included for spec completeness; does not affect ranking.
+  function Vactive(Vbase, Ps, Ef) {
+    return (Vbase * Ps) + (Ef * (100 - Ps));
+  }
+
+  // ---- compute ----------------------------------------------------------
+
+  function poleResult(pole, responses, subScores) {
+    var sum = 0;
+    var subScoresMap = {};
+    (pole.subtraits || []).forEach(function (st) {
+      var raw = responses[st.id];
+      var scaled = scaleSub(raw);
+      sum += raw;
+      subScoresMap[st.id] = scaled;
+      subScores[st.id] = scaled; // accumulate into the global 24-id map
+    });
+    return {
+      id: pole.id,
+      name: pole.name,
+      score: scalePole(sum),
+      subScores: subScoresMap
+    };
+  }
+
+  function compute(responses, data) {
+    var subScores = {}; // all 24 scaled subtrait values
+
+    var axes = (data.axes || []).map(function (axis) {
+      var poleA = poleResult(axis.poleA, responses, subScores);
+      var poleB = poleResult(axis.poleB, responses, subScores);
+      var Ps = Math.abs(poleA.score - poleB.score);
+      return {
+        id: axis.id,
+        name: axis.name,
+        tension: axis.tension,
+        description: axis.description,
+        poleA: poleA,
+        poleB: poleB,
+        Ps: Ps,
+        deadZone: Ps <= 10
+      };
+    });
+
+    // Hierarchy: stable sort by Ps descending. Array.prototype.sort is stable
+    // in modern engines; guard ties explicitly to preserve TVAD_DATA order.
+    var ranked = axes
+      .map(function (a, i) { return { a: a, i: i }; })
+      .sort(function (x, y) {
+        if (y.a.Ps !== x.a.Ps) return y.a.Ps - x.a.Ps;
+        return x.i - y.i; // tie-break by original axis order
+      })
+      .map(function (w) { return w.a; });
+
+    var primary = ranked[0];
+    var auxiliary = ranked[1];
+
+    var primaryDriver = primary
+      ? { axisId: primary.id, name: primary.name, Ps: primary.Ps }
+      : null;
+    var auxiliaryValve = auxiliary
+      ? { axisId: auxiliary.id, name: auxiliary.name, Ps: auxiliary.Ps }
+      : null;
+
+    // Composite — Crisis Leadership:
+    // CL = ((Va + To + Dx)/3) * (1 + (Vt/100)) on 0..100 scaled values.
+    var Va = subScores.Va, To = subScores.To, Dx = subScores.Dx, Vt = subScores.Vt;
+    var clRaw = ((Va + To + Dx) / 3) * (1 + (Vt / 100));
+    var crisisLeadership = Math.round(clRaw * 10) / 10; // 1 decimal
+
+    var deadZones = axes
+      .filter(function (a) { return a.deadZone; })
+      .map(function (a) { return a.id; });
+
+    return {
+      axes: axes,
+      ranked: ranked,
+      primaryDriver: primaryDriver,
+      auxiliaryValve: auxiliaryValve,
+      subScores: subScores,
+      composites: {
+        crisisLeadership: { label: 'Crisis Leadership', value: crisisLeadership }
+      },
+      deadZones: deadZones
+    };
+  }
+
+  global.TVADEngine = { validate: validate, compute: compute, Vactive: Vactive };
+
+})(typeof window !== 'undefined' ? window : this);
+</script>
+
+<!-- TASK 3 — UI WIRING (consumes the contract above) -->
+<script>
+(function () {
+  "use strict";
+
+  var DATA = window.TVAD_DATA;
+  var ENGINE = window.TVADEngine;
+
+  var responses = {};      // subtraitId -> 1..5
+  var totalQuestions = 0;
+
+  // ---- element refs ----
+  var surveyView  = document.getElementById("survey-view");
+  var resultsView = document.getElementById("results-view");
+  var formEl      = document.getElementById("survey-form");
+  var counterEl   = document.getElementById("counter");
+  var calcBtn     = document.getElementById("calc-btn");
+  var printBtn    = document.getElementById("print-btn");
+  var retakeBtn   = document.getElementById("retake-btn");
+  var resultsBody = document.getElementById("results-body");
+
+  var SCALE_LABELS = {
+    1: "Strongly Low",
+    2: "Low",
+    3: "Neutral",
+    4: "High",
+    5: "Strongly High"
+  };
+
+  // ---------- helpers ----------
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        if (k === "class") node.className = attrs[k];
+        else if (k === "text") node.textContent = attrs[k];
+        else if (k === "html") node.innerHTML = attrs[k];
+        else node.setAttribute(k, attrs[k]);
+      });
+    }
+    (children || []).forEach(function (c) {
+      if (c == null) return;
+      node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return node;
+  }
+  function clamp01(v) { return Math.max(0, Math.min(100, v)); }
+  function fmt(v, d) {
+    if (v == null || isNaN(v)) return "—";
+    return Number(v).toFixed(d == null ? 1 : d);
+  }
+
+  // ---------- branding ----------
+  function applyBranding() {
+    var meta = (DATA && DATA.meta) || {};
+    if (meta.short) document.getElementById("brand-short").textContent = meta.short;
+    if (meta.name)  document.getElementById("brand-name").textContent  = meta.name;
+    if (meta.name)  document.title = meta.name;
+  }
+
+  // ---------- render a single question ----------
+  function renderQuestion(sub) {
+    totalQuestions++;
+    var name = el("div", { class: "q-name", text: sub.name });
+    var prompt = el("div", { class: "q-prompt", text: sub.prompt });
+
+    var scale = el("div", { class: "scale", role: "radiogroup", "aria-label": sub.name });
+    for (var v = 1; v <= 5; v++) {
+      var inputId = "q_" + sub.id + "_" + v;
+      var seg = el("div", { class: "seg" });
+      var input = el("input", {
+        type: "radio",
+        name: "q_" + sub.id,
+        id: inputId,
+        value: String(v)
+      });
+      input.addEventListener("change", (function (subId, val) {
+        return function () {
+          responses[subId] = val;
+          updateCounter();
+        };
+      })(sub.id, v));
+      var label = el("label", { for: inputId }, [
+        document.createTextNode(String(v)),
+        el("span", { class: "lab", text: SCALE_LABELS[v] })
+      ]);
+      seg.appendChild(input);
+      seg.appendChild(label);
+      scale.appendChild(seg);
+    }
+
+    return el("div", { class: "q" }, [name, prompt, scale]);
+  }
+
+  // ---------- render survey ----------
+  function renderSurvey() {
+    totalQuestions = 0;
+    formEl.innerHTML = "";
+
+    (DATA.axes || []).forEach(function (axis) {
+      var head = el("div", { class: "axis-head" }, [
+        el("div", { class: "tension", text: axis.tension || "" }),
+        el("h2", { text: axis.name }),
+        axis.description ? el("p", { class: "axis-desc", text: axis.description }) : null
+      ]);
+
+      var section = el("section", { class: "axis-section" }, [head]);
+
+      // Pole A
+      section.appendChild(el("div", { class: "pole-label A", text: axis.poleA.name }));
+      axis.poleA.subtraits.forEach(function (sub) {
+        section.appendChild(renderQuestion(sub));
+      });
+      // Pole B
+      section.appendChild(el("div", { class: "pole-label B", text: axis.poleB.name }));
+      axis.poleB.subtraits.forEach(function (sub) {
+        section.appendChild(renderQuestion(sub));
+      });
+
+      formEl.appendChild(section);
+    });
+
+    updateCounter();
+  }
+
+  // ---------- counter / enable ----------
+  function answeredCount() { return Object.keys(responses).length; }
+
+  function updateCounter() {
+    var n = answeredCount();
+    counterEl.innerHTML = "";
+    counterEl.appendChild(el("strong", { text: String(n) }));
+    counterEl.appendChild(document.createTextNode(" / " + totalQuestions + " answered"));
+    var done = n >= totalQuestions && totalQuestions > 0;
+    counterEl.classList.toggle("done", done);
+    calcBtn.disabled = !done;
+  }
+
+  // ---------- results ----------
+  function barRow(label, score, pole) {
+    var pct = clamp01(score);
+    return el("div", { class: "bar-row" }, [
+      el("div", { class: "bl", text: label }),
+      el("div", { class: "bar-track" }, [
+        el("div", { class: "bar-fill " + pole, style: "width:" + pct + "%" })
+      ]),
+      el("div", { class: "bar-val", text: fmt(score, 0) })
+    ]);
+  }
+
+  function heroCard(role, roleClass, info) {
+    if (!info) {
+      return el("div", { class: "hero-card " + roleClass }, [
+        el("div", { class: "role", text: role }),
+        el("div", { class: "axis-name", text: "—" })
+      ]);
+    }
+    return el("div", { class: "hero-card " + roleClass }, [
+      el("div", { class: "role", text: role }),
+      el("div", { class: "axis-name", text: info.name }),
+      el("div", { class: "ps" }, [
+        document.createTextNode("Polarity Strength (Ps): "),
+        el("b", { text: fmt(info.Ps, 1) })
+      ])
+    ]);
+  }
+
+  function renderResults(result) {
+    resultsBody.innerHTML = "";
+
+    // Hero: primary driver + auxiliary valve
+    var hero = el("div", { class: "hero" }, [
+      heroCard("Primary Driver", "primary", result.primaryDriver),
+      heroCard("Auxiliary Valve", "aux", result.auxiliaryValve)
+    ]);
+    resultsBody.appendChild(hero);
+
+    // Composite — Crisis Leadership
+    var comp = (result.composites && result.composites.crisisLeadership) || null;
+    if (comp) {
+      resultsBody.appendChild(el("div", { class: "composite" }, [
+        el("div", { class: "clabel", text: comp.label || "Crisis Leadership" }),
+        el("div", { class: "cval", text: fmt(comp.value, 1) })
+      ]));
+    }
+
+    // Per-axis breakdown
+    resultsBody.appendChild(el("div", { class: "section-title", text: "Axis Breakdown" }));
+    (result.axes || []).forEach(function (ax) {
+      var headChildren = [
+        el("h3", { text: ax.name }),
+        el("span", { class: "ps-pill", html: "Ps&nbsp;" + fmt(ax.Ps, 1) })
+      ];
+      if (ax.deadZone) {
+        headChildren.push(el("span", {
+          class: "deadzone-badge",
+          text: "Equilibrium Trap — reliant on Environmental Friction"
+        }));
+      }
+      var arHead = el("div", { class: "ar-head" }, [
+        el("div", {}, [
+          el("div", { class: "ar-tension", text: ax.tension || "" }),
+          headChildren[0]
+        ]),
+        el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;" },
+          headChildren.slice(1))
+      ]);
+
+      var card = el("div", { class: "axis-result" }, [
+        arHead,
+        barRow(ax.poleA.name, ax.poleA.score, "A"),
+        barRow(ax.poleB.name, ax.poleB.score, "B")
+      ]);
+      resultsBody.appendChild(card);
+    });
+
+    // Ranked table
+    resultsBody.appendChild(el("div", { class: "section-title", text: "Axes Ranked by Polarity Strength" }));
+    var tbody = el("tbody");
+    (result.ranked || []).forEach(function (r, i) {
+      tbody.appendChild(el("tr", {}, [
+        el("td", { class: "rank", text: String(i + 1) }),
+        el("td", { text: r.name }),
+        el("td", { text: r.tension || "" }),
+        el("td", { class: "ps-col", text: fmt(r.Ps, 1) })
+      ]));
+    });
+    var table = el("table", { class: "ranked" }, [
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", { text: "#" }),
+          el("th", { text: "Axis" }),
+          el("th", { text: "Tension" }),
+          el("th", { text: "Ps" })
+        ])
+      ]),
+      tbody
+    ]);
+    resultsBody.appendChild(table);
+  }
+
+  // ---------- submit ----------
+  function onCalculate() {
+    var v = ENGINE.validate(responses, DATA);
+    if (!v || !v.ok) {
+      var msgs = [];
+      if (v && v.missing && v.missing.length) msgs.push(v.missing.length + " unanswered");
+      if (v && v.invalid && v.invalid.length) msgs.push(v.invalid.length + " invalid");
+      showError("Cannot compute: " + (msgs.join(", ") || "validation failed") + ".");
+      return;
+    }
+    clearError();
+    var result = ENGINE.compute(responses, DATA);
+    renderResults(result);
+    surveyView.classList.add("hidden");
+    resultsView.classList.remove("hidden");
+    window.scrollTo(0, 0);
+  }
+
+  function showError(msg) {
+    clearError();
+    var box = el("div", { class: "error-box", id: "calc-error", text: msg });
+    calcBtn.parentNode.parentNode.insertBefore(box, calcBtn.parentNode);
+  }
+  function clearError() {
+    var e = document.getElementById("calc-error");
+    if (e) e.parentNode.removeChild(e);
+  }
+
+  // ---------- retake ----------
+  function onRetake() {
+    responses = {};
+    var checked = formEl.querySelectorAll('input[type="radio"]:checked');
+    for (var i = 0; i < checked.length; i++) checked[i].checked = false;
+    updateCounter();
+    clearError();
+    resultsView.classList.add("hidden");
+    surveyView.classList.remove("hidden");
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- init ----------
+  function init() {
+    if (!DATA || !DATA.axes || !ENGINE) {
+      formEl.innerHTML = '<div class="error-box">Assessment data or engine failed to load.</div>';
+      return;
+    }
+    applyBranding();
+    renderSurvey();
+    calcBtn.addEventListener("click", onCalculate);
+    printBtn.addEventListener("click", function () { window.print(); });
+    retakeBtn.addEventListener("click", onRetake);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
 </html>
