@@ -17,4 +17,7 @@ public interface Reading {
 
     /** Full plain-English synthesized interpretation. */
     String getSynthesis();
+
+    /** The question the querent asked before drawing, or "" if none. */
+    String getQuestion();
 }

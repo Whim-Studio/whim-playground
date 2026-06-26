@@ -68,6 +68,15 @@ public final class TarotEngine {
      * order, interprets, and returns a fully-populated {@link Reading}.
      */
     public Reading deal(SpreadType type) {
+        return deal(type, "");
+    }
+
+    /**
+     * Deals a reading as {@link #deal(SpreadType)}, additionally binding the
+     * querent's {@code question} to the resulting {@link Reading} so the
+     * interpreter and export formatter can frame the draw around it.
+     */
+    public Reading deal(SpreadType type, String question) {
         if (type == null) {
             throw new IllegalArgumentException("type must not be null");
         }
@@ -86,7 +95,8 @@ public final class TarotEngine {
             placed.add(new DefaultPositionedCard(positions.get(i), drawn));
         }
 
-        DefaultReading reading = new DefaultReading(type, placed);
+        DefaultReading reading = new DefaultReading(type, placed,
+                question == null ? "" : question, "");
         String synthesis = interpreter.interpret(reading);
         return reading.withSynthesis(synthesis);
     }

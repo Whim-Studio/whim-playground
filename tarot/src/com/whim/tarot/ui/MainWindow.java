@@ -5,6 +5,7 @@ import com.whim.tarot.domain.DrawnCard;
 import com.whim.tarot.domain.Orientation;
 import com.whim.tarot.domain.SpreadPosition;
 import com.whim.tarot.domain.SpreadType;
+import com.whim.tarot.engine.ChatbotExportFormatter;
 import com.whim.tarot.engine.PositionedCard;
 import com.whim.tarot.engine.Reading;
 import com.whim.tarot.engine.TarotEngine;
@@ -18,9 +19,11 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
@@ -29,6 +32,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
@@ -46,16 +52,22 @@ public final class MainWindow extends JFrame {
     private static final Color INK = new Color(0xEC, 0xE6, 0xD4);
 
     private final TarotEngine engine;
+    private final ChatbotExportFormatter exportFormatter = new ChatbotExportFormatter();
 
     private final JComboBox<SpreadType> spreadSelector;
+    private final JTextField questionField;
     private final JButton shuffleButton;
     private final JButton drawButton;
+    private final JButton copyButton;
     private final JLabel statusLabel;
 
     private final SpreadPanel spreadPanel;
 
     private final JTextArea detailArea;
     private final JTextArea synthesisArea;
+
+    /** The most recently dealt reading, for clipboard export. */
+    private Reading lastReading;
 
     public MainWindow() {
         super("Tarot Reader — Rider-Waite-Smith");
@@ -72,9 +84,23 @@ public final class MainWindow extends JFrame {
 
         shuffleButton = new JButton("Shuffle Deck");
         drawButton = new JButton("Draw Cards");
-        statusLabel = new JLabel("Choose a spread, shuffle, then draw.");
+        copyButton = new JButton("Copy for Chatbot Interpretation");
+        copyButton.setEnabled(false);
+        statusLabel = new JLabel("Type a question (optional), choose a spread, shuffle, then draw.");
         statusLabel.setForeground(INK);
 
+        // Row 1: the querent's question.
+        questionField = new JTextField();
+        questionField.setToolTipText("Ask a specific question before you draw (optional).");
+        JToolBar questionBar = new JToolBar();
+        questionBar.setFloatable(false);
+        questionBar.setBackground(PANEL);
+        JLabel questionLabel = new JLabel("Your question: ");
+        questionLabel.setForeground(INK);
+        questionBar.add(questionLabel);
+        questionBar.add(questionField);
+
+        // Row 2: spread + actions.
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
         bar.setBackground(PANEL);
@@ -87,8 +113,16 @@ public final class MainWindow extends JFrame {
         bar.add(Box.createHorizontalStrut(6));
         bar.add(drawButton);
         bar.addSeparator();
+        bar.add(copyButton);
+        bar.addSeparator();
         bar.add(statusLabel);
-        add(bar, BorderLayout.NORTH);
+
+        JPanel north = new JPanel();
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        north.setBackground(PANEL);
+        north.add(questionBar);
+        north.add(bar);
+        add(north, BorderLayout.NORTH);
 
         // --- centre: spread canvas in a scroll pane ----------------------
         spreadPanel = new SpreadPanel(new SpreadPanel.CardSelectionListener() {
@@ -153,6 +187,34 @@ public final class MainWindow extends JFrame {
                 doDraw();
             }
         });
+        copyButton.addActionListener(new java.awt.event.ActionListener() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                doCopyForChatbot();
+            }
+        });
+    }
+
+    /** Copies the current reading's chatbot-export string to the system clipboard. */
+    private void doCopyForChatbot() {
+        if (lastReading == null) {
+            return;
+        }
+        String export = exportFormatter.formatPrompt(lastReading);
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clipboard.setContents(new StringSelection(export), null);
+        statusLabel.setText("Reading copied — paste it into any AI chatbot for a deeper read.");
+        JOptionPane.showMessageDialog(this, new JScrollPane(previewArea(export)),
+                "Copied for Chatbot Interpretation", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private JTextArea previewArea(String text) {
+        JTextArea area = new JTextArea(text, 14, 48);
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setCaretPosition(0);
+        return area;
     }
 
     private void doShuffle() {
@@ -173,12 +235,13 @@ public final class MainWindow extends JFrame {
 
     private void doDraw() {
         final SpreadType type = (SpreadType) spreadSelector.getSelectedItem();
+        final String question = questionField.getText();
         setBusy(true, "Dealing " + type.getLabel() + "…");
         new SwingWorker<Reading, Void>() {
             @Override
             protected Reading doInBackground() {
                 // Deal + interpret entirely off the EDT.
-                return engine.deal(type);
+                return engine.deal(type, question);
             }
 
             @Override
@@ -197,6 +260,8 @@ public final class MainWindow extends JFrame {
     }
 
     private void renderReading(SpreadType type, Reading reading) {
+        this.lastReading = reading;
+        copyButton.setEnabled(true);
         List<PositionedCard> cards = reading.getPositionedCards();
         spreadPanel.showReading(type, cards);
         synthesisArea.setText(reading.getSynthesis());
@@ -257,6 +322,8 @@ public final class MainWindow extends JFrame {
         shuffleButton.setEnabled(!busy);
         drawButton.setEnabled(!busy);
         spreadSelector.setEnabled(!busy);
+        questionField.setEnabled(!busy);
+        copyButton.setEnabled(!busy && lastReading != null);
         statusLabel.setText(status);
     }
 

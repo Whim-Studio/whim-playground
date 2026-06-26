@@ -34,6 +34,11 @@ public final class ReadingInterpreter {
         List<PositionedCard> cards = reading.getPositionedCards();
         StringBuilder sb = new StringBuilder();
 
+        String question = reading.getQuestion();
+        if (question != null && question.trim().length() > 0) {
+            sb.append("You asked: \"").append(question.trim()).append("\"\n\n");
+        }
+
         sb.append(opening(reading.getSpreadType(), cards));
         sb.append("\n\n");
 
@@ -48,6 +53,17 @@ public final class ReadingInterpreter {
         if (conclusion.length() > 0) {
             sb.append("\n\n");
             sb.append(conclusion);
+        }
+
+        String positional = positionalNote(reading.getSpreadType(), cards);
+        if (positional.length() > 0) {
+            sb.append(" ").append(positional);
+        }
+
+        if (question != null && question.trim().length() > 0) {
+            sb.append("\n\nAs for your question — \"").append(question.trim())
+                    .append("\" — let the arc above be the answer's shape rather than a yes or no; "
+                    + "the cards describe the terrain you are asking about, and the choice within it stays yours.");
         }
         return sb.toString();
     }
@@ -220,6 +236,40 @@ public final class ReadingInterpreter {
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Position-aware framework notes for spreads whose slots carry a temporal
+     * arc (Past / Present / Future). Reads the reversal pattern across those
+     * slots — a classic reading heuristic — and names what it tends to signify.
+     */
+    private String positionalNote(SpreadType type, List<PositionedCard> cards) {
+        if (type != SpreadType.THREE_CARD || cards.size() < 3) {
+            return "";
+        }
+        boolean pastRev = cards.get(0).getDrawnCard().isReversed();
+        boolean presentRev = cards.get(1).getDrawnCard().isReversed();
+        boolean futureRev = cards.get(2).getDrawnCard().isReversed();
+
+        if (pastRev && futureRev && !presentRev) {
+            return "With both the Past and the Future reversed while the Present stands upright, "
+                    + "the framework reads this as a hinge: you are stepping clear of something that "
+                    + "stalled behind you, but the road ahead is not yet settled — act in the present, "
+                    + "where the one clear card sits.";
+        }
+        if (pastRev && presentRev && futureRev) {
+            return "All three time-cards reversed mark a fully internal passage — the situation is "
+                    + "working itself out beneath the surface across past, present, and future alike.";
+        }
+        if (!pastRev && !presentRev && futureRev) {
+            return "Only the Future is reversed, hinting that the path so far has been clear but the "
+                    + "outcome is still unformed or asks to be reconsidered before it lands.";
+        }
+        if (pastRev && !presentRev && !futureRev) {
+            return "With only the Past reversed, an old block is releasing, freeing the present and "
+                    + "future to move openly.";
+        }
+        return "";
     }
 
     private String suitTheme(Suit suit) {
