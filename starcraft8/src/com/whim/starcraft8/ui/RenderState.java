@@ -139,7 +139,11 @@ final class RenderState {
             double ry = b.rallyY();
             r.rallyX = rx;
             r.rallyY = ry;
-            r.hasRally = rx > 0 || ry > 0;
+            // Buildings default their rally to their own footprint centre; only
+            // treat it as a real rally point once it has been moved away from it.
+            double cx = b.tileX() + b.type().widthTiles() / 2.0;
+            double cy = b.tileY() + b.type().heightTiles() / 2.0;
+            r.hasRally = Math.abs(rx - cx) > 0.01 || Math.abs(ry - cy) > 0.01;
             rs.buildings.add(r);
         }
 
