@@ -11,18 +11,21 @@ import java.util.List;
  *
  * <p>The synthesis is supplied after construction via {@link #withSynthesis}
  * so the {@link ReadingInterpreter} can interpret a reading whose positioned
- * cards are already populated, then return a fully-populated copy.
+ * cards (and querent question) are already populated, then return a
+ * fully-populated copy.
  */
 public final class DefaultReading implements Reading {
     private final SpreadType spreadType;
     private final List<PositionedCard> positionedCards;
+    private final String question;
     private final String synthesis;
 
     public DefaultReading(SpreadType spreadType, List<PositionedCard> positionedCards) {
-        this(spreadType, positionedCards, "");
+        this(spreadType, positionedCards, "", "");
     }
 
-    public DefaultReading(SpreadType spreadType, List<PositionedCard> positionedCards, String synthesis) {
+    public DefaultReading(SpreadType spreadType, List<PositionedCard> positionedCards,
+                          String question, String synthesis) {
         if (spreadType == null) {
             throw new IllegalArgumentException("spreadType must not be null");
         }
@@ -32,12 +35,13 @@ public final class DefaultReading implements Reading {
         this.spreadType = spreadType;
         this.positionedCards = Collections.unmodifiableList(
                 new ArrayList<PositionedCard>(positionedCards));
+        this.question = question == null ? "" : question.trim();
         this.synthesis = synthesis == null ? "" : synthesis;
     }
 
     /** Returns a copy of this reading with the given synthesis text. */
     public DefaultReading withSynthesis(String newSynthesis) {
-        return new DefaultReading(spreadType, positionedCards, newSynthesis);
+        return new DefaultReading(spreadType, positionedCards, question, newSynthesis);
     }
 
     @Override
@@ -53,5 +57,10 @@ public final class DefaultReading implements Reading {
     @Override
     public String getSynthesis() {
         return synthesis;
+    }
+
+    @Override
+    public String getQuestion() {
+        return question;
     }
 }
