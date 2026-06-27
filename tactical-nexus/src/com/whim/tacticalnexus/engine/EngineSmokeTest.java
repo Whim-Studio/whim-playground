@@ -49,7 +49,7 @@ public final class EngineSmokeTest {
 
     private static void testCombatMath() {
         // Player ATK 10, DEF 10, HP 1000 vs Slime HP 30 ATK 12 DEF 2.
-        Player p = Player.start().withPosition(new Position(0, 0));
+        Player p = Player.starting(new Position(0, 0));
         Enemy slime = new Enemy("Slime", 30, 12, 2, 5, 3, Color.GREEN);
         CombatResult r = CombatCalculator.resolve(p, slime);
         // playerDamage = 10-2 = 8 ; hitsToKill = ceil(30/8) = 4
@@ -71,7 +71,7 @@ public final class EngineSmokeTest {
         check(r3.canFight() && r3.hitsToKill() == 1 && r3.hpLost() == 0, "bat one-shot, hpLost 0");
 
         // Lethal: huge enemy ATK, many hits required.
-        Player lowHp = Player.start().withHp(5).withPosition(new Position(0, 0));
+        Player lowHp = Player.starting(new Position(0, 0)).withHp(5).withPosition(new Position(0, 0));
         Enemy brute = new Enemy("Brute", 30, 1000, 2, 1, 1, Color.RED);
         CombatResult r4 = CombatCalculator.resolve(lowHp, brute);
         // hpLost = max(0,1000-10) * (ceil(30/8)-1) = 990*3 = 2970 >= 5 -> not survivable
@@ -88,7 +88,7 @@ public final class EngineSmokeTest {
 
     private static void testMoveEmptyAndWall() {
         GridMap floor = new GridMap(5, 5);
-        Player p = Player.start().withPosition(new Position(2, 2));
+        Player p = Player.starting(new Position(2, 2));
         GameState st = singleFloorState(floor, p);
 
         MoveOutcome moved = MoveResolver.resolve(st, 0, 1);
@@ -105,7 +105,7 @@ public final class EngineSmokeTest {
 
     private static void testMoveOutOfBounds() {
         GridMap floor = new GridMap(5, 5);
-        Player p = Player.start().withPosition(new Position(0, 0));
+        Player p = Player.starting(new Position(0, 0));
         GameState st = singleFloorState(floor, p);
         MoveOutcome oob = MoveResolver.resolve(st, -1, 0);
         check(!oob.changed(), "oob blocked");
@@ -116,7 +116,7 @@ public final class EngineSmokeTest {
         Position keyPos = new Position(2, 3);
         Position doorPos = new Position(2, 3);
         GridMap floor = new GridMap(5, 5).with(keyPos, new KeyItem(KeyColor.YELLOW));
-        Player p = Player.start().withPosition(new Position(2, 2));
+        Player p = Player.starting(new Position(2, 2));
         GameState st = singleFloorState(floor, p);
 
         // Pick up the key: player advances, key gained, cell cleared.
@@ -145,7 +145,7 @@ public final class EngineSmokeTest {
     private static void testGem() {
         Position gemPos = new Position(2, 3);
         GridMap floor = new GridMap(5, 5).with(gemPos, new StatGem(GemType.ATK, 5));
-        Player p = Player.start().withPosition(new Position(2, 2));
+        Player p = Player.starting(new Position(2, 2));
         GameState st = singleFloorState(floor, p);
         int baseAtk = p.atk();
         MoveOutcome gem = MoveResolver.resolve(st, 0, 1);
@@ -159,7 +159,7 @@ public final class EngineSmokeTest {
         Position enemyPos = new Position(2, 3);
         Enemy slime = new Enemy("Slime", 30, 12, 2, 5, 3, Color.GREEN);
         GridMap floor = new GridMap(5, 5).with(enemyPos, slime);
-        Player p = Player.start().withPosition(new Position(2, 2));
+        Player p = Player.starting(new Position(2, 2));
         GameState st = singleFloorState(floor, p);
         int baseHp = p.hp();
 
@@ -189,12 +189,12 @@ public final class EngineSmokeTest {
         List<GridMap> floors = new ArrayList<GridMap>();
         floors.add(f0);
         floors.add(f1);
-        Player p = Player.start().withPosition(up0);
+        Player p = Player.starting(up0);
         GameState st = new GameState(p, floors, 0);
 
         // Move onto the up stair (player is on it; stepping in place isn't how it
         // works — instead place player adjacent and step onto it).
-        Player adj = Player.start().withPosition(new Position(1, 0));
+        Player adj = Player.starting(new Position(1, 0));
         GameState st2 = new GameState(adj, floors, 0);
         MoveOutcome climb = MoveResolver.resolve(st2, 0, 1); // step onto up0
         check(climb.changed(), "stair changed");
