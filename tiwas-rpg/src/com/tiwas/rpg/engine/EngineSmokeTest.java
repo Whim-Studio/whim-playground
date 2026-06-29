@@ -17,6 +17,7 @@ public final class EngineSmokeTest {
         seededGeneration();
         knownOverflow();
         marginAndDoubles();
+        failingForwardAndEpiphany();
         System.out.println("ALL ENGINE SMOKE TESTS PASSED");
     }
 
@@ -80,6 +81,53 @@ public final class EngineSmokeTest {
         // success so no advanced unlock (unlock only on failure+doubles)
         check("no unlock on success", !r.isUnlockedAdvancedSkill());
         check("margin (30-22)/10=0", r.getMargin() == 0);
+    }
+
+    // Failing Forward XP cascade + Epiphany on a failed doubles roll.
+    // Forced d100 = 88 (doubles, fails a skill of 40), with DM -10 in play to
+    // prove Failure XP uses the BASE value (88-40=48), not effective (88-30=58).
+    private static void failingForwardAndEpiphany() {
+        Dice fixed = new Dice(new Random() {
+            public int nextInt(int bound) { return 87; } // d100 -> 88
+        });
+        Character c = new Character("Striver");
+        c.setAttribute(AttributeCode.BPP, 100); // cap room + epiphany formula
+        c.setAttribute(AttributeCode.BPS, 50);  // strongest other body attr -> picked
+        c.setCurrentPE(100);
+        c.setCurrentHP(200);
+
+        List<String> formula = new ArrayList<String>();
+        formula.add("bpp");
+        Skill might = new Skill("Might", 1, formula, 40);
+
+        ActionResult r = new ActionResolver(fixed).resolve(c, might, -10);
+        check("forced roll 88", r.getRoll() == 88);
+        check("failed", !r.isSuccess());
+        check("doubles", r.isDoubles());
+        check("advanced unlock", r.isUnlockedAdvancedSkill());
+
+        ProgressionOutcome g = Progression.apply(c, might, r);
+        check("failureXP from base (48 not 58)", g.getFailureXP() == 48);
+        check("one level gained", g.getLevelsGained() == 1);
+        check("skill 40 -> 41", might.getValue() == 41);
+        check("remainder 8 to general", g.getRemainderToGeneral() == 8);
+        check("general XP pool 8", c.getGeneralXP() == 8);
+
+        Skill adv = g.getCreatedSkill();
+        check("epiphany created", adv != null);
+        check("advanced tier 2", adv.getTier() == 2);
+        check("advanced formula bpp+bps", adv.getAttributeCodes().size() == 2
+                && adv.getAttributeCodes().contains("bpp") && adv.getAttributeCodes().contains("bps"));
+        check("advanced value cap/2 = 37", adv.getValue() == 37); // (100+50)/2=75, /2=37
+        check("advanced registered on character", c.getSkill(adv.getName()) != null);
+
+        // A success earns nothing.
+        Dice low = new Dice(new Random() {
+            public int nextInt(int bound) { return 0; } // d100 -> 1, succeeds
+        });
+        ActionResult ok = new ActionResolver(low).resolve(c, might, 0);
+        ProgressionOutcome none = Progression.apply(c, might, ok);
+        check("no growth on success", !none.isAnything() && might.getValue() == 41);
     }
 
     private static void check(String label, boolean cond) {

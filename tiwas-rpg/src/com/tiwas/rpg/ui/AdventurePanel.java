@@ -38,6 +38,8 @@ import com.tiwas.rpg.domain.Skill;
 import com.tiwas.rpg.engine.ActionResolver;
 import com.tiwas.rpg.engine.ActionResult;
 import com.tiwas.rpg.engine.Dice;
+import com.tiwas.rpg.engine.Progression;
+import com.tiwas.rpg.engine.ProgressionOutcome;
 
 /**
  * Adventure Loader / Session view: load an adventure module, select a character,
@@ -268,6 +270,18 @@ public final class AdventurePanel extends JPanel {
         if (hpAfter < hpBefore) {
             appendLog("   ! Overflow: " + (hpBefore - hpAfter)
                     + " damage to HP (" + hpBefore + " -> " + hpAfter + ")");
+        }
+
+        // Failing Forward / Advanced Skill application (mutates skill, general XP, skill set).
+        ProgressionOutcome growth = Progression.apply(character, skill, result);
+        String growthLine = growth.describe();
+        if (growthLine != null) {
+            appendLog("   " + growthLine);
+        }
+        appendLog("   General XP Pool: " + character.getGeneralXP());
+        if (growth.getCreatedSkill() != null) {
+            rebuildSkillCombo();
+            skillCombo.setSelectedItem(skill); // keep the player's current selection
         }
         refreshPools();
     }
