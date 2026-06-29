@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.tiwas.rpg.domain.AdvancedSkill;
 import com.tiwas.rpg.domain.AttributeCode;
 import com.tiwas.rpg.domain.Character;
 import com.tiwas.rpg.domain.Skill;
@@ -17,6 +18,7 @@ public final class EngineSmokeTest {
         seededGeneration();
         knownOverflow();
         marginAndDoubles();
+        failingForwardAndEpiphany();
         System.out.println("ALL ENGINE SMOKE TESTS PASSED");
     }
 
@@ -80,6 +82,72 @@ public final class EngineSmokeTest {
         // success so no advanced unlock (unlock only on failure+doubles)
         check("no unlock on success", !r.isUnlockedAdvancedSkill());
         check("margin (30-22)/10=0", r.getMargin() == 0);
+    }
+
+    // Failing Forward XP cascade + Epiphany on a failed doubles roll.
+    // Forced d100 = 88 (doubles, fails a skill of 40), with DM -10 in play to
+    // prove Failure XP uses the BASE value (88-40=48), not effective (88-30=58).
+    private static void failingForwardAndEpiphany() {
+        Dice fixed = new Dice(new Random() {
+            public int nextInt(int bound) { return 87; } // d100 -> 88
+        });
+        Character c = new Character("Striver");
+        c.setAttribute(AttributeCode.BPP, 100); // cap room + epiphany formula
+        c.setAttribute(AttributeCode.BPS, 50);  // strongest other body attr -> picked
+        c.setCurrentPE(100);
+        c.setCurrentHP(200);
+
+        List<String> formula = new ArrayList<String>();
+        formula.add("bpp");
+        Skill might = new Skill("Might", 1, formula, 40);
+
+        ActionResult r = new ActionResolver(fixed).resolve(c, might, -10);
+        check("forced roll 88", r.getRoll() == 88);
+        check("failed", !r.isSuccess());
+        check("doubles", r.isDoubles());
+        check("advanced unlock", r.isUnlockedAdvancedSkill());
+
+        ProgressionOutcome g = Progression.apply(c, might, r);
+        check("failureXP from base (48 not 58)", g.getFailureXP() == 48);
+        check("one level gained", g.getLevelsGained() == 1);
+        check("skill 40 -> 41", might.getValue() == 41);
+        check("remainder 8 to general", g.getRemainderToGeneral() == 8);
+        check("general XP pool 8", c.getGeneralXP() == 8);
+
+        // Epiphany is now PENDING, not auto-created — Progression invents nothing.
+        check("epiphany pending", g.isEpiphanyPending());
+        check("base skill carried", g.getBaseSkill() == might);
+        check("no skill auto-added", c.getSkills().size() == 0);
+
+        // Player-driven forge: AdvancedSkill.create builds Tier+1 with the extra
+        // attribute at the chosen start value, clamped to [1, maxCap].
+        Skill adv = AdvancedSkill.create(might, "bps", "Crushing Blow", 7, c, null);
+        check("advanced tier 2", adv.getTier() == 2);
+        check("advanced is flagged", adv.isAdvanced());
+        check("advanced named", "Crushing Blow".equals(adv.getName()));
+        check("advanced formula bpp+bps", adv.getAttributeCodes().size() == 2
+                && adv.getAttributeCodes().contains("bpp") && adv.getAttributeCodes().contains("bps"));
+        check("chosen start value 7", adv.getValue() == 7);
+        check("advanced cap (100+50)/2 = 75", adv.maxCap(c) == 75);
+
+        // Start value clamps to the cap.
+        Skill capped = AdvancedSkill.create(might, "bps", "Overreach", 999, c, null);
+        check("start clamped to cap 75", capped.getValue() == 75);
+
+        // Advanced Skill round-trips through JSON (marker preserved).
+        c.putSkill(adv);
+        Character reloaded = Character.fromJson(c.toJson());
+        Skill back = reloaded.getSkill("Crushing Blow");
+        check("advanced survives JSON", back != null && back.isAdvanced()
+                && back.getTier() == 2 && back.getValue() == 7);
+
+        // A success earns nothing.
+        Dice low = new Dice(new Random() {
+            public int nextInt(int bound) { return 0; } // d100 -> 1, succeeds
+        });
+        ActionResult ok = new ActionResolver(low).resolve(c, might, 0);
+        ProgressionOutcome none = Progression.apply(c, might, ok);
+        check("no growth on success", !none.isAnything() && !none.isEpiphanyPending());
     }
 
     private static void check(String label, boolean cond) {
