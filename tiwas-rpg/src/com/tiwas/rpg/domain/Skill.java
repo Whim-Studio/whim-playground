@@ -18,6 +18,7 @@ public final class Skill {
     private final List<String> attributeCodes;
     private int value;
     private String weaponClass; // nullable
+    private boolean advanced;   // true for player-forged Advanced Skills (Epiphany)
 
     public Skill(String name, int tier, List<String> attributeCodes, int value) {
         this.name = name;
@@ -60,6 +61,15 @@ public final class Skill {
         this.weaponClass = wc;
     }
 
+    /** True if this skill was forged as an Advanced Skill via an Epiphany. */
+    public boolean isAdvanced() {
+        return advanced;
+    }
+
+    public void setAdvanced(boolean advanced) {
+        this.advanced = advanced;
+    }
+
     /** True if the first attribute code starts with 'm'. */
     public boolean isMind() {
         if (attributeCodes.isEmpty()) {
@@ -92,6 +102,9 @@ public final class Skill {
         m.put("attributeCodes", codes);
         m.put("value", Integer.valueOf(value));
         m.put("weaponClass", weaponClass);
+        if (advanced) {
+            m.put("advanced", Boolean.TRUE);
+        }
         return m;
     }
 
@@ -110,6 +123,10 @@ public final class Skill {
         Object wc = m.get("weaponClass");
         if (wc != null) {
             s.setWeaponClass(Json.asString(wc));
+        }
+        Object adv = m.get("advanced");
+        if (adv != null) {
+            s.setAdvanced(Json.asBoolean(adv));
         }
         return s;
     }
