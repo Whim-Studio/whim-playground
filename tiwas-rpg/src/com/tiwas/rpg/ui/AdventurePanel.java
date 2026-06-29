@@ -47,7 +47,8 @@ import com.tiwas.rpg.engine.ProgressionOutcome;
  */
 public final class AdventurePanel extends JPanel {
 
-    private final ActionResolver resolver = new ActionResolver(new Dice());
+    private final Dice dice = new Dice();
+    private final ActionResolver resolver = new ActionResolver(dice);
 
     private final JTextArea moduleInfo = new JTextArea(8, 30);
     private final JLabel characterLabel = new JLabel("No character selected.");
@@ -55,6 +56,7 @@ public final class AdventurePanel extends JPanel {
     private final JProgressBar hpBar = poolBar(new Color(190, 60, 60));
     private final JProgressBar peBar = poolBar(new Color(70, 140, 70));
     private final JProgressBar mpBar = poolBar(new Color(70, 90, 190));
+    private final JLabel generalXpLabel = new JLabel("General XP Pool: 0");
 
     private final JComboBox<Skill> skillCombo = new JComboBox<Skill>();
     private final JSpinner dmSpinner = new JSpinner(new SpinnerNumberModel(0, -50, 30, 1));
@@ -125,7 +127,7 @@ public final class AdventurePanel extends JPanel {
         col.add(header, BorderLayout.NORTH);
 
         // Pools
-        JPanel pools = new JPanel(new GridLayout(3, 2, 8, 4));
+        JPanel pools = new JPanel(new GridLayout(4, 2, 8, 4));
         pools.setBorder(BorderFactory.createTitledBorder("Pools (current / max)"));
         pools.add(new JLabel("HP"));
         pools.add(hpBar);
@@ -133,6 +135,9 @@ public final class AdventurePanel extends JPanel {
         pools.add(peBar);
         pools.add(new JLabel("MP"));
         pools.add(mpBar);
+        pools.add(new JLabel("General XP"));
+        generalXpLabel.setFont(generalXpLabel.getFont().deriveFont(Font.BOLD));
+        pools.add(generalXpLabel);
 
         // Action controls
         JPanel controls = new JPanel();
@@ -272,24 +277,43 @@ public final class AdventurePanel extends JPanel {
                     + " damage to HP (" + hpBefore + " -> " + hpAfter + ")");
         }
 
-        // Failing Forward / Advanced Skill application (mutates skill, general XP, skill set).
+        // Failing Forward application (mutates skill value + general XP only).
         ProgressionOutcome growth = Progression.apply(character, skill, result);
         String growthLine = growth.describe();
         if (growthLine != null) {
             appendLog("   " + growthLine);
         }
-        appendLog("   General XP Pool: " + character.getGeneralXP());
-        if (growth.getCreatedSkill() != null) {
-            rebuildSkillCombo();
-            skillCombo.setSelectedItem(skill); // keep the player's current selection
-        }
         refreshPools();
+
+        // Epiphany is player-driven: interrupt the session with the forge dialog.
+        if (growth.isEpiphanyPending()) {
+            Skill forged = forgeAdvancedSkill(growth.getBaseSkill());
+            if (forged != null) {
+                appendLog("   Forged Advanced Skill \"" + forged.getName()
+                        + "\" (Tier " + forged.getTier() + ", value " + forged.getValue() + ").");
+                rebuildSkillCombo();
+                skillCombo.setSelectedItem(skill); // keep the player's current selection
+            } else {
+                appendLog("   Epiphany declined — no Advanced Skill forged.");
+            }
+            refreshPools();
+        }
+    }
+
+    /** Pops the modal forge dialog and returns the created skill, or null on cancel. */
+    private Skill forgeAdvancedSkill(Skill base) {
+        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+        AdvancedSkillDialog dialog = new AdvancedSkillDialog(owner, character, base, dice);
+        dialog.setVisible(true); // modal: blocks until OK/Cancel
+        return dialog.getCreatedSkill();
     }
 
     private void refreshPools() {
         setBar(hpBar, character.getCurrentHP(), character.getMaxHP(), "HP");
         setBar(peBar, character.getCurrentPE(), character.getMaxPhysicalEnergy(), "PE");
         setBar(mpBar, character.getCurrentMP(), character.getMaxMP(), "MP");
+        generalXpLabel.setText("General XP Pool: " + character.getGeneralXP());
+        skillCombo.repaint(); // skill values/level-up costs may have changed
     }
 
     private void setBar(JProgressBar bar, int current, int max, String label) {
@@ -364,7 +388,10 @@ public final class AdventurePanel extends JPanel {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             if (value instanceof Skill) {
                 Skill s = (Skill) value;
-                setText(s.getName() + "  (Tier " + s.getTier() + ", value " + s.getValue() + ")");
+                int cost = s.getValue() <= 0 ? 1 : s.getValue(); // guard: 0-value costs 1
+                String tag = s.isAdvanced() ? "Advanced, " : "";
+                setText(s.getName() + "  (" + tag + "Tier " + s.getTier()
+                        + ", value " + s.getValue() + ", next +1 costs " + cost + ")");
             }
             return this;
         }

@@ -15,7 +15,8 @@ public final class ProgressionOutcome {
     int newValue;
     int levelsGained;
     int remainderToGeneral;
-    Skill createdSkill; // nullable
+    boolean epiphanyPending;
+    Skill baseSkill; // nullable; the skill the pending epiphany sprang from
 
     ProgressionOutcome(String skillName) {
         this.skillName = skillName;
@@ -27,11 +28,16 @@ public final class ProgressionOutcome {
     public int getNewValue() { return newValue; }
     public int getLevelsGained() { return levelsGained; }
     public int getRemainderToGeneral() { return remainderToGeneral; }
-    public Skill getCreatedSkill() { return createdSkill; }
 
-    /** True if anything at all happened (XP earned or an advanced skill born). */
+    /** True when a failed doubles roll unlocked an Advanced Skill the player must forge. */
+    public boolean isEpiphanyPending() { return epiphanyPending; }
+
+    /** The skill the pending epiphany derives from, or null when none is pending. */
+    public Skill getBaseSkill() { return baseSkill; }
+
+    /** True if anything at all happened (XP earned or an epiphany unlocked). */
     public boolean isAnything() {
-        return failureXP > 0 || createdSkill != null;
+        return failureXP > 0 || epiphanyPending;
     }
 
     /** Human-readable summary, or null when nothing happened. */
@@ -51,10 +57,8 @@ public final class ProgressionOutcome {
         if (remainderToGeneral > 0) {
             sb.append(", ").append(remainderToGeneral).append(" to General XP Pool");
         }
-        if (createdSkill != null) {
-            sb.append("; EPIPHANY! invented \"").append(createdSkill.getName())
-              .append("\" (Tier ").append(createdSkill.getTier())
-              .append(", value ").append(createdSkill.getValue()).append(')');
+        if (epiphanyPending) {
+            sb.append("; EPIPHANY unlocked — forge a new Advanced Skill!");
         }
         return sb.toString();
     }

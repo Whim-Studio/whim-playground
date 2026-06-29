@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.tiwas.rpg.domain.AdvancedSkill;
 import com.tiwas.rpg.domain.AttributeCode;
 import com.tiwas.rpg.domain.Character;
 import com.tiwas.rpg.domain.Skill;
@@ -113,13 +114,32 @@ public final class EngineSmokeTest {
         check("remainder 8 to general", g.getRemainderToGeneral() == 8);
         check("general XP pool 8", c.getGeneralXP() == 8);
 
-        Skill adv = g.getCreatedSkill();
-        check("epiphany created", adv != null);
+        // Epiphany is now PENDING, not auto-created — Progression invents nothing.
+        check("epiphany pending", g.isEpiphanyPending());
+        check("base skill carried", g.getBaseSkill() == might);
+        check("no skill auto-added", c.getSkills().size() == 0);
+
+        // Player-driven forge: AdvancedSkill.create builds Tier+1 with the extra
+        // attribute at the chosen start value, clamped to [1, maxCap].
+        Skill adv = AdvancedSkill.create(might, "bps", "Crushing Blow", 7, c, null);
         check("advanced tier 2", adv.getTier() == 2);
+        check("advanced is flagged", adv.isAdvanced());
+        check("advanced named", "Crushing Blow".equals(adv.getName()));
         check("advanced formula bpp+bps", adv.getAttributeCodes().size() == 2
                 && adv.getAttributeCodes().contains("bpp") && adv.getAttributeCodes().contains("bps"));
-        check("advanced value cap/2 = 37", adv.getValue() == 37); // (100+50)/2=75, /2=37
-        check("advanced registered on character", c.getSkill(adv.getName()) != null);
+        check("chosen start value 7", adv.getValue() == 7);
+        check("advanced cap (100+50)/2 = 75", adv.maxCap(c) == 75);
+
+        // Start value clamps to the cap.
+        Skill capped = AdvancedSkill.create(might, "bps", "Overreach", 999, c, null);
+        check("start clamped to cap 75", capped.getValue() == 75);
+
+        // Advanced Skill round-trips through JSON (marker preserved).
+        c.putSkill(adv);
+        Character reloaded = Character.fromJson(c.toJson());
+        Skill back = reloaded.getSkill("Crushing Blow");
+        check("advanced survives JSON", back != null && back.isAdvanced()
+                && back.getTier() == 2 && back.getValue() == 7);
 
         // A success earns nothing.
         Dice low = new Dice(new Random() {
@@ -127,7 +147,7 @@ public final class EngineSmokeTest {
         });
         ActionResult ok = new ActionResolver(low).resolve(c, might, 0);
         ProgressionOutcome none = Progression.apply(c, might, ok);
-        check("no growth on success", !none.isAnything() && might.getValue() == 41);
+        check("no growth on success", !none.isAnything() && !none.isEpiphanyPending());
     }
 
     private static void check(String label, boolean cond) {
