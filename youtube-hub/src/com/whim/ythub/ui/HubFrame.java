@@ -236,7 +236,7 @@ public class HubFrame extends JFrame {
         try {
             List<VideoRecord> records = libraryManager.load();
             tableModel.setRecords(records);
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
                     "Could not load the saved library:\n" + ex.getMessage(),
                     "Load Error", JOptionPane.ERROR_MESSAGE);
