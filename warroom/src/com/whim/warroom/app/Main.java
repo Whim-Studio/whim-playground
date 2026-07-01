@@ -71,7 +71,7 @@ public final class Main {
         UnitType blueRanged = pick("longbowman", "archer");
         UnitType redMelee = pick("man-at-arms", "greek-hoplite");
         UnitType redRanged = pick("rifle-infantry", "mg-team");
-        UnitType heavy = pick("mbt", "knight");
+        UnitType heavy = pick("main-battle-tank", "knight");
 
         // BLUE advances from the left toward the objective.
         addWithRoute(state, blueMelee, Faction.BLUE, Stance.OFFENSIVE,
