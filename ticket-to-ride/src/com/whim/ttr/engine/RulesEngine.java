@@ -63,6 +63,14 @@ public final class RulesEngine implements GameEngine {
         if (state.phase() == null) {
             state.setPhase(GamePhase.SETUP);
         }
+        // Deal each player their opening hand of train cards (Europe: 4 each).
+        for (Player p : state.players()) {
+            if (p.hand().isEmpty()) {
+                for (int i = 0; i < GameConstants.STARTING_HAND; i++) {
+                    p.addCard(deck.draw());
+                }
+            }
+        }
     }
 
     // ========================================================================
