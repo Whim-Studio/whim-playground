@@ -83,9 +83,13 @@ public final class Deck {
 
     // ---- face-up market ----------------------------------------------------
 
-    /** The current five face-up cards (may contain fewer if the deck is exhausted). */
+    /**
+     * The LIVE, mutable market list (per contract addendum). The engine takes a
+     * face-up card by removing element {@code i} and then calling
+     * {@link #refillFaceUp()}; returning the backing list makes that work.
+     */
     public List<CardColor> faceUp() {
-        return Collections.unmodifiableList(new ArrayList<CardColor>(faceUp));
+        return faceUp;
     }
 
     /** Take the face-up card at {@code index}, leaving a gap that a refill fills. */

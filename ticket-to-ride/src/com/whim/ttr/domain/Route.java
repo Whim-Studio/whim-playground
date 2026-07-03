@@ -44,6 +44,8 @@ public final class Route {
 
     public Integer ownerId() { return ownerId; }
     public void setOwnerId(Integer ownerId) { this.ownerId = ownerId; }
+    /** Record a claim by the given player seat index. */
+    public void setOwner(int playerId) { this.ownerId = playerId; }
     public boolean isClaimed() { return ownerId != null; }
 
     /** True if this route joins {@code a} and {@code b} in either direction. */
