@@ -172,6 +172,17 @@ public class Enemy implements CombatParticipant {
         }
     }
 
+    public void restoreResource(int amount) {
+        if (amount > 0) {
+            currentResource = Math.min(maxResource, currentResource + amount);
+        }
+    }
+
+    /** Defense scales with the enemy's level. */
+    public int getDefense() {
+        return level;
+    }
+
     /** A fresh, full-health copy of this template (buffs cleared). */
     public Enemy copy() {
         return new Enemy(id, name, level, maxHealth, maxResource, attackPower, boss,

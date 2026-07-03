@@ -3,6 +3,9 @@ package com.arpg.engine;
 import com.arpg.model.Ability;
 import com.arpg.model.BuffDebuff;
 import com.arpg.model.CombatParticipant;
+import com.arpg.model.EffectType;
+import com.arpg.model.StatType;
+import com.arpg.model.TargetType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,14 +41,14 @@ final class CombatEngine {
     static int effectiveAttack(CombatParticipant p) {
         int atk = p.getAttackPower();
         List<BuffDebuff> buffs = p.getActiveBuffs();
-        for (int i = 0; i < buffs.size(); i++) atk += buffs.get(i).getAttackModifier();
+        for (int i = 0; i < buffs.size(); i++) atk += buffs.get(i).getStatModifier(StatType.ATTACK_POWER);
         return Math.max(0, atk);
     }
 
     static int effectiveDefense(CombatParticipant p) {
         int def = p.getDefense();
         List<BuffDebuff> buffs = p.getActiveBuffs();
-        for (int i = 0; i < buffs.size(); i++) def += buffs.get(i).getDefenseModifier();
+        for (int i = 0; i < buffs.size(); i++) def += buffs.get(i).getStatModifier(StatType.ARMOR);
         return Math.max(0, def);
     }
 
@@ -129,7 +132,7 @@ final class CombatEngine {
         boolean summon = false;
         switch (ability.getEffectType()) {
             case DAMAGE:
-                if (ability.getTargetType() == Ability.TargetType.AOE_ENEMIES) {
+                if (ability.getTargetType() == TargetType.AOE_ENEMIES) {
                     List<CombatParticipant> alive = living(opposing);
                     for (int i = 0; i < alive.size(); i++) dealDamage(source, alive.get(i), ability);
                 } else {
@@ -138,21 +141,21 @@ final class CombatEngine {
                 }
                 break;
             case HEAL: {
-                CombatParticipant t = ability.getTargetType() == Ability.TargetType.SELF
+                CombatParticipant t = ability.getTargetType() == TargetType.SELF
                         ? source : lowestHealth(allies);
                 if (t == null) t = source;
                 heal(source, t, ability.getMagnitude());
                 break;
             }
             case BUFF: {
-                CombatParticipant t = ability.getTargetType() == Ability.TargetType.ALLY
+                CombatParticipant t = ability.getTargetType() == TargetType.ALLY
                         ? lowestHealth(allies) : source;
                 if (t == null) t = source;
                 applyBuff(t, buffTemplate(ability));
                 break;
             }
             case DEBUFF:
-                if (ability.getTargetType() == Ability.TargetType.AOE_ENEMIES) {
+                if (ability.getTargetType() == TargetType.AOE_ENEMIES) {
                     List<CombatParticipant> alive = living(opposing);
                     for (int i = 0; i < alive.size(); i++) applyBuff(alive.get(i), debuffTemplate(ability));
                 } else {
@@ -210,19 +213,31 @@ final class CombatEngine {
         BuffDebuff fresh = template.copy();
         target.addBuff(fresh);
         bus.buffApplied(target, fresh);
-        bus.log(target.getName() + (fresh.isDebuff() ? " is afflicted by " : " gains ") + fresh.getName() + ".");
+        bus.log(target.getName() + (fresh.isBeneficial() ? " gains " : " is afflicted by ") + fresh.getName() + ".");
     }
 
+    /** A short offensive self/ally buff synthesised from a BUFF ability (or the ability's own buff). */
     private BuffDebuff buffTemplate(Ability a) {
+        if (a.getAppliedBuff() != null) return a.getAppliedBuff();
         int mag = a.getMagnitude();
         int atkMod = Math.max(1, mag / 2);
-        return new BuffDebuff(a.getName(), false, atkMod, mag, 0, 0, BUFF_DURATION_TICKS);
+        Map<StatType, Integer> mods = new HashMap<StatType, Integer>();
+        mods.put(StatType.ATTACK_POWER, atkMod);
+        mods.put(StatType.ARMOR, Math.max(1, mag / 3));
+        return new BuffDebuff("buff." + a.getId(), a.getName(), a.getName(), true,
+                BUFF_DURATION_TICKS, mods, 0);
     }
 
+    /** A short debuff (attack/armor down + damage-over-time) synthesised from a DEBUFF ability. */
     private BuffDebuff debuffTemplate(Ability a) {
+        if (a.getAppliedBuff() != null) return a.getAppliedBuff();
         int mag = a.getMagnitude();
         int drop = Math.max(1, mag / 2);
-        return new BuffDebuff(a.getName(), true, -drop, -drop, drop, 0, DEBUFF_DURATION_TICKS);
+        Map<StatType, Integer> mods = new HashMap<StatType, Integer>();
+        mods.put(StatType.ATTACK_POWER, -drop);
+        mods.put(StatType.ARMOR, -drop);
+        return new BuffDebuff("debuff." + a.getId(), a.getName(), a.getName(), false,
+                DEBUFF_DURATION_TICKS, mods, -drop);
     }
 
     /**
@@ -234,19 +249,20 @@ final class CombatEngine {
         List<BuffDebuff> snapshot = new ArrayList<BuffDebuff>(p.getActiveBuffs());
         for (int i = 0; i < snapshot.size(); i++) {
             BuffDebuff b = snapshot.get(i);
-            if (b.getPeriodicDamage() > 0) {
+            int periodic = b.getPeriodicHealthDelta();
+            if (periodic < 0) {
+                int dmg = -periodic;
                 boolean wasAlive = p.isAlive();
-                p.applyDamage(b.getPeriodicDamage());
-                bus.damageDealt(null, p, b.getPeriodicDamage(), null);
-                bus.log(p.getName() + " suffers " + b.getPeriodicDamage() + " from " + b.getName() + ".");
+                p.applyDamage(dmg);
+                bus.damageDealt(null, p, dmg, null);
+                bus.log(p.getName() + " suffers " + dmg + " from " + b.getName() + ".");
                 if (wasAlive && !p.isAlive()) { bus.log(p.getName() + " succumbs."); bus.death(p); }
-            }
-            if (b.getPeriodicHeal() > 0 && p.isAlive()) {
+            } else if (periodic > 0 && p.isAlive()) {
                 int before = p.getCurrentHealth();
-                p.applyHealing(b.getPeriodicHeal());
+                p.applyHealing(periodic);
                 bus.healed(null, p, p.getCurrentHealth() - before);
             }
-            b.decrementRemaining();
+            b.decrementTick();
             if (b.isExpired()) {
                 p.removeBuff(b);
                 bus.buffExpired(p, b);
@@ -270,18 +286,18 @@ final class CombatEngine {
         List<Ability> abilities = actor.getAbilities();
         double hpPct = actor.getMaxHealth() == 0 ? 1.0 : (double) actor.getCurrentHealth() / actor.getMaxHealth();
         if (hpPct < 0.4) {
-            Ability heal = strongestAffordable(actor, abilities, Ability.EffectType.HEAL);
+            Ability heal = strongestAffordable(actor, abilities, EffectType.HEAL);
             if (heal != null) return heal;
         }
         if (rng.nextInt(100) < 35) {
-            Ability util = strongestAffordable(actor, abilities, Ability.EffectType.BUFF);
-            if (util == null) util = strongestAffordable(actor, abilities, Ability.EffectType.DEBUFF);
+            Ability util = strongestAffordable(actor, abilities, EffectType.BUFF);
+            if (util == null) util = strongestAffordable(actor, abilities, EffectType.DEBUFF);
             if (util != null) return util;
         }
-        return strongestAffordable(actor, abilities, Ability.EffectType.DAMAGE);
+        return strongestAffordable(actor, abilities, EffectType.DAMAGE);
     }
 
-    private Ability strongestAffordable(CombatParticipant actor, List<Ability> abilities, Ability.EffectType type) {
+    private Ability strongestAffordable(CombatParticipant actor, List<Ability> abilities, EffectType type) {
         Ability best = null;
         for (int i = 0; i < abilities.size(); i++) {
             Ability a = abilities.get(i);

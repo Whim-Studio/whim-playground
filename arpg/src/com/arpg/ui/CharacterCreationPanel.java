@@ -146,7 +146,7 @@ public class CharacterCreationPanel extends JPanel {
             classInfo.setText("");
             return;
         }
-        classInfo.setText(clazz.getName());
+        classInfo.setText(clazz.getDisplayName());
     }
 
     private void start() {
@@ -170,7 +170,7 @@ public class CharacterCreationPanel extends JPanel {
                 boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             if (value instanceof CharacterClass) {
-                label.setText(((CharacterClass) value).getName());
+                label.setText(((CharacterClass) value).getDisplayName());
             }
             if (!isSelected) {
                 label.setBackground(UiTheme.BG_PANEL);

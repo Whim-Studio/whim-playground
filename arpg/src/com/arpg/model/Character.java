@@ -178,6 +178,27 @@ public class Character implements CombatParticipant {
         currentResource = Math.min(maxResource, currentResource + amount);
     }
 
+    /** Attack power derived from the class's primary attribute plus weapon/gear bonuses. */
+    public int getAttackPower() {
+        int base;
+        StatType primary = characterClass.getPrimaryStat();
+        if (primary == StatType.AGILITY) {
+            base = getEffectiveAgility();
+        } else if (primary == StatType.INTELLECT) {
+            base = getEffectiveIntellect();
+        } else if (primary == StatType.VITALITY) {
+            base = getEffectiveVitality();
+        } else {
+            base = getEffectiveStrength();
+        }
+        return base + equipmentBonus(StatType.ATTACK_POWER) + equipmentBonus(StatType.SPELL_POWER);
+    }
+
+    /** Defense derived from vitality plus armor bonuses on equipped gear. */
+    public int getDefense() {
+        return getEffectiveVitality() / 2 + equipmentBonus(StatType.ARMOR);
+    }
+
     public void setCurrentHealth(int value) {
         this.currentHealth = clamp(value, 0, maxHealth);
     }

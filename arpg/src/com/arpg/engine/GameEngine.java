@@ -1,27 +1,27 @@
 package com.arpg.engine;
 
 import com.arpg.model.Ability;
-import com.arpg.model.AttributeType;
 import com.arpg.model.Character;
 import com.arpg.model.CharacterClass;
 import com.arpg.model.CombatParticipant;
 import com.arpg.model.Enemy;
+import com.arpg.model.Equipment;
 import com.arpg.model.EquipmentSlot;
 import com.arpg.model.GameContent;
 import com.arpg.model.GameEventListener;
 import com.arpg.model.GameStateSnapshot;
 import com.arpg.model.Item;
+import com.arpg.model.LootTable;
 import com.arpg.model.Pet;
 import com.arpg.model.PlayerAction;
-import com.arpg.model.Rarity;
 import com.arpg.model.Realm;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -42,7 +42,6 @@ public class GameEngine {
     private static final int AGGRO_PLAYER_PERCENT = 70;
 
     private final Random rng;
-    private final GameContent content;
     private final EventBus bus;
 
     private final CombatEngine combat;
@@ -64,13 +63,12 @@ public class GameEngine {
 
     public GameEngine(long seed) {
         this.rng = new Random(seed);
-        this.content = new GameContent();
         this.bus = new EventBus();
         this.combat = new CombatEngine(rng, bus);
-        this.progression = new ProgressionEngine(bus, content);
+        this.progression = new ProgressionEngine(bus);
         this.loot = new LootEngine(rng);
         this.economy = new EconomyEngine(rng, bus);
-        this.realmEngine = new RealmEngine(content);
+        this.realmEngine = new RealmEngine(rng);
     }
 
     // ---- public API ---------------------------------------------------------------------------
@@ -79,22 +77,18 @@ public class GameEngine {
         bus.addListener(l);
     }
 
-    @SuppressWarnings("rawtypes")
-    public java.util.List getAvailableClasses() {
-        return content.getClasses();
+    public List<CharacterClass> getAvailableClasses() {
+        return GameContent.getPlayableClasses();
     }
 
-    @SuppressWarnings("rawtypes")
-    public java.util.List getAvailableRealms() {
+    public List<Realm> getAvailableRealms() {
         return realmEngine.getRealms();
     }
 
     public GameStateSnapshot startNewGame(String playerName, CharacterClass clazz) {
-        this.player = new Character(playerName, clazz);
-        progression.syncAbilities(player);        // grant level-1 abilities
-        economy.addCurrency(player, 50);
-        player.getInventory().add(content.getItem("rusty_sword"));
-        this.activePet = null;
+        this.player = GameContent.createStartingCharacter(playerName, clazz);
+        progression.syncAbilities(player);           // ensure level-appropriate abilities
+        this.activePet = GameContent.defaultStartingPet();
         this.currentRealm = null;
         this.encounterIndex = 0;
         this.enemies.clear();
@@ -166,33 +160,51 @@ public class GameEngine {
 
     public boolean saveGame(File f) {
         if (player == null) return false;
-        BufferedWriter w = null;
+        ObjectOutputStream oos = null;
         try {
-            w = new BufferedWriter(new FileWriter(f));
-            writeSave(w);
-            w.flush();
+            oos = new ObjectOutputStream(new FileOutputStream(f));
+            SaveData d = new SaveData();
+            d.player = player;
+            d.realmId = currentRealm == null ? null : currentRealm.getId();
+            d.encounterIndex = encounterIndex;
+            d.inCombat = inCombat;
+            d.gameOver = gameOver;
+            d.activePet = activePet;
+            d.enemies = new ArrayList<Enemy>(enemies);
+            oos.writeObject(d);
+            oos.flush();
             bus.log("Game saved.");
             return true;
         } catch (IOException ex) {
             bus.log("Save failed: " + ex.getMessage());
             return false;
         } finally {
-            if (w != null) try { w.close(); } catch (IOException ignored) { }
+            if (oos != null) try { oos.close(); } catch (IOException ignored) { }
         }
     }
 
     public GameStateSnapshot loadGame(File f) {
-        BufferedReader r = null;
+        ObjectInputStream ois = null;
         try {
-            r = new BufferedReader(new FileReader(f));
-            readSave(r);
+            ois = new ObjectInputStream(new FileInputStream(f));
+            SaveData d = (SaveData) ois.readObject();
+            this.player = d.player;
+            this.currentRealm = d.realmId == null ? null : realmEngine.getRealm(d.realmId);
+            this.encounterIndex = d.encounterIndex;
+            this.inCombat = d.inCombat;
+            this.gameOver = d.gameOver;
+            this.activePet = d.activePet;
+            this.enemies.clear();
+            if (d.enemies != null) this.enemies.addAll(d.enemies);
+            this.rewarded.clear();
+            combat.resetCooldowns();
             bus.log("Game loaded.");
         } catch (IOException ex) {
             bus.log("Load failed: " + ex.getMessage());
-        } catch (RuntimeException ex) {
+        } catch (ClassNotFoundException ex) {
             bus.log("Load failed: corrupt save (" + ex.getMessage() + ")");
         } finally {
-            if (r != null) try { r.close(); } catch (IOException ignored) { }
+            if (ois != null) try { ois.close(); } catch (IOException ignored) { }
         }
         GameStateSnapshot snap = buildSnapshot();
         bus.stateChanged(snap);
@@ -205,7 +217,7 @@ public class GameEngine {
         Ability a = findAbility(player.getAbilities(), abilityId);
         if (a == null) { bus.log("Unknown ability: " + abilityId); return; }
         boolean summon = combat.resolveAbility(player, a, opposingForPlayer(), playerSideLiving(), targetIndex);
-        if (summon) summonPet();
+        if (summon) summonPet(a.getSummonPetId());
         postPlayerCombat();
     }
 
@@ -259,35 +271,36 @@ public class GameEngine {
         List<Enemy> spawned = realmEngine.spawnEncounter(currentRealm, encounterIndex);
         enemies.addAll(spawned);
         inCombat = !spawned.isEmpty();
-        Realm.Encounter enc = realmEngine.encounterAt(currentRealm, encounterIndex);
-        if (enc != null) bus.log(enc.getDescription());
+        Realm.EncounterDef enc = realmEngine.encounterAt(currentRealm, encounterIndex);
+        if (enc != null) bus.log(enc.getName() + " — " + enc.getDescription());
         if (realmEngine.isBossEncounter(currentRealm, encounterIndex)) {
             bus.log("BOSS ENCOUNTER — steel yourself!");
         }
-        if (!inCombat) bus.log("The area is quiet.");
+        if (!inCombat) bus.log("The area is quiet. ADVANCE_ENCOUNTER to press onward.");
     }
 
     private void doEquip(String itemId) {
-        Item item = removeFromInventory(itemId, true);
-        if (item == null) { bus.log("No equippable item '" + itemId + "' in inventory."); return; }
-        if (item.getLevelRequirement() > player.getLevel()) {
-            player.getInventory().add(item);
-            bus.log(item.getName() + " requires level " + item.getLevelRequirement() + ".");
+        Item item = player.getInventory().findById(itemId);
+        if (item == null || !item.isEquipment()) { bus.log("No equippable item '" + itemId + "' in inventory."); return; }
+        Equipment eq = (Equipment) item;
+        if (eq.getLevelRequirement() > player.getLevel()) {
+            bus.log(eq.getName() + " requires level " + eq.getLevelRequirement() + ".");
             return;
         }
-        EquipmentSlot slot = item.getSlot();
-        Item previous = player.getEquipped().put(slot, item);
+        player.getInventory().remove(item);
+        Equipment previous = player.equip(eq);
         if (previous != null) player.getInventory().add(previous);
-        bus.log("Equipped " + item.getName() + " (" + slot + ").");
+        bus.log("Equipped " + eq.getName() + " (" + eq.getSlot() + ").");
     }
 
     private void doUnequip(String itemId) {
-        for (Map.Entry<EquipmentSlot, Item> e : player.getEquipped().entrySet()) {
+        for (Map.Entry<EquipmentSlot, Equipment> e : player.getEquipped().entrySet()) {
             if (e.getValue() != null && e.getValue().getId().equals(itemId)) {
-                Item removed = e.getValue();
-                player.getEquipped().remove(e.getKey());
-                player.getInventory().add(removed);
-                bus.log("Unequipped " + removed.getName() + ".");
+                Equipment removed = player.unequip(e.getKey());
+                if (removed != null) {
+                    player.getInventory().add(removed);
+                    bus.log("Unequipped " + removed.getName() + ".");
+                }
                 return;
             }
         }
@@ -295,11 +308,10 @@ public class GameEngine {
     }
 
     private void doReforge(String itemId) {
-        Item target = findInventoryItem(itemId);
-        boolean fromInventory = target != null;
+        Item target = player.getInventory().findById(itemId);
         EquipmentSlot equippedSlot = null;
         if (target == null) {
-            for (Map.Entry<EquipmentSlot, Item> e : player.getEquipped().entrySet()) {
+            for (Map.Entry<EquipmentSlot, Equipment> e : player.getEquipped().entrySet()) {
                 if (e.getValue() != null && e.getValue().getId().equals(itemId)) {
                     target = e.getValue(); equippedSlot = e.getKey(); break;
                 }
@@ -310,16 +322,13 @@ public class GameEngine {
         ReforgeResult result = economy.reforge(player, target);
         if (!result.isSuccess()) { bus.log(result.getMessage()); return; }
 
+        // The reforge mutates the equipment in place; only a shatter removes it.
         if (result.getOutcome() == ReforgeResult.Outcome.SHATTERED || result.getResultItem() == null) {
-            if (fromInventory) player.getInventory().remove(target);
-            else if (equippedSlot != null) player.getEquipped().remove(equippedSlot);
-        } else {
-            if (fromInventory) {
-                int idx = player.getInventory().indexOf(target);
-                if (idx >= 0) player.getInventory().set(idx, result.getResultItem());
-            } else if (equippedSlot != null) {
-                player.getEquipped().put(equippedSlot, result.getResultItem());
-            }
+            if (equippedSlot != null) player.unequip(equippedSlot);
+            else player.getInventory().remove(target);
+        } else if (equippedSlot != null) {
+            // Re-run derived-stat recompute now that the equipped item changed.
+            player.recalculateDerivedStats();
         }
     }
 
@@ -347,10 +356,10 @@ public class GameEngine {
         }
     }
 
-    private void summonPet() {
-        Pet template = content.getSummonedPet();
-        if (template == null) return;
-        this.activePet = template.spawnCopy();
+    private void summonPet(String petId) {
+        Pet pet = petId == null ? GameContent.defaultStartingPet() : GameContent.spawnPet(petId);
+        if (pet == null) return;
+        this.activePet = pet;
         bus.log(activePet.getName() + " joins the fight!");
     }
 
@@ -364,8 +373,14 @@ public class GameEngine {
             Enemy e = enemies.get(i);
             if (!e.isAlive() && !rewarded.contains(e)) {
                 rewarded.add(e);
-                progression.grantXp(player, e.getXpReward());
-                Item drop = loot.rollLoot(content.getLootTable(e.getLootTableId()), player.getLevel());
+                progression.grantXp(player, e.getExperienceReward());
+                LootTable lt = e.getLootTable();
+                int gold = loot.rollGold(lt);
+                if (gold > 0) {
+                    player.addGold(gold);
+                    bus.log("Found " + gold + " gold.");
+                }
+                Item drop = loot.rollLoot(lt, player.getLevel());
                 if (drop != null) {
                     player.getInventory().add(drop);
                     bus.lootDropped(drop);
@@ -384,16 +399,12 @@ public class GameEngine {
         }
         if (inCombat && !anyEnemyAlive()) {
             inCombat = false;
-            Realm.Encounter enc = realmEngine.encounterAt(currentRealm, encounterIndex);
-            if (enc != null && enc.getCurrencyReward() > 0) {
-                economy.addCurrency(player, enc.getCurrencyReward());
-                bus.log("Encounter cleared! +" + enc.getCurrencyReward() + " gold.");
-            } else {
-                bus.log("Encounter cleared!");
-            }
+            int reward = 5 * Math.max(1, currentRealm == null ? 1 : currentRealm.getDifficultyTier());
+            economy.addCurrency(player, reward);
+            bus.log("Encounter cleared! +" + reward + " gold.");
             if (realmEngine.hasEncounter(currentRealm, encounterIndex + 1)) {
                 bus.log("ADVANCE_ENCOUNTER to press onward.");
-            } else {
+            } else if (currentRealm != null) {
                 bus.log(currentRealm.getName() + " is cleared — the realm is yours!");
             }
         }
@@ -441,24 +452,6 @@ public class GameEngine {
         return null;
     }
 
-    private Item findInventoryItem(String id) {
-        List<Item> inv = player.getInventory();
-        for (int i = 0; i < inv.size(); i++) if (inv.get(i).getId().equals(id)) return inv.get(i);
-        return null;
-    }
-
-    private Item removeFromInventory(String id, boolean equipmentOnly) {
-        List<Item> inv = player.getInventory();
-        for (int i = 0; i < inv.size(); i++) {
-            Item it = inv.get(i);
-            if (it.getId().equals(id) && (!equipmentOnly || it.isEquipment())) {
-                inv.remove(i);
-                return it;
-            }
-        }
-        return null;
-    }
-
     private GameStateSnapshot buildSnapshot() {
         return new EngineSnapshot(player, currentRealm, enemies, bus.recentLog(), inCombat, activePet);
     }
@@ -467,150 +460,15 @@ public class GameEngine {
         bus.stateChanged(buildSnapshot());
     }
 
-    // ---- save / load --------------------------------------------------------------------------
-
-    private void writeSave(BufferedWriter w) throws IOException {
-        line(w, "ARPG_SAVE v1");
-        line(w, "player.name=" + player.getName());
-        line(w, "player.class=" + player.getCharacterClass().name());
-        line(w, "player.level=" + player.getLevel());
-        line(w, "player.xp=" + player.getXp());
-        line(w, "player.attrPoints=" + player.getUnspentAttributePoints());
-        line(w, "player.currency=" + player.getCurrency());
-        line(w, "player.maxhp=" + player.getMaxHealth());
-        line(w, "player.hp=" + player.getCurrentHealth());
-        line(w, "player.maxres=" + player.getMaxResource());
-        line(w, "player.res=" + player.getCurrentResource());
-        for (AttributeType t : AttributeType.values()) line(w, "attr." + t.name() + "=" + player.getAttribute(t));
-        for (int i = 0; i < player.getAbilities().size(); i++) line(w, "ability=" + player.getAbilities().get(i).getId());
-        for (Map.Entry<EquipmentSlot, Item> e : player.getEquipped().entrySet()) {
-            line(w, "equip=" + e.getKey().name() + ">" + serializeItem(e.getValue()));
-        }
-        for (int i = 0; i < player.getInventory().size(); i++) line(w, "inv=" + serializeItem(player.getInventory().get(i)));
-        line(w, "realm=" + (currentRealm == null ? "NONE" : currentRealm.getId()));
-        line(w, "encounterIndex=" + encounterIndex);
-        line(w, "inCombat=" + inCombat);
-        line(w, "gameOver=" + gameOver);
-        if (activePet == null) line(w, "pet=NONE");
-        else line(w, "pet=" + activePet.getId() + "|" + activePet.getCurrentHealth());
-        if (inCombat) {
-            for (int i = 0; i < enemies.size(); i++) {
-                Enemy e = enemies.get(i);
-                line(w, "enemy=" + e.getId() + "|" + e.getCurrentHealth());
-            }
-        }
-    }
-
-    private void readSave(BufferedReader r) throws IOException {
-        String header = r.readLine();
-        if (header == null || !header.startsWith("ARPG_SAVE")) {
-            throw new RuntimeException("bad header");
-        }
-        String name = "Hero";
-        CharacterClass clazz = CharacterClass.WARRIOR;
-        // First pass to discover name+class so we can build the Character.
-        List<String> lines = new ArrayList<String>();
-        String ln;
-        while ((ln = r.readLine()) != null) {
-            lines.add(ln);
-            if (ln.startsWith("player.name=")) name = value(ln);
-            else if (ln.startsWith("player.class=")) clazz = CharacterClass.valueOf(value(ln));
-        }
-        Character p = new Character(name, clazz);
-        p.getAbilities().clear();
-        p.getInventory().clear();
-        p.getEquipped().clear();
-
-        this.enemies.clear();
-        this.rewarded.clear();
-        this.activePet = null;
-        this.currentRealm = null;
-        this.encounterIndex = 0;
-        this.inCombat = false;
-        this.gameOver = false;
-
-        for (int i = 0; i < lines.size(); i++) {
-            String l = lines.get(i);
-            String v = value(l);
-            if (l.startsWith("player.level=")) p.setLevel(Integer.parseInt(v));
-            else if (l.startsWith("player.xp=")) p.setXp(Integer.parseInt(v));
-            else if (l.startsWith("player.attrPoints=")) p.setUnspentAttributePoints(Integer.parseInt(v));
-            else if (l.startsWith("player.currency=")) p.setCurrency(Long.parseLong(v));
-            else if (l.startsWith("player.maxhp=")) p.setMaxHealth(Integer.parseInt(v));
-            else if (l.startsWith("player.hp=")) p.setCurrentHealth(Integer.parseInt(v));
-            else if (l.startsWith("player.maxres=")) p.setMaxResource(Integer.parseInt(v));
-            else if (l.startsWith("player.res=")) p.setCurrentResource(Integer.parseInt(v));
-            else if (l.startsWith("attr.")) {
-                String key = l.substring("attr.".length(), l.indexOf('='));
-                p.setAttribute(AttributeType.valueOf(key), Integer.parseInt(v));
-            } else if (l.startsWith("ability=")) {
-                Ability a = content.getAbility(v);
-                if (a != null) p.getAbilities().add(a);
-            } else if (l.startsWith("equip=")) {
-                int gt = v.indexOf('>');
-                EquipmentSlot slot = EquipmentSlot.valueOf(v.substring(0, gt));
-                Item it = parseItem(v.substring(gt + 1));
-                if (it != null) p.getEquipped().put(slot, it);
-            } else if (l.startsWith("inv=")) {
-                Item it = parseItem(v);
-                if (it != null) p.getInventory().add(it);
-            } else if (l.startsWith("realm=")) {
-                this.currentRealm = "NONE".equals(v) ? null : realmEngine.getRealm(v);
-            } else if (l.startsWith("encounterIndex=")) {
-                this.encounterIndex = Integer.parseInt(v);
-            } else if (l.startsWith("inCombat=")) {
-                this.inCombat = Boolean.parseBoolean(v);
-            } else if (l.startsWith("gameOver=")) {
-                this.gameOver = Boolean.parseBoolean(v);
-            } else if (l.startsWith("pet=")) {
-                if (!"NONE".equals(v)) {
-                    String[] parts = v.split("\\|");
-                    Pet tmpl = content.getPetTemplate(parts[0]);
-                    if (tmpl != null) {
-                        Pet pet = tmpl.spawnCopy();
-                        int hp = parts.length > 1 ? Integer.parseInt(parts[1]) : pet.getMaxHealth();
-                        pet.applyDamage(pet.getMaxHealth() - hp);
-                        this.activePet = pet;
-                    }
-                }
-            } else if (l.startsWith("enemy=")) {
-                String[] parts = v.split("\\|");
-                Enemy tmpl = content.getEnemyTemplate(parts[0]);
-                if (tmpl != null) {
-                    Enemy e = tmpl.spawnCopy();
-                    int hp = parts.length > 1 ? Integer.parseInt(parts[1]) : e.getMaxHealth();
-                    e.applyDamage(e.getMaxHealth() - hp);
-                    this.enemies.add(e);
-                }
-            }
-        }
-        this.player = p;
-        combat.resetCooldowns();
-    }
-
-    private static String serializeItem(Item it) {
-        String slot = it.getSlot() == null ? "NONE" : it.getSlot().name();
-        return it.getId() + "\t" + it.getName() + "\t" + slot + "\t" + it.getRarity().name() + "\t"
-                + it.getAttackModifier() + "\t" + it.getDefenseModifier() + "\t" + it.getVitalityModifier()
-                + "\t" + it.getLevelRequirement() + "\t" + it.getSellValue();
-    }
-
-    private static Item parseItem(String s) {
-        String[] p = s.split("\t");
-        if (p.length < 9) return null;
-        EquipmentSlot slot = "NONE".equals(p[2]) ? null : EquipmentSlot.valueOf(p[2]);
-        return new Item(p[0], p[1], slot, Rarity.valueOf(p[3]),
-                Integer.parseInt(p[4]), Integer.parseInt(p[5]), Integer.parseInt(p[6]),
-                Integer.parseInt(p[7]), Integer.parseInt(p[8]));
-    }
-
-    private static void line(BufferedWriter w, String s) throws IOException {
-        w.write(s);
-        w.newLine();
-    }
-
-    private static String value(String kv) {
-        int idx = kv.indexOf('=');
-        return idx < 0 ? "" : kv.substring(idx + 1);
+    /** Serializable snapshot of everything needed to resume a run. Realm is stored by id. */
+    private static final class SaveData implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        Character player;
+        String realmId;
+        int encounterIndex;
+        boolean inCombat;
+        boolean gameOver;
+        Pet activePet;
+        ArrayList<Enemy> enemies;
     }
 }

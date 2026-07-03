@@ -28,7 +28,7 @@ import com.arpg.model.EquipmentSlot;
 public class CharacterSheetPanel extends JPanel {
 
     /** Attribute buttons offered for allocation. The engine validates/ignores. */
-    private static final String[] ATTRIBUTES = {"Strength", "Dexterity", "Intelligence", "Vitality"};
+    private static final String[] ATTRIBUTES = {"Strength", "Agility", "Intellect", "Vitality"};
 
     private final ActionSink sink;
 
@@ -130,12 +130,12 @@ public class CharacterSheetPanel extends JPanel {
         }
         nameLabel.setText(player.getName() + "   (Lv " + player.getLevel() + ")");
         CharacterClass clazz = player.getCharacterClass();
-        classLabel.setText(clazz == null ? "" : clazz.getName());
-        currencyLabel.setText("Gold: " + player.getCurrency());
+        classLabel.setText(clazz == null ? "" : clazz.getDisplayName());
+        currencyLabel.setText("Gold: " + player.getGold());
 
         hpBar.setValues(player.getCurrentHealth(), player.getMaxHealth());
         resourceBar.setValues(player.getCurrentResource(), player.getMaxResource());
-        xpBar.setValues(player.getXp(), xpForNext(player));
+        xpBar.setValues(player.getExperience(), xpForNext(player));
 
         attackLabel.setText("Attack: " + player.getAttackPower());
         defenseLabel.setText("Defense: " + player.getDefense());

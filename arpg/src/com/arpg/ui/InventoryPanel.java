@@ -109,7 +109,7 @@ public class InventoryPanel extends JPanel {
             keepId = sel.getId();
         }
         model.clear();
-        List<Item> items = player == null ? new ArrayList<Item>() : player.getInventory();
+        List<Item> items = player == null ? new ArrayList<Item>() : player.getInventory().getItems();
         if (items != null) {
             for (int i = 0; i < items.size(); i++) {
                 model.addElement(items.get(i));
@@ -137,7 +137,9 @@ public class InventoryPanel extends JPanel {
             if (r != null) {
                 sb.append("  [").append(r.name()).append("]");
             }
-            sb.append("  req Lv ").append(sel.getLevelRequirement());
+            if (sel instanceof Equipment) {
+                sb.append("  req Lv ").append(((Equipment) sel).getLevelRequirement());
+            }
             detail.setText(sb.toString());
         }
         updateButtons();
@@ -158,7 +160,9 @@ public class InventoryPanel extends JPanel {
             JLabel label = (JLabel) super.getListCellRendererComponent(jList, value, index, isSelected, cellHasFocus);
             if (value instanceof Item) {
                 Item item = (Item) value;
-                label.setText(item.getName() + "   (Lv " + item.getLevelRequirement() + ")");
+                String suffix = item instanceof Equipment
+                        ? "   (Lv " + ((Equipment) item).getLevelRequirement() + ")" : "";
+                label.setText(item.getName() + suffix);
                 Color rc = UiTheme.rarityColor(item.getRarity());
                 label.setForeground(isSelected ? Color.WHITE : rc);
             }

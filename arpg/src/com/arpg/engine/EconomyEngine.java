@@ -1,13 +1,17 @@
 package com.arpg.engine;
 
 import com.arpg.model.Character;
+import com.arpg.model.Equipment;
 import com.arpg.model.Item;
+import com.arpg.model.StatType;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
- * Currency management plus a risk/reward reforge gamble. Pure math/RNG: the caller pays the cost,
- * swaps the item and reports the {@link ReforgeResult}. Reforging can improve, ruin, or shatter gear.
+ * Currency management plus a risk/reward reforge gamble. The player pays gold and gambles on
+ * rescaling an equipment's stat modifiers: reforging can improve, ruin, or shatter the gear.
  */
 final class EconomyEngine {
     private final Random rng;
@@ -18,38 +22,35 @@ final class EconomyEngine {
         this.bus = bus;
     }
 
-    void addCurrency(Character player, long amount) {
-        if (amount <= 0) return;
-        player.setCurrency(player.getCurrency() + amount);
+    void addCurrency(Character player, int amount) {
+        if (amount > 0) player.addGold(amount);
     }
 
-    boolean spendCurrency(Character player, long amount) {
+    boolean spendCurrency(Character player, int amount) {
         if (amount <= 0) return true;
-        if (player.getCurrency() < amount) return false;
-        player.setCurrency(player.getCurrency() - amount);
-        return true;
+        return player.spendGold(amount);
     }
 
     int reforgeCost(Item item) {
-        return Math.max(20, item.getSellValue() * 2);
+        if (item == null) return 20;
+        return Math.max(20, item.getVendorValue() * 2);
     }
 
     /**
-     * Gamble currency to reforge an item's stats. The player must already hold enough currency;
-     * this method only computes and reports the outcome. Distribution (roll 0..99):
+     * Gamble gold to reforge an equipment's stats. Distribution (roll 0..99):
      * 0-14 shatter, 15-34 diminished, 35-49 unchanged, 50-89 improved, 90-99 masterwork.
      */
     ReforgeResult reforge(Character player, Item item) {
-        int cost = reforgeCost(item);
         if (item == null || !item.isEquipment()) {
             return new ReforgeResult(false, ReforgeResult.Outcome.UNCHANGED, item, 0,
                     "Only equipment can be reforged.");
         }
-        if (player.getCurrency() < cost) {
+        int cost = reforgeCost(item);
+        if (player.getGold() < cost) {
             return new ReforgeResult(false, ReforgeResult.Outcome.UNCHANGED, item, cost,
                     "Not enough gold to reforge (need " + cost + ").");
         }
-        player.setCurrency(player.getCurrency() - cost);
+        player.spendGold(cost);
 
         int roll = rng.nextInt(100);
         ReforgeResult.Outcome outcome;
@@ -66,11 +67,19 @@ final class EconomyEngine {
             return new ReforgeResult(true, outcome, null, cost, msg);
         }
 
-        int newSell = (int) Math.round(item.getSellValue() * Math.max(0.5, factor));
-        Item reforged = item.withScaledStats(factor, newSell);
-        String msg = item.getName() + " reforged: " + outcome + " (x" + String.format("%.2f", factor)
+        Equipment eq = (Equipment) item;
+        if (factor != 1.0) {
+            Map<StatType, Integer> current = new HashMap<StatType, Integer>(eq.getStatModifiers());
+            for (Map.Entry<StatType, Integer> e : current.entrySet()) {
+                int scaled = (int) Math.round(e.getValue() * factor);
+                if (e.getValue() > 0 && scaled < 1) scaled = 1;
+                eq.setStatModifier(e.getKey(), scaled);
+            }
+        }
+        eq.incrementReforgeCount();
+        String msg = eq.getName() + " reforged: " + outcome + " (x" + String.format("%.2f", factor)
                 + " stats, -" + cost + " gold).";
         bus.log(msg);
-        return new ReforgeResult(true, outcome, reforged, cost, msg);
+        return new ReforgeResult(true, outcome, eq, cost, msg);
     }
 }

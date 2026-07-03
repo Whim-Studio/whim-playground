@@ -32,4 +32,16 @@ public interface CombatParticipant extends java.io.Serializable {
     void addBuff(BuffDebuff b);
 
     void removeBuff(BuffDebuff b);
+
+    /** Effective attack power (attributes + gear), before per-cast buff modifiers. */
+    int getAttackPower();
+
+    /** Effective defense used in the damage formula, before per-cast buff modifiers. */
+    int getDefense();
+
+    /** Spend {@code amount} of the current resource; clamped to &gt;= 0. */
+    void spendResource(int amount);
+
+    /** Restore {@code amount} of the current resource; clamped to &lt;= maxResource. */
+    void restoreResource(int amount);
 }

@@ -177,6 +177,23 @@ public class Pet implements CombatParticipant {
         this.currentResource = value;
     }
 
+    public void spendResource(int amount) {
+        if (amount > 0) {
+            currentResource = Math.max(0, currentResource - amount);
+        }
+    }
+
+    public void restoreResource(int amount) {
+        if (amount > 0) {
+            currentResource = Math.min(maxResource, currentResource + amount);
+        }
+    }
+
+    /** Defense scales with the companion's level. */
+    public int getDefense() {
+        return level;
+    }
+
     /** A fresh, full-health copy of this template (buffs cleared). */
     public Pet copy() {
         return new Pet(id, name, level, maxHealth, maxResource, attackPower, bond,
