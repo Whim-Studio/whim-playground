@@ -1,7 +1,7 @@
 package com.whim.populous.engine;
 
 import com.whim.populous.api.Enums.Allegiance;
-import com.whim.populous.domain.GameStateManager;
+import com.whim.populous.domain.GameState;
 
 /**
  * Watches populations and declares a winner the moment one side is wiped out.
@@ -14,23 +14,25 @@ final class VictoryMonitor {
      * @return true if the game just ended (or is already over), so the caller
      *         can halt the simulation loop.
      */
-    boolean check(GameStateManager mgr) {
-        if (mgr.isGameOver()) {
+    boolean check(GameState gs) {
+        if (gs.gameOver()) {
             return true;
         }
-        int good = mgr.population(Allegiance.GOOD);
-        int evil = mgr.population(Allegiance.EVIL);
+        int good = EngineSupport.livePopulation(gs, Allegiance.GOOD);
+        int evil = EngineSupport.livePopulation(gs, Allegiance.EVIL);
 
-        // Don't declare victory on tick 0 before anyone has spawned.
+        // Don't declare victory before anyone has spawned.
         if (good == 0 && evil == 0) {
             return false;
         }
         if (evil == 0) {
-            mgr.setGameOver(Allegiance.GOOD);
+            gs.setGameOver(true);
+            gs.setWinner(Allegiance.GOOD);
             return true;
         }
         if (good == 0) {
-            mgr.setGameOver(Allegiance.EVIL);
+            gs.setGameOver(true);
+            gs.setWinner(Allegiance.EVIL);
             return true;
         }
         return false;

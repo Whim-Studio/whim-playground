@@ -6,35 +6,36 @@ import java.util.Random;
 import com.whim.populous.api.ActionResult;
 import com.whim.populous.api.Enums.Allegiance;
 import com.whim.populous.api.Enums.GodPower;
-import com.whim.populous.api.Enums.SettlementType;
 import com.whim.populous.api.Enums.TerrainType;
 import com.whim.populous.domain.Follower;
-import com.whim.populous.domain.GameStateManager;
+import com.whim.populous.domain.GameState;
 import com.whim.populous.domain.MapGrid;
 import com.whim.populous.domain.PapalMagnet;
-import com.whim.populous.domain.Settlement;
+import com.whim.populous.domain.Tile;
 
 /**
- * The algorithms behind every {@link GodPower}. Each method verifies the caster
- * can afford {@link GodPower#manaCost()} and deducts it on success. Terraforming
- * (RAISE/LOWER) deducts only a tiny trickle. All mutation happens on the sim
- * thread under the engine lock (the engine holds the lock before delegating).
+ * The algorithms behind every {@link GodPower}. Each verifies the caster can
+ * afford {@link GodPower#manaCost()} and deducts it on success; terraforming
+ * (RAISE/LOWER) deducts only a tiny trickle. All mutation runs on the sim
+ * thread under the engine lock.
  *
- * Global powers (FLOOD, ARMAGEDDON) install transient state that
- * {@link #tickGlobals} advances every tick.
+ * SWAMP/LAVA/ROCK are applied as timed {@link Tile#setTransient} overrides and
+ * aged by {@link MapGrid#ageTransients()} each tick. Global powers (FLOOD,
+ * ARMAGEDDON) install transient state that {@link #tickGlobals} advances.
  */
 final class DivinePowers {
 
-    /** Mana trickle charged per raise/lower brush click. */
     private static final int TERRAFORM_TRICKLE = 1;
 
-    /** How many elevation steps FLOOD lifts the sea, and for how long. */
+    private static final int SWAMP_TTL = 450;   // ticks a swamp lingers
+    private static final int LAVA_TTL = 300;    // ticks lava stays molten
+    private static final int ROCK_TTL = 100000; // rocks are effectively permanent
+
     private static final int FLOOD_STEPS = 2;
     private static final int FLOOD_DURATION_TICKS = 300; // ~10s at 30 tps
 
     private final Random rng;
 
-    // --- transient global-effect state, only touched on the sim thread ---
     private int floodTicksRemaining = 0;
     private int floodSavedSeaLevel = 0;
     private boolean floodActive = false;
@@ -54,77 +55,74 @@ final class DivinePowers {
     // Terraforming (RAISE_LAND / LOWER_LAND) — a small smoothing brush.
     // ------------------------------------------------------------------
 
-    ActionResult raise(GameStateManager mgr, Allegiance caster, int col, int row) {
-        MapGrid map = mgr.map();
+    ActionResult raise(GameState gs, Allegiance caster, int col, int row) {
+        MapGrid map = gs.grid();
         if (!map.inBounds(col, row)) {
             return ActionResult.fail("Out of bounds");
         }
-        map.raise(col, row, 1);
-        trickle(mgr, caster);
+        map.raiseBrush(col, row, 1);
+        trickle(gs, caster);
         return ActionResult.ok("Land raised");
     }
 
-    ActionResult lower(GameStateManager mgr, Allegiance caster, int col, int row) {
-        MapGrid map = mgr.map();
+    ActionResult lower(GameState gs, Allegiance caster, int col, int row) {
+        MapGrid map = gs.grid();
         if (!map.inBounds(col, row)) {
             return ActionResult.fail("Out of bounds");
         }
-        map.lower(col, row, 1);
-        trickle(mgr, caster);
+        map.lowerBrush(col, row, 1);
+        trickle(gs, caster);
         return ActionResult.ok("Land lowered");
     }
 
-    private void trickle(GameStateManager mgr, Allegiance caster) {
-        int cur = mgr.getMana(caster);
-        mgr.setMana(caster, Math.max(0, cur - TERRAFORM_TRICKLE));
+    private void trickle(GameState gs, Allegiance caster) {
+        gs.addMana(caster, -TERRAFORM_TRICKLE);
     }
 
     // ------------------------------------------------------------------
     // Targeted powers.
     // ------------------------------------------------------------------
 
-    ActionResult papalMagnet(GameStateManager mgr, Allegiance caster, int col, int row) {
-        if (!afford(mgr, caster, GodPower.PAPAL_MAGNET)) {
+    ActionResult papalMagnet(GameState gs, Allegiance caster, int col, int row) {
+        if (!afford(gs, caster, GodPower.PAPAL_MAGNET)) {
             return ActionResult.fail("Not enough mana for Papal Magnet");
         }
-        MapGrid map = mgr.map();
-        if (!map.inBounds(col, row)) {
+        if (!gs.grid().inBounds(col, row)) {
             return ActionResult.fail("Out of bounds");
         }
-        PapalMagnet pm = mgr.magnet(caster);
-        pm.activate(col, row);
-        deduct(mgr, caster, GodPower.PAPAL_MAGNET);
+        PapalMagnet pm = gs.magnetFor(caster);
+        pm.placeAt(col, row);
+        deduct(gs, caster, GodPower.PAPAL_MAGNET);
         return ActionResult.ok("Papal Magnet placed");
     }
 
     /** A jagged fault line that lowers a streak of tiles and topples settlements on it. */
-    ActionResult earthquake(GameStateManager mgr, Allegiance caster, int col, int row) {
-        if (!afford(mgr, caster, GodPower.EARTHQUAKE)) {
+    ActionResult earthquake(GameState gs, Allegiance caster, int col, int row) {
+        if (!afford(gs, caster, GodPower.EARTHQUAKE)) {
             return ActionResult.fail("Not enough mana for Earthquake");
         }
-        MapGrid map = mgr.map();
+        MapGrid map = gs.grid();
         int c = col;
         int r = row;
         int len = 10 + rng.nextInt(8);
         for (int step = 0; step < len; step++) {
             if (map.inBounds(c, r)) {
-                map.lower(c, r, 1);
-                toppleSettlementAt(mgr, c, r);
+                map.lowerBrush(c, r, 1);
+                toppleSettlementAt(map, c, r);
             }
-            // wander the fault in a jagged diagonal
             c += rng.nextInt(3) - 1;
             r += (rng.nextBoolean() ? 1 : 0) + (rng.nextInt(3) - 1);
         }
-        deduct(mgr, caster, GodPower.EARTHQUAKE);
+        deduct(gs, caster, GodPower.EARTHQUAKE);
         return ActionResult.ok("Earthquake!");
     }
 
     /** Marks a blob of tiles as SWAMP — walkers that end a tick on them drown. */
-    ActionResult swamp(GameStateManager mgr, Allegiance caster, int col, int row) {
-        if (!afford(mgr, caster, GodPower.SWAMP)) {
+    ActionResult swamp(GameState gs, Allegiance caster, int col, int row) {
+        if (!afford(gs, caster, GodPower.SWAMP)) {
             return ActionResult.fail("Not enough mana for Swamp");
         }
-        MapGrid map = mgr.map();
+        MapGrid map = gs.grid();
         int radius = 2;
         for (int dr = -radius; dr <= radius; dr++) {
             for (int dc = -radius; dc <= radius; dc++) {
@@ -133,28 +131,30 @@ final class DivinePowers {
                 }
                 int cc = col + dc;
                 int rr = row + dr;
-                if (map.inBounds(cc, rr) && map.elevationAt(cc, rr) >= map.seaLevel()) {
-                    map.setTerrainOverride(cc, rr, TerrainType.SWAMP);
+                Tile t = map.tile(cc, rr);
+                if (t != null && t.elevation() >= map.seaLevel()) {
+                    t.setTransient(TerrainType.SWAMP, SWAMP_TTL);
                 }
             }
         }
-        deduct(mgr, caster, GodPower.SWAMP);
+        deduct(gs, caster, GodPower.SWAMP);
         return ActionResult.ok("Swamp spreads");
     }
 
     /** Raises a tall cone at the target and scatters ROCK/LAVA rings around it. */
-    ActionResult volcano(GameStateManager mgr, Allegiance caster, int col, int row) {
-        if (!afford(mgr, caster, GodPower.VOLCANO)) {
+    ActionResult volcano(GameState gs, Allegiance caster, int col, int row) {
+        if (!afford(gs, caster, GodPower.VOLCANO)) {
             return ActionResult.fail("Not enough mana for Volcano");
         }
-        MapGrid map = mgr.map();
+        MapGrid map = gs.grid();
         int peak = 8;
         int radius = 5;
         for (int dr = -radius; dr <= radius; dr++) {
             for (int dc = -radius; dc <= radius; dc++) {
                 int cc = col + dc;
                 int rr = row + dr;
-                if (!map.inBounds(cc, rr)) {
+                Tile t = map.tile(cc, rr);
+                if (t == null) {
                     continue;
                 }
                 double dist = Math.sqrt(dc * dc + dr * dr);
@@ -163,18 +163,17 @@ final class DivinePowers {
                 }
                 int lift = (int) Math.round(peak * (1.0 - dist / (radius + 1.0)));
                 if (lift > 0) {
-                    map.setElevation(cc, rr, map.elevationAt(cc, rr) + lift);
-                    toppleSettlementAt(mgr, cc, rr);
+                    t.addElevation(lift);
+                    toppleSettlementAt(map, cc, rr);
                 }
-                // Inner ring: molten lava. Outer ring: scattered rock.
                 if (dist <= 1.5) {
-                    map.setTerrainOverride(cc, rr, TerrainType.LAVA);
+                    t.setTransient(TerrainType.LAVA, LAVA_TTL);
                 } else if (dist >= radius - 1 && rng.nextInt(3) == 0) {
-                    map.setTerrainOverride(cc, rr, TerrainType.ROCK);
+                    t.setTransient(TerrainType.ROCK, ROCK_TTL);
                 }
             }
         }
-        deduct(mgr, caster, GodPower.VOLCANO);
+        deduct(gs, caster, GodPower.VOLCANO);
         return ActionResult.ok("Volcano erupts!");
     }
 
@@ -182,50 +181,50 @@ final class DivinePowers {
     // Global powers.
     // ------------------------------------------------------------------
 
-    ActionResult flood(GameStateManager mgr, Allegiance caster) {
-        if (!afford(mgr, caster, GodPower.FLOOD)) {
+    ActionResult flood(GameState gs, Allegiance caster) {
+        if (!afford(gs, caster, GodPower.FLOOD)) {
             return ActionResult.fail("Not enough mana for Flood");
         }
-        MapGrid map = mgr.map();
+        MapGrid map = gs.grid();
         if (!floodActive) {
             floodSavedSeaLevel = map.seaLevel();
         }
         floodActive = true;
         floodTicksRemaining = FLOOD_DURATION_TICKS;
         map.setSeaLevel(floodSavedSeaLevel + FLOOD_STEPS);
-        deduct(mgr, caster, GodPower.FLOOD);
+        deduct(gs, caster, GodPower.FLOOD);
         return ActionResult.ok("The waters rise!");
     }
 
-    ActionResult armageddon(GameStateManager mgr, Allegiance caster) {
-        if (!afford(mgr, caster, GodPower.ARMAGEDDON)) {
+    ActionResult armageddon(GameState gs, Allegiance caster) {
+        if (!afford(gs, caster, GodPower.ARMAGEDDON)) {
             return ActionResult.fail("Not enough mana for Armageddon");
         }
-        MapGrid map = mgr.map();
+        MapGrid map = gs.grid();
         battleCol = map.cols() / 2;
         battleRow = map.rows() / 2;
-        // Flatten a battlefield so both hosts can stand.
+        int floor = map.seaLevel() + 1;
         for (int dr = -4; dr <= 4; dr++) {
             for (int dc = -4; dc <= 4; dc++) {
-                int cc = battleCol + dc;
-                int rr = battleRow + dr;
-                if (map.inBounds(cc, rr)) {
-                    map.setElevation(cc, rr, Math.max(map.seaLevel() + 1, map.elevationAt(cc, rr)));
-                    map.setTerrainOverride(cc, rr, null);
+                Tile t = map.tile(battleCol + dc, battleRow + dr);
+                if (t != null) {
+                    if (t.elevation() < floor) {
+                        t.setElevation(floor);
+                    }
+                    t.setTransient(null, 0); // clear any swamp/lava on the field
                 }
             }
         }
-        // Summon every walker to the field.
-        List<Follower> all = mgr.followers();
+        List<Follower> all = gs.followerList();
         for (int i = 0; i < all.size(); i++) {
             Follower f = all.get(i);
             if (f.alive()) {
-                f.setX(battleCol + (rng.nextDouble() - 0.5) * 6.0);
-                f.setY(battleRow + (rng.nextDouble() - 0.5) * 6.0);
+                f.setPosition(battleCol + (rng.nextDouble() - 0.5) * 6.0,
+                        battleRow + (rng.nextDouble() - 0.5) * 6.0);
             }
         }
-        armageddonTicksRemaining = 600; // fight for up to ~20s
-        deduct(mgr, caster, GodPower.ARMAGEDDON);
+        armageddonTicksRemaining = 600;
+        deduct(gs, caster, GodPower.ARMAGEDDON);
         return ActionResult.ok("ARMAGEDDON — the final battle begins!");
     }
 
@@ -233,8 +232,8 @@ final class DivinePowers {
     // Per-tick advancement of transient global effects.
     // ------------------------------------------------------------------
 
-    void tickGlobals(GameStateManager mgr) {
-        MapGrid map = mgr.map();
+    void tickGlobals(GameState gs) {
+        MapGrid map = gs.grid();
         if (floodActive) {
             floodTicksRemaining--;
             if (floodTicksRemaining <= 0) {
@@ -244,13 +243,13 @@ final class DivinePowers {
         }
         if (armageddonTicksRemaining > 0) {
             armageddonTicksRemaining--;
-            resolveBattle(mgr);
+            resolveBattle(gs);
         }
     }
 
     /** During Armageddon, opposing walkers standing close trade blows. */
-    private void resolveBattle(GameStateManager mgr) {
-        List<Follower> all = mgr.followers();
+    private void resolveBattle(GameState gs) {
+        List<Follower> all = gs.followerList();
         for (int i = 0; i < all.size(); i++) {
             Follower a = all.get(i);
             if (!a.alive()) {
@@ -264,14 +263,8 @@ final class DivinePowers {
                 double dx = a.x() - b.x();
                 double dy = a.y() - b.y();
                 if (dx * dx + dy * dy <= 1.5 * 1.5) {
-                    a.setHealth(a.health() - 4);
-                    b.setHealth(b.health() - 4);
-                    if (a.health() <= 0) {
-                        a.setAlive(false);
-                    }
-                    if (b.health() <= 0) {
-                        b.setAlive(false);
-                    }
+                    a.damage(4);
+                    b.damage(4);
                 }
             }
         }
@@ -281,23 +274,19 @@ final class DivinePowers {
     // Helpers.
     // ------------------------------------------------------------------
 
-    private void toppleSettlementAt(GameStateManager mgr, int col, int row) {
-        List<Settlement> settlements = mgr.settlements();
-        for (int i = settlements.size() - 1; i >= 0; i--) {
-            Settlement s = settlements.get(i);
-            if (s.col() == col && s.row() == row) {
-                settlements.remove(i);
-                mgr.map().setSettlement(col, row, SettlementType.NONE, 0);
-                mgr.map().setOwner(col, row, Allegiance.NEUTRAL);
-            }
+    private void toppleSettlementAt(MapGrid map, int col, int row) {
+        Tile t = map.tile(col, row);
+        if (t != null && t.settlementRef() != null) {
+            t.clearSettlement();
+            t.setOwner(Allegiance.NEUTRAL);
         }
     }
 
-    private boolean afford(GameStateManager mgr, Allegiance caster, GodPower power) {
-        return mgr.getMana(caster) >= power.manaCost();
+    private boolean afford(GameState gs, Allegiance caster, GodPower power) {
+        return gs.manaFor(caster) >= power.manaCost();
     }
 
-    private void deduct(GameStateManager mgr, Allegiance caster, GodPower power) {
-        mgr.setMana(caster, Math.max(0, mgr.getMana(caster) - power.manaCost()));
+    private void deduct(GameState gs, Allegiance caster, GodPower power) {
+        gs.addMana(caster, -power.manaCost());
     }
 }

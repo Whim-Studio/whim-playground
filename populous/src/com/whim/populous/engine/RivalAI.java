@@ -6,7 +6,7 @@ import java.util.Random;
 import com.whim.populous.api.Enums.Allegiance;
 import com.whim.populous.api.Enums.GodPower;
 import com.whim.populous.domain.Follower;
-import com.whim.populous.domain.GameStateManager;
+import com.whim.populous.domain.GameState;
 import com.whim.populous.domain.MapGrid;
 import com.whim.populous.domain.PapalMagnet;
 
@@ -39,25 +39,25 @@ final class RivalAI {
         this.rng = rng;
     }
 
-    void update(GameStateManager mgr, DivinePowers powers) {
+    void update(GameState gs, DivinePowers powers) {
         phaseTicks++;
-        maintainMagnet(mgr);
+        maintainMagnet(gs);
 
         switch (phase) {
             case EXPAND:
-                expand(mgr);
+                expand(gs);
                 if (phaseTicks > EXPAND_TICKS) {
                     transition(Phase.GROW);
                 }
                 break;
             case GROW:
                 if (phaseTicks > GROW_TICKS
-                        || mgr.getMana(Allegiance.EVIL) >= ATTACK_MANA_THRESHOLD) {
+                        || gs.manaFor(Allegiance.EVIL) >= ATTACK_MANA_THRESHOLD) {
                     transition(Phase.ATTACK);
                 }
                 break;
             case ATTACK:
-                attack(mgr, powers);
+                attack(gs, powers);
                 transition(Phase.EXPAND);
                 break;
             default:
@@ -72,25 +72,24 @@ final class RivalAI {
     }
 
     /** Flatten a few tiles around evil followers so plateaus can form. */
-    private void expand(GameStateManager mgr) {
-        MapGrid map = mgr.map();
-        List<Follower> all = mgr.followers();
+    private void expand(GameState gs) {
+        MapGrid map = gs.grid();
+        List<Follower> all = gs.followerList();
         int flattened = 0;
         for (int i = 0; i < all.size() && flattened < 4; i++) {
             Follower f = all.get(i);
             if (!f.alive() || f.allegiance() != Allegiance.EVIL) {
                 continue;
             }
-            int c = (int) Math.floor(f.x());
-            int r = (int) Math.floor(f.y());
-            // Raising toward a common level smooths the ground into a plateau.
+            int c = f.tileCol();
+            int r = f.tileRow();
             if (map.inBounds(c, r)) {
-                if (map.elevationAt(c, r) <= map.seaLevel()) {
-                    map.raise(c, r, 1);
+                if (EngineSupport.elevationAt(map, c, r) <= map.seaLevel()) {
+                    map.raiseBrush(c, r, 1);
                 } else if (rng.nextBoolean()) {
-                    map.raise(c, r, 2);
+                    map.raiseBrush(c, r, 2);
                 } else {
-                    map.lower(c, r, 1);
+                    map.lowerBrush(c, r, 1);
                 }
                 flattened++;
             }
@@ -98,32 +97,31 @@ final class RivalAI {
     }
 
     /** Cast the strongest affordable disaster at the player's densest cluster. */
-    private void attack(GameStateManager mgr, DivinePowers powers) {
-        int[] target = densestGoodCluster(mgr);
+    private void attack(GameState gs, DivinePowers powers) {
+        int[] target = densestGoodCluster(gs);
         if (target == null) {
             return;
         }
         int col = target[0];
         int row = target[1];
-        int mana = mgr.getMana(Allegiance.EVIL);
+        int mana = gs.manaFor(Allegiance.EVIL);
 
         if (mana >= GodPower.VOLCANO.manaCost()) {
-            powers.volcano(mgr, Allegiance.EVIL, col, row);
+            powers.volcano(gs, Allegiance.EVIL, col, row);
         } else if (mana >= GodPower.EARTHQUAKE.manaCost()) {
-            powers.earthquake(mgr, Allegiance.EVIL, col, row);
+            powers.earthquake(gs, Allegiance.EVIL, col, row);
         } else if (mana >= GodPower.SWAMP.manaCost()) {
-            powers.swamp(mgr, Allegiance.EVIL, col, row);
+            powers.swamp(gs, Allegiance.EVIL, col, row);
         }
-        // else: not enough for a disaster yet; keep banking.
     }
 
     /** Keep the evil magnet roughly at the centroid of evil followers. */
-    private void maintainMagnet(GameStateManager mgr) {
-        PapalMagnet pm = mgr.magnet(Allegiance.EVIL);
+    private void maintainMagnet(GameState gs) {
+        PapalMagnet pm = gs.magnetFor(Allegiance.EVIL);
         if (pm == null) {
             return;
         }
-        List<Follower> all = mgr.followers();
+        List<Follower> all = gs.followerList();
         double sx = 0;
         double sy = 0;
         int n = 0;
@@ -135,15 +133,14 @@ final class RivalAI {
                 n++;
             }
         }
-        // Re-anchor occasionally so followers regroup without constant churn.
         if (n > 0 && phase == Phase.GROW && phaseTicks % 120 == 0) {
-            pm.activate((int) (sx / n), (int) (sy / n));
+            pm.placeAt((int) (sx / n), (int) (sy / n));
         }
     }
 
     /** Grid-bucket the player's followers and return the densest 8x8 cell centre. */
-    private int[] densestGoodCluster(GameStateManager mgr) {
-        MapGrid map = mgr.map();
+    private int[] densestGoodCluster(GameState gs) {
+        MapGrid map = gs.grid();
         int cols = map.cols();
         int rows = map.rows();
         int bucket = 8;
@@ -151,7 +148,7 @@ final class RivalAI {
         int br = (rows + bucket - 1) / bucket;
         int[][] counts = new int[br][bc];
 
-        List<Follower> all = mgr.followers();
+        List<Follower> all = gs.followerList();
         int best = 0;
         int bestBc = -1;
         int bestBr = -1;

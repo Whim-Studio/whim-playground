@@ -14,14 +14,16 @@ import com.whim.populous.api.Enums.Allegiance;
 import com.whim.populous.api.Enums.GodPower;
 import com.whim.populous.api.Views.GameStateView;
 import com.whim.populous.domain.Follower;
+import com.whim.populous.domain.GameState;
 import com.whim.populous.domain.GameStateManager;
 
 /**
  * The simulation engine — the single implementation of {@link GameController}
- * that the UI talks to. It OWNS a {@link GameStateManager}, drives the sim on a
- * background {@link SimLoop} at ~30 ticks/sec, routes player powers through
- * {@link DivinePowers}, runs the {@link RivalAI}, accrues mana via
- * {@link ManaSystem}, and ends the game through {@link VictoryMonitor}.
+ * that the UI talks to. It owns a {@link GameStateManager} and drives the live
+ * {@link GameState} on a background {@link SimLoop} at ~30 ticks/sec, routing
+ * player powers through {@link DivinePowers}, running the {@link RivalAI},
+ * accruing mana via {@link ManaSystem}, and ending the game through
+ * {@link VictoryMonitor}.
  *
  * Threading:
  *  - All state mutation (ticks + player actions) happens under {@link #lock}.
@@ -42,8 +44,9 @@ public final class SimulationEngine implements GameController {
             new CopyOnWriteArrayList<ChangeListener>();
     private final ExecutorService notifier;
 
-    // Guarded by lock (references swapped on newGame):
-    private GameStateManager manager;
+    // Guarded by lock:
+    private final GameStateManager manager = new GameStateManager();
+    private GameState gs;
     private ManaSystem mana;
     private FollowerAI followerAI;
     private RivalAI rivalAI;
@@ -92,7 +95,7 @@ public final class SimulationEngine implements GameController {
             return;
         }
         synchronized (lock) {
-            manager.setSelectedPower(power);
+            gs.setSelectedPower(power);
             rebuildSnapshot();
         }
         fireChanged();
@@ -101,7 +104,7 @@ public final class SimulationEngine implements GameController {
     public ActionResult primaryClick(int col, int row) {
         ActionResult result;
         synchronized (lock) {
-            GodPower p = manager.selectedPower();
+            GodPower p = gs.selectedPower();
             if (p == null) {
                 p = GodPower.RAISE_LAND;
             }
@@ -116,7 +119,7 @@ public final class SimulationEngine implements GameController {
         ActionResult result;
         synchronized (lock) {
             // Classic right-click always lowers land, regardless of armed power.
-            result = powers.lower(manager, PLAYER, col, row);
+            result = powers.lower(gs, PLAYER, col, row);
             rebuildSnapshot();
         }
         fireChanged();
@@ -127,9 +130,9 @@ public final class SimulationEngine implements GameController {
         ActionResult result;
         synchronized (lock) {
             if (power == GodPower.FLOOD) {
-                result = powers.flood(manager, PLAYER);
+                result = powers.flood(gs, PLAYER);
             } else if (power == GodPower.ARMAGEDDON) {
-                result = powers.armageddon(manager, PLAYER);
+                result = powers.armageddon(gs, PLAYER);
             } else {
                 result = ActionResult.fail(power.label() + " is not a global power");
             }
@@ -141,14 +144,14 @@ public final class SimulationEngine implements GameController {
 
     private ActionResult castTargeted(GodPower p, int col, int row) {
         switch (p) {
-            case RAISE_LAND:   return powers.raise(manager, PLAYER, col, row);
-            case LOWER_LAND:   return powers.lower(manager, PLAYER, col, row);
-            case PAPAL_MAGNET: return powers.papalMagnet(manager, PLAYER, col, row);
-            case EARTHQUAKE:   return powers.earthquake(manager, PLAYER, col, row);
-            case SWAMP:        return powers.swamp(manager, PLAYER, col, row);
-            case VOLCANO:      return powers.volcano(manager, PLAYER, col, row);
-            case FLOOD:        return powers.flood(manager, PLAYER);
-            case ARMAGEDDON:   return powers.armageddon(manager, PLAYER);
+            case RAISE_LAND:   return powers.raise(gs, PLAYER, col, row);
+            case LOWER_LAND:   return powers.lower(gs, PLAYER, col, row);
+            case PAPAL_MAGNET: return powers.papalMagnet(gs, PLAYER, col, row);
+            case EARTHQUAKE:   return powers.earthquake(gs, PLAYER, col, row);
+            case SWAMP:        return powers.swamp(gs, PLAYER, col, row);
+            case VOLCANO:      return powers.volcano(gs, PLAYER, col, row);
+            case FLOOD:        return powers.flood(gs, PLAYER);
+            case ARMAGEDDON:   return powers.armageddon(gs, PLAYER);
             default:           return ActionResult.fail("Unknown power");
         }
     }
@@ -168,14 +171,14 @@ public final class SimulationEngine implements GameController {
     public void newGame(long seed) {
         synchronized (lock) {
             this.rng = new Random(seed);
-            this.manager = GameStateManager.create(seed);
+            this.gs = manager.newGame(seed);
             this.mana = new ManaSystem();
             this.powers = new DivinePowers(rng);
             this.followerAI = new FollowerAI(rng);
             this.rivalAI = new RivalAI(rng);
             this.victory = new VictoryMonitor();
-            manager.setSelectedPower(GodPower.RAISE_LAND);
-            manager.setStatusLine("A new world awaits your hand.");
+            gs.setSelectedPower(GodPower.RAISE_LAND);
+            gs.setStatusLine("A new world awaits your hand.");
             rebuildSnapshot();
         }
         fireChanged();
@@ -192,32 +195,34 @@ public final class SimulationEngine implements GameController {
     private void driveOneTick() {
         boolean over;
         synchronized (lock) {
-            if (manager.isGameOver()) {
+            if (gs.gameOver()) {
                 return;
             }
-            manager.setTick(manager.getTick() + 1);
+            gs.incrementTick();
 
-            mana.accrue(manager);
-            followerAI.update(manager);
-            rivalAI.update(manager, powers);
-            powers.tickGlobals(manager);
+            mana.accrue(manager, gs);
+            followerAI.update(gs);
+            rivalAI.update(gs, powers);
+            powers.tickGlobals(gs);
+            gs.grid().ageTransients();
 
             reapDead();
+            manager.recomputePopulations(gs);
             updateStatus();
 
-            over = victory.check(manager);
+            over = victory.check(gs);
             rebuildSnapshot();
         }
         fireChanged();
         if (over) {
-            // Called on the sim thread — just ask the loop to exit; never join self.
+            // Called on the sim thread — ask the loop to exit; never join self.
             loop.requestStop();
         }
     }
 
     /** Remove dead walkers from the live list and free their AI scratch. */
     private void reapDead() {
-        List<Follower> followers = manager.followers();
+        List<Follower> followers = gs.followerList();
         Iterator<Follower> it = followers.iterator();
         while (it.hasNext()) {
             Follower f = it.next();
@@ -229,11 +234,11 @@ public final class SimulationEngine implements GameController {
     }
 
     private void updateStatus() {
-        int good = manager.population(Allegiance.GOOD);
-        int evil = manager.population(Allegiance.EVIL);
+        int good = gs.goodPopulation();
+        int evil = gs.evilPopulation();
         StringBuilder sb = new StringBuilder();
-        if (manager.isGameOver()) {
-            Allegiance w = manager.state().winner();
+        if (gs.gameOver()) {
+            Allegiance w = gs.winner();
             sb.append(w == Allegiance.GOOD ? "Victory! Evil is vanquished."
                     : "Defeat — Evil rules the world.");
         } else {
@@ -245,7 +250,7 @@ public final class SimulationEngine implements GameController {
                 sb.append("  |  ARMAGEDDON");
             }
         }
-        manager.setStatusLine(sb.toString());
+        gs.setStatusLine(sb.toString());
     }
 
     // ------------------------------------------------------------------
@@ -281,6 +286,6 @@ public final class SimulationEngine implements GameController {
 
     // Must be called while holding lock.
     private void rebuildSnapshot() {
-        this.snapshot = new Snapshots.SnapState(manager.state());
+        this.snapshot = new Snapshots.SnapState(gs);
     }
 }

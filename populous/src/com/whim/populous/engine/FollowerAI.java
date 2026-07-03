@@ -9,32 +9,32 @@ import com.whim.populous.api.Enums.Allegiance;
 import com.whim.populous.api.Enums.SettlementType;
 import com.whim.populous.api.Enums.TerrainType;
 import com.whim.populous.domain.Follower;
-import com.whim.populous.domain.GameStateManager;
+import com.whim.populous.domain.GameState;
 import com.whim.populous.domain.MapGrid;
 import com.whim.populous.domain.PapalMagnet;
 import com.whim.populous.domain.Settlement;
+import com.whim.populous.domain.SettlementRules;
+import com.whim.populous.domain.Tile;
 
 /**
  * Per-follower autonomous behaviour, evaluated every tick on the sim thread.
  * A walker seeks the largest nearby flat plateau of own/neutral land, walks to
- * it, founds or upgrades a settlement, breeds under the population cap, migrates
- * when overcrowded, converges on its side's active Papal Magnet, drowns on
- * water/swamp, and loses health on lava. Stamina drains while walking and
- * recovers while resting on a settlement.
+ * it, founds or upgrades a settlement (tiered by {@link SettlementRules}),
+ * breeds under the population cap, migrates when overcrowded, converges on its
+ * side's active Papal Magnet, drowns on water/swamp, and loses health on lava.
+ * Stamina drains while walking and recovers while resting on a settlement.
  *
- * Engine-owned scratch state per walker is kept in an {@link IdentityHashMap}
- * here, so the domain {@link Follower} stays a clean data object with no AI
- * bookkeeping fields.
+ * Engine-owned scratch state per walker lives in an {@link IdentityHashMap}
+ * here, keeping the domain {@link Follower} a clean data object.
  */
 final class FollowerAI {
 
-    private static final double SPEED = 0.18;          // tiles per tick
-    private static final double ARRIVE_DIST = 0.4;     // "close enough" radius
-    private static final int SCAN_RADIUS = 6;          // plateau search radius
-    private static final int BREED_INTERVAL = 90;      // ticks between births
-    private static final int CROWD_LIMIT = 6;          // walkers near a site => migrate
+    private static final double SPEED = 0.18;
+    private static final double ARRIVE_DIST = 0.4;
+    private static final int SCAN_RADIUS = 6;
+    private static final int BREED_INTERVAL = 90;
+    private static final int CROWD_LIMIT = 6;
 
-    /** Engine-private per-walker memory. */
     private static final class AiState {
         boolean hasTarget = false;
         int targetCol = 0;
@@ -50,7 +50,6 @@ final class FollowerAI {
         this.rng = rng;
     }
 
-    /** Drop scratch for walkers that have died, to avoid unbounded growth. */
     void forget(Follower f) {
         memory.remove(f);
     }
@@ -65,30 +64,29 @@ final class FollowerAI {
     }
 
     /**
-     * Advance every walker one step. New walkers born this tick are appended to
-     * the manager's follower list; we iterate by index up to the original size
-     * so newborns are processed next tick, not this one.
+     * Advance every walker one step. Newborns are appended to the live list; we
+     * only iterate up to the original size so they are processed next tick.
      */
-    void update(GameStateManager mgr) {
-        MapGrid map = mgr.map();
-        List<Follower> followers = mgr.followers();
+    void update(GameState gs) {
+        MapGrid map = gs.grid();
+        List<Follower> followers = gs.followerList();
         int originalSize = followers.size();
-        long tick = mgr.getTick();
+        long tick = gs.tick();
 
         for (int i = 0; i < originalSize; i++) {
             Follower f = followers.get(i);
             if (!f.alive()) {
                 continue;
             }
-            stepWalker(mgr, map, f, tick);
+            stepWalker(gs, map, f, tick);
         }
     }
 
-    private void stepWalker(GameStateManager mgr, MapGrid map, Follower f, long tick) {
+    private void stepWalker(GameState gs, MapGrid map, Follower f, long tick) {
         AiState st = stateFor(f);
 
-        // 1. Papal Magnet overrides all other goals while active.
-        PapalMagnet magnet = mgr.magnet(f.allegiance());
+        // 1. Papal Magnet overrides other goals while active.
+        PapalMagnet magnet = gs.magnetFor(f.allegiance());
         boolean herding = magnet != null && magnet.active();
         if (herding) {
             st.hasTarget = true;
@@ -96,38 +94,38 @@ final class FollowerAI {
             st.targetRow = magnet.row();
         }
 
-        int col = (int) Math.floor(f.x());
-        int row = (int) Math.floor(f.y());
+        int col = f.tileCol();
+        int row = f.tileRow();
 
         // 2. Pick a new goal if we have none / have arrived / are overdue.
-        boolean arrived = st.hasTarget && dist(f.x(), f.y(), st.targetCol + 0.5, st.targetRow + 0.5) < ARRIVE_DIST;
+        boolean arrived = st.hasTarget
+                && dist(f.x(), f.y(), st.targetCol + 0.5, st.targetRow + 0.5) < ARRIVE_DIST;
         if (!herding && (!st.hasTarget || arrived || tick - st.lastRetarget > 240)) {
             chooseTarget(map, f, st, col, row, tick);
         }
 
-        // 3. Move toward the target; drain stamina while walking.
+        // 3. Move toward the target; drain/recover stamina.
         boolean moved = false;
         if (st.hasTarget) {
             moved = walkToward(f, st.targetCol + 0.5, st.targetRow + 0.5);
         }
         if (moved) {
-            f.setStamina(Math.max(0, f.stamina() - 1));
+            f.drainStamina(1);
         } else {
-            f.setStamina(Math.min(100, f.stamina() + 2)); // resting recovers faster
+            f.recoverStamina(2);
         }
 
-        // Recompute the tile we now stand on.
-        col = clamp((int) Math.floor(f.x()), map.cols());
-        row = clamp((int) Math.floor(f.y()), map.rows());
+        col = clamp(f.tileCol(), map.cols());
+        row = clamp(f.tileRow(), map.rows());
 
         // 4. If we reached a build goal, found/upgrade a settlement + maybe breed.
         if (!herding && st.hasTarget
                 && dist(f.x(), f.y(), st.targetCol + 0.5, st.targetRow + 0.5) < ARRIVE_DIST) {
-            tryBuildAndBreed(mgr, map, f, st, col, row, tick);
-            st.hasTarget = false; // look for the next job next tick
+            tryBuildAndBreed(gs, map, f, st, col, row, tick);
+            st.hasTarget = false;
         }
 
-        // 5. Environmental hazards, evaluated on the tile we END the tick on.
+        // 5. Environmental hazards on the tile we END the tick on.
         applyHazards(f, map, col, row);
     }
 
@@ -146,10 +144,10 @@ final class FollowerAI {
                 if (!map.inBounds(cc, rr)) {
                     continue;
                 }
-                if (map.elevationAt(cc, rr) < map.seaLevel()) {
-                    continue; // never head into the sea
+                if (EngineSupport.elevationAt(map, cc, rr) < map.seaLevel()) {
+                    continue;
                 }
-                Allegiance owner = map.tileAt(cc, rr).owner();
+                Allegiance owner = EngineSupport.ownerAt(map, cc, rr);
                 boolean mine = owner == Allegiance.NEUTRAL || owner == f.allegiance();
                 if (!mine) {
                     continue;
@@ -172,12 +170,10 @@ final class FollowerAI {
             st.targetCol = bestCol;
             st.targetRow = bestRow;
         } else if (roughCol >= 0) {
-            // No plateau: wander to rough land (helps future flattening).
             st.hasTarget = true;
             st.targetCol = roughCol;
             st.targetRow = roughRow;
         } else {
-            // Fully boxed in: pick a random nearby land tile.
             st.hasTarget = true;
             st.targetCol = clamp(col + rng.nextInt(5) - 2, map.cols());
             st.targetRow = clamp(row + rng.nextInt(5) - 2, map.rows());
@@ -185,81 +181,70 @@ final class FollowerAI {
         st.lastRetarget = tick;
     }
 
-    private void tryBuildAndBreed(GameStateManager mgr, MapGrid map, Follower f,
+    private void tryBuildAndBreed(GameState gs, MapGrid map, Follower f,
                                   AiState st, int col, int row, long tick) {
-        if (map.elevationAt(col, row) < map.seaLevel()) {
-            return; // can't build in water
+        Tile home = map.tile(col, row);
+        if (home == null || home.elevation() < map.seaLevel()) {
+            return;
         }
-        Allegiance owner = map.tileAt(col, row).owner();
+        Allegiance owner = home.owner();
         if (owner != Allegiance.NEUTRAL && owner != f.allegiance()) {
-            return; // enemy ground
+            return;
         }
 
         int flat = map.flatAreaAt(col, row);
         if (flat < 1) {
             return;
         }
-        SettlementType tier = typeForFlat(flat);
+        SettlementType tier = SettlementRules.tierFor(flat);
 
-        // Overcrowding check -> migrate instead of piling up.
-        int nearby = countNearbyAllies(mgr, f, col, row);
+        int nearby = countNearbyAllies(gs, f, col, row);
         if (nearby > CROWD_LIMIT) {
-            st.hasTarget = false;
+            st.hasTarget = false; // overcrowded -> migrate elsewhere
             return;
         }
 
-        Settlement existing = settlementAt(mgr, col, row);
+        Settlement existing = home.settlementRef();
         if (existing == null) {
-            Settlement s = new Settlement(f.allegiance(), col, row, tier);
-            mgr.settlements().add(s);
-            map.setOwner(col, row, f.allegiance());
-            map.setSettlement(col, row, tier, tierLevel(tier));
+            Settlement s = new Settlement(home, f.allegiance(), tier,
+                    SettlementRules.levelWithinTier(flat));
+            home.setSettlement(s); // also claims territory ownership
         } else if (existing.owner() == f.allegiance()
                 && tier.ordinal() > existing.type().ordinal()) {
-            existing.setType(tier);
-            map.setSettlement(col, row, tier, tierLevel(tier));
+            existing.retier(flat); // upgrade tier + level from the plateau size
         }
 
         // Rest here: recover.
-        f.setStamina(Math.min(100, f.stamina() + 5));
-        f.setHealth(Math.min(100, f.health() + 1));
+        f.recoverStamina(5);
+        f.heal(1);
 
         // Breed under the population cap, spaced out in time.
-        boolean underCap = mgr.population(f.allegiance()) < mgr.populationCap();
+        boolean underCap = EngineSupport.livePopulation(gs, f.allegiance()) < gs.populationCap();
         if (underCap && tick - st.lastBreedTick > BREED_INTERVAL) {
             double nx = col + 0.5 + (rng.nextDouble() - 0.5);
             double ny = row + 0.5 + (rng.nextDouble() - 0.5);
-            Follower child = new Follower(f.allegiance(), nx, ny);
-            mgr.followers().add(child);
+            gs.followerList().add(new Follower(f.allegiance(), nx, ny));
             st.lastBreedTick = tick;
         }
     }
 
     private void applyHazards(Follower f, MapGrid map, int col, int row) {
-        TerrainType terrain = map.tileAt(col, row).terrain();
+        TerrainType terrain = EngineSupport.terrainAt(map, col, row);
         if (terrain == TerrainType.WATER || terrain == TerrainType.SHALLOW
                 || terrain == TerrainType.SWAMP) {
-            f.setAlive(false); // drowned / swallowed
-            f.setHealth(0);
+            f.kill();
             return;
         }
         if (terrain == TerrainType.LAVA) {
-            f.setHealth(f.health() - 15);
-            if (f.health() <= 0) {
-                f.setAlive(false);
-            }
+            f.damage(15);
         }
-        // Slow attrition when exhausted and far from home.
         if (f.stamina() <= 0) {
-            f.setHealth(f.health() - 1);
-            if (f.health() <= 0) {
-                f.setAlive(false);
-            }
+            f.damage(1);
         }
     }
 
     // ------------------------------------------------------------------
-    // Small helpers.
+    // Helpers.
     // ------------------------------------------------------------------
 
     private boolean walkToward(Follower f, double tx, double ty) {
@@ -270,13 +255,12 @@ final class FollowerAI {
             return false;
         }
         double step = Math.min(SPEED, d);
-        f.setX(f.x() + dx / d * step);
-        f.setY(f.y() + dy / d * step);
+        f.setPosition(f.x() + dx / d * step, f.y() + dy / d * step);
         return true;
     }
 
-    private int countNearbyAllies(GameStateManager mgr, Follower self, int col, int row) {
-        List<Follower> all = mgr.followers();
+    private int countNearbyAllies(GameState gs, Follower self, int col, int row) {
+        List<Follower> all = gs.followerList();
         int count = 0;
         for (int i = 0; i < all.size(); i++) {
             Follower o = all.get(i);
@@ -288,29 +272,6 @@ final class FollowerAI {
             }
         }
         return count;
-    }
-
-    private Settlement settlementAt(GameStateManager mgr, int col, int row) {
-        List<Settlement> settlements = mgr.settlements();
-        for (int i = 0; i < settlements.size(); i++) {
-            Settlement s = settlements.get(i);
-            if (s.col() == col && s.row() == row) {
-                return s;
-            }
-        }
-        return null;
-    }
-
-    static SettlementType typeForFlat(int flat) {
-        if (flat >= 16) return SettlementType.CASTLE;
-        if (flat >= 9)  return SettlementType.TOWER;
-        if (flat >= 4)  return SettlementType.HOUSE;
-        if (flat >= 2)  return SettlementType.HUT;
-        return SettlementType.TENT;
-    }
-
-    private static int tierLevel(SettlementType t) {
-        return t.ordinal(); // 1..5 small index within the tier for the renderer
     }
 
     private static double dist(double ax, double ay, double bx, double by) {
