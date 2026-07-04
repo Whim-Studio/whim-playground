@@ -10,7 +10,8 @@ import com.whim.shinobi.domain.Platform;
 
 /**
  * AABB terrain physics, fully decoupled from Swing. Operates on {@link Entity}
- * public fields (position via {@code box}, velocity {@code vx/vy}, {@code grounded}).
+ * via its accessor API (position via {@code box()}, velocity {@code vx()/vy()},
+ * {@code grounded()}).
  *
  * Coordinate convention (from {@link Config}): (x,y) is the top-left of the box;
  * a plane's {@code GROUND_Y_*} is the feet line, so a grounded entity has
@@ -26,14 +27,14 @@ final class Physics {
 
     /** Apply an intended horizontal walk velocity (pixels/tick), clamped later. */
     static void setWalk(Entity e, double dir) {
-        e.vx = dir * Config.MOVE_SPEED;
+        e.setVx(dir * Config.MOVE_SPEED);
     }
 
     /** Begin a jump if grounded. */
     static void jump(Entity e) {
-        if (e.grounded) {
-            e.vy = Config.JUMP_VELOCITY;
-            e.grounded = false;
+        if (e.grounded()) {
+            e.setVy(Config.JUMP_VELOCITY);
+            e.setGrounded(false);
         }
     }
 
@@ -43,55 +44,59 @@ final class Physics {
      * ground line and any solid {@link Platform} on the entity's current plane.
      */
     static void step(Entity e, List<Platform> platforms, int levelWidth) {
+        Aabb box = e.box();
+
         // --- Horizontal ---
-        e.box.x += e.vx;
-        if (e.box.x < 0) e.box.x = 0;
-        double maxX = levelWidth - e.box.w;
-        if (e.box.x > maxX) e.box.x = maxX;
+        box.setX(box.x() + e.vx());
+        if (box.x() < 0) box.setX(0);
+        double maxX = levelWidth - box.w();
+        if (box.x() > maxX) box.setX(maxX);
 
         // --- Vertical: gravity + integrate ---
-        double groundLine = groundY(e.plane);
-        e.vy += Config.GRAVITY;
-        e.box.y += e.vy;
+        double groundLine = groundY(e.plane());
+        e.setVy(e.vy() + Config.GRAVITY);
+        box.setY(box.y() + e.vy());
 
         // Feet cannot pass the plane's ground line.
-        double feetLimitTop = groundLine - e.box.h;
+        double feetLimitTop = groundLine - box.h();
         boolean landed = false;
-        if (e.box.y >= feetLimitTop) {
-            e.box.y = feetLimitTop;
+        if (box.y() >= feetLimitTop) {
+            box.setY(feetLimitTop);
             landed = true;
         }
 
         // Solid platforms on this plane act as one-way-ish ground when falling.
-        if (e.vy >= 0) {
+        if (e.vy() >= 0) {
             for (int i = 0; i < platforms.size(); i++) {
                 Platform p = platforms.get(i);
-                if (p.plane != e.plane) continue;
+                if (p.plane() != e.plane()) continue;
                 if (landsOnTop(e, p)) {
-                    e.box.y = p.box.y - e.box.h;
+                    box.setY(p.box().y() - box.h());
                     landed = true;
                 }
             }
         }
 
         if (landed) {
-            if (e.vy > 0) e.vy = 0;
-            e.grounded = true;
+            if (e.vy() > 0) e.setVy(0);
+            e.setGrounded(true);
         } else {
-            e.grounded = false;
+            e.setGrounded(false);
         }
     }
 
     /** True if a falling entity's feet should rest on the top edge of a platform. */
     private static boolean landsOnTop(Entity e, Platform p) {
-        double exL = e.box.x;
-        double exR = e.box.x + e.box.w;
-        double pxL = p.box.x;
-        double pxR = p.box.x + p.box.w;
+        Aabb box = e.box();
+        Aabb pb = p.box();
+        double exL = box.x();
+        double exR = box.x() + box.w();
+        double pxL = pb.x();
+        double pxR = pb.x() + pb.w();
         if (exR <= pxL || exL >= pxR) return false;
-        double feet = e.box.y + e.box.h;
+        double feet = box.y() + box.h();
         // Feet within a small band of the platform top while descending.
-        return feet >= p.box.y && feet <= p.box.y + Math.max(e.vy, 0) + 6.0;
+        return feet >= pb.y() && feet <= pb.y() + Math.max(e.vy(), 0) + 6.0;
     }
 
     /**
@@ -99,21 +104,22 @@ final class Physics {
      * plane's ground line (classic Shinobi plane jump). Horizontal x is preserved.
      */
     static void shiftPlane(Entity e) {
-        e.plane = (e.plane == Enums.Plane.LOWER) ? Enums.Plane.UPPER : Enums.Plane.LOWER;
-        e.box.y = groundY(e.plane) - e.box.h;
-        e.vy = 0;
-        e.grounded = true;
+        Enums.Plane target = (e.plane() == Enums.Plane.LOWER) ? Enums.Plane.UPPER : Enums.Plane.LOWER;
+        e.setPlane(target);
+        e.box().setY(groundY(target) - e.box().h());
+        e.setVy(0);
+        e.setGrounded(true);
     }
 
     /** Center-to-center pixel distance between two boxes. */
     static double distance(Aabb a, Aabb b) {
-        double dx = a.cx() - b.cx();
-        double dy = a.cy() - b.cy();
+        double dx = a.centerX() - b.centerX();
+        double dy = a.centerY() - b.centerY();
         return Math.sqrt(dx * dx + dy * dy);
     }
 
     /** Horizontal-only pixel distance between two box centers. */
     static double horizontalDistance(Aabb a, Aabb b) {
-        return Math.abs(a.cx() - b.cx());
+        return Math.abs(a.centerX() - b.centerX());
     }
 }

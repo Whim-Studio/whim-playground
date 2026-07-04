@@ -26,10 +26,16 @@ public class Player extends Entity implements Views.PlayerView {
     /** Ticks of post-hit invulnerability remaining (engine decrements). */
     private int invulnTimer = 0;
 
+    /** True while the crouch/guard input is held (engine sets each tick). */
+    private boolean crouch = false;
+
     public Player(Aabb box, Enums.Plane plane) {
         super(box, plane);
         this.hp = 1;
     }
+
+    public boolean crouch() { return crouch; }
+    public void setCrouch(boolean crouch) { this.crouch = crouch; }
 
     // ---- Views.PlayerView ----
     @Override public int lives() { return lives; }

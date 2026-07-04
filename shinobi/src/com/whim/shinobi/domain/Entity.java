@@ -23,6 +23,9 @@ public abstract class Entity implements Views.EntityView {
     protected boolean alive = true;
     protected int hp = 1;
 
+    /** Physics state the engine sets each tick: feet resting on ground/platform. */
+    protected boolean grounded = false;
+
     protected Entity(Aabb box, Enums.Plane plane) {
         this.box = box;
         this.plane = plane;
@@ -46,6 +49,9 @@ public abstract class Entity implements Views.EntityView {
     public void setVx(double vx) { this.vx = vx; }
     public void setVy(double vy) { this.vy = vy; }
     public void setVelocity(double vx, double vy) { this.vx = vx; this.vy = vy; }
+
+    public boolean grounded() { return grounded; }
+    public void setGrounded(boolean grounded) { this.grounded = grounded; }
 
     public void setPlane(Enums.Plane plane) { this.plane = plane; }
     public void setFacing(Enums.Facing facing) { this.facing = facing; }

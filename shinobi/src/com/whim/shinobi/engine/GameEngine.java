@@ -61,8 +61,8 @@ public final class GameEngine implements GameController {
     @Override public void newGame() {
         synchronized (stateLock) {
             world = LevelBuilder.firstLevel();
-            world.cameraX = 0;
-            world.phase = Enums.Phase.PLAYING;
+            world.setCameraX(0);
+            world.setPhase(Enums.Phase.PLAYING);
             subTick = 0;
             paused = false;
             leftHeld = rightHeld = crouchHeld = false;
@@ -92,10 +92,10 @@ public final class GameEngine implements GameController {
             if (world == null) return;
             paused = !paused;
             if (paused) {
-                prePausePhase = world.phase;
-                world.phase = Enums.Phase.PAUSED;
+                prePausePhase = world.phase();
+                world.setPhase(Enums.Phase.PAUSED);
             } else {
-                world.phase = prePausePhase;
+                world.setPhase(prePausePhase);
             }
             loop.setPaused(paused);
         }
@@ -117,7 +117,7 @@ public final class GameEngine implements GameController {
     void tick() {
         synchronized (stateLock) {
             if (world == null) return;
-            Enums.Phase phase = world.phase;
+            Enums.Phase phase = world.phase();
             if (phase == Enums.Phase.PAUSED
                     || phase == Enums.Phase.GAME_OVER
                     || phase == Enums.Phase.LEVEL_CLEAR) {
@@ -134,7 +134,7 @@ public final class GameEngine implements GameController {
                 NinjutsuSystem.trigger(world);
             }
 
-            if (world.phase == Enums.Phase.NINJUTSU) {
+            if (world.phase() == Enums.Phase.NINJUTSU) {
                 NinjutsuSystem.update(world);
                 updateCamera();
                 // Ignore other intents while the screen-clear plays out.
@@ -155,108 +155,108 @@ public final class GameEngine implements GameController {
     }
 
     private void stepPlayer() {
-        Player p = world.player;
-        if (!p.alive) return;
+        Player p = world.playerEntity();
+        if (!p.alive()) return;
 
         double dir = 0;
-        if (leftHeld) { dir -= 1; p.facing = Enums.Facing.LEFT; }
-        if (rightHeld) { dir += 1; p.facing = Enums.Facing.RIGHT; }
-        p.crouch = crouchHeld;
+        if (leftHeld) { dir -= 1; p.setFacing(Enums.Facing.LEFT); }
+        if (rightHeld) { dir += 1; p.setFacing(Enums.Facing.RIGHT); }
+        p.setCrouch(crouchHeld);
         // Crouching halts horizontal movement (classic guard/duck).
-        Physics.setWalk(p, p.crouch ? 0 : dir);
+        Physics.setWalk(p, p.crouch() ? 0 : dir);
 
         if (pendingShift.getAndSet(false)) {
             Physics.shiftPlane(p);
         }
-        if (pendingJump.getAndSet(false) && !p.crouch) {
+        if (pendingJump.getAndSet(false) && !p.crouch()) {
             Physics.jump(p);
         }
         if (pendingAttack.getAndSet(false)) {
             CombatSystem.playerAttack(world);
         }
 
-        Physics.step(p, world.platforms, world.levelWidth);
+        Physics.step(p, world.platformList(), world.levelWidth());
 
-        if (p.attackCooldown > 0) p.attackCooldown--;
-        if (p.invuln > 0) p.invuln--;
+        p.tickAttackCooldown();
+        p.tickInvuln();
 
         // Derive animation state (attack recovery wins for pose).
-        if (p.attackCooldown > 0) {
-            p.state = Enums.EntityState.ATTACK;
-        } else if (!p.grounded) {
-            p.state = Enums.EntityState.JUMP;
-        } else if (p.crouch) {
-            p.state = Enums.EntityState.BLOCK;
+        if (p.attackCooldown() > 0) {
+            p.setState(Enums.EntityState.ATTACK);
+        } else if (!p.grounded()) {
+            p.setState(Enums.EntityState.JUMP);
+        } else if (p.crouch()) {
+            p.setState(Enums.EntityState.BLOCK);
         } else if (dir != 0) {
-            p.state = Enums.EntityState.WALK;
+            p.setState(Enums.EntityState.WALK);
         } else {
-            p.state = Enums.EntityState.IDLE;
+            p.setState(Enums.EntityState.IDLE);
         }
     }
 
     private void stepEnemies() {
-        List<Enemy> enemies = world.enemies;
+        List<Enemy> enemies = world.enemyList();
         for (int i = 0; i < enemies.size(); i++) {
             Enemy e = enemies.get(i);
-            if (!e.alive) continue;
-            if (e.type == Enums.EnemyType.THUG) {
+            if (!e.alive()) continue;
+            if (e.type() == Enums.EnemyType.THUG) {
                 ThugAI.update(e, world);
             } else {
                 NinjaAI.update(e, world, rnd);
             }
-            Physics.step(e, world.platforms, world.levelWidth);
+            Physics.step(e, world.platformList(), world.levelWidth());
             // Contact damage: touching the player costs a life.
-            Player p = world.player;
-            if (p.alive && p.invuln <= 0 && e.plane == p.plane && e.box.overlaps(p.box)) {
+            Player p = world.playerEntity();
+            if (p.alive() && p.invulnTimer() <= 0 && e.plane() == p.plane() && e.box().intersects(p.box())) {
                 CombatSystem.hitPlayer(world);
             }
         }
     }
 
     private void checkRescues() {
-        Player p = world.player;
-        List<Hostage> hs = world.hostages;
+        Player p = world.playerEntity();
+        List<Hostage> hs = world.hostageList();
         for (int i = 0; i < hs.size(); i++) {
             Hostage h = hs.get(i);
-            if (h.rescued || h.plane != p.plane) continue;
-            if (p.box.overlaps(h.box)) {
-                h.rescued = true;
-                world.hostagesRescued++;
-                applyReward(h.reward);
+            if (h.rescued() || h.plane() != p.plane()) continue;
+            if (p.box().intersects(h.box())) {
+                h.setRescued(true);
+                world.incHostagesRescued();
+                applyReward(h.reward());
             }
         }
     }
 
     private void applyReward(Enums.RescueReward reward) {
-        Player p = world.player;
+        Player p = world.playerEntity();
         switch (reward) {
             case POINTS:
-                p.score += 1000;
+                p.addScore(1000);
                 break;
             case WEAPON_UPGRADE:
-                p.weapon = p.weapon.upgrade();
-                p.score += 500;
+                p.upgradeWeapon();
+                p.addScore(500);
                 break;
             case EXTRA_NINJUTSU:
-                p.ninjutsu++;
-                p.score += 500;
+                p.addNinjutsu();
+                p.addScore(500);
                 break;
             default:
-                p.score += 500;
+                p.addScore(500);
                 break;
         }
     }
 
     private void updateCamera() {
-        double target = world.player.box.cx() - Config.VIEW_W / 2.0;
-        double maxCam = Math.max(0, world.levelWidth - Config.VIEW_W);
+        double target = world.playerEntity().box().centerX() - Config.VIEW_W / 2.0;
+        double maxCam = Math.max(0, world.levelWidth() - Config.VIEW_W);
         if (target < 0) target = 0;
         if (target > maxCam) target = maxCam;
         // Forward-biased follow (classic side-scroller: camera doesn't retreat).
-        if (target > world.cameraX) {
-            world.cameraX = target;
-        } else if (world.cameraX > maxCam) {
-            world.cameraX = maxCam;
+        if (target > world.cameraX()) {
+            world.setCameraX(target);
+        } else if (world.cameraX() > maxCam) {
+            world.setCameraX(maxCam);
         }
     }
 
@@ -264,26 +264,26 @@ public final class GameEngine implements GameController {
         subTick++;
         if (subTick >= Config.TICK_HZ) {
             subTick = 0;
-            if (world.secondsRemaining > 0) {
-                world.secondsRemaining--;
+            if (world.secondsRemaining() > 0) {
+                world.setSecondsRemaining(world.secondsRemaining() - 1);
             }
         }
     }
 
     private void checkEndConditions() {
-        Player p = world.player;
-        if (p.lives <= 0 || !p.alive) {
-            world.phase = Enums.Phase.GAME_OVER;
+        Player p = world.playerEntity();
+        if (p.lives() <= 0 || !p.alive()) {
+            world.setPhase(Enums.Phase.GAME_OVER);
             return;
         }
-        if (world.secondsRemaining <= 0) {
-            world.phase = Enums.Phase.GAME_OVER;
+        if (world.secondsRemaining() <= 0) {
+            world.setPhase(Enums.Phase.GAME_OVER);
             return;
         }
-        boolean allRescued = world.hostagesTotal > 0 && world.hostagesRescued >= world.hostagesTotal;
-        boolean reachedEnd = p.box.right() >= world.levelWidth - 4;
+        boolean allRescued = world.hostagesTotal() > 0 && world.hostagesRescued() >= world.hostagesTotal();
+        boolean reachedEnd = p.box().right() >= world.levelWidth() - 4;
         if (allRescued || reachedEnd) {
-            world.phase = Enums.Phase.LEVEL_CLEAR;
+            world.setPhase(Enums.Phase.LEVEL_CLEAR);
         }
     }
 
@@ -340,18 +340,18 @@ public final class GameEngine implements GameController {
         private final double ninjutsuFlash;
 
         Snapshot(WorldState w) {
-            this.player = w.player;
-            this.enemies = new ArrayList<Views.EnemyView>(w.enemies);
-            this.projectiles = new ArrayList<Views.ProjectileView>(w.projectiles);
-            this.hostages = new ArrayList<Views.HostageView>(w.hostages);
-            this.platforms = new ArrayList<Views.PlatformView>(w.platforms);
-            this.cameraX = w.cameraX;
-            this.levelWidth = w.levelWidth;
-            this.phase = w.phase;
-            this.secondsRemaining = w.secondsRemaining;
-            this.hostagesRescued = w.hostagesRescued;
-            this.hostagesTotal = w.hostagesTotal;
-            this.ninjutsuFlash = w.ninjutsuFlash;
+            this.player = w.playerEntity();
+            this.enemies = new ArrayList<Views.EnemyView>(w.enemyList());
+            this.projectiles = new ArrayList<Views.ProjectileView>(w.projectileList());
+            this.hostages = new ArrayList<Views.HostageView>(w.hostageList());
+            this.platforms = new ArrayList<Views.PlatformView>(w.platformList());
+            this.cameraX = w.cameraX();
+            this.levelWidth = w.levelWidth();
+            this.phase = w.phase();
+            this.secondsRemaining = w.secondsRemaining();
+            this.hostagesRescued = w.hostagesRescued();
+            this.hostagesTotal = w.hostagesTotal();
+            this.ninjutsuFlash = w.ninjutsuFlash();
         }
 
         @Override public Views.PlayerView player() { return player; }

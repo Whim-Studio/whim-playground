@@ -13,8 +13,9 @@ import com.whim.shinobi.domain.WorldState;
  * to melee range and periodically raise a block (can deflect the player's shuriken,
  * see {@link CombatSystem}). Strikes the player on a cadence when adjacent.
  *
- * Per-enemy state lives on the {@link Enemy} fields; blocking cadence uses the
- * shared, once-seeded {@link Random} from the engine for determinism.
+ * Per-enemy state lives on the {@link Enemy} fields — {@code aiTimer} is the strike
+ * cooldown, {@code attackTimer} is the block-duration countdown. Blocking cadence
+ * uses the shared, once-seeded {@link Random} from the engine for determinism.
  */
 final class NinjaAI {
     static final double SIGHT_X = 320.0;
@@ -25,78 +26,78 @@ final class NinjaAI {
     private NinjaAI() {}
 
     static void update(Enemy e, WorldState w, Random rnd) {
-        if (!e.alive) return;
-        Player p = w.player;
-        if (e.actTimer > 0) e.actTimer--;
-        if (e.blockTimer > 0) {
-            e.blockTimer--;
-            if (e.blockTimer == 0) e.blocking = false;
+        if (!e.alive()) return;
+        Player p = w.playerEntity();
+        e.tickAiTimer();
+        if (e.attackTimer() > 0) {
+            e.tickAttackTimer();
+            if (e.attackTimer() == 0) e.setBlocking(false);
         }
 
-        boolean samePlane = p.alive && p.plane == e.plane;
-        double dx = samePlane ? Math.abs(p.box.cx() - e.box.cx()) : Double.MAX_VALUE;
-        e.aggro = samePlane && dx <= SIGHT_X;
+        boolean samePlane = p.alive() && p.plane() == e.plane();
+        double dx = samePlane ? Math.abs(p.box().centerX() - e.box().centerX()) : Double.MAX_VALUE;
+        e.setAggro(samePlane && dx <= SIGHT_X);
 
-        if (!e.aggro) {
-            e.blocking = false;
+        if (!e.aggro()) {
+            e.setBlocking(false);
             patrol(e);
             return;
         }
 
         // Always face the player when engaged.
-        e.facing = (p.box.cx() >= e.box.cx()) ? Enums.Facing.RIGHT : Enums.Facing.LEFT;
-        double dist = Physics.distance(p.box, e.box);
+        e.setFacing((p.box().centerX() >= e.box().centerX()) ? Enums.Facing.RIGHT : Enums.Facing.LEFT);
+        double dist = Physics.distance(p.box(), e.box());
 
         if (dist <= Config.MELEE_RANGE) {
             // In melee range: hold ground, guard, and strike on cadence.
-            e.vx = 0;
+            e.setVx(0);
             maybeBlock(e, rnd);
-            if (!e.blocking) {
-                e.state = Enums.EntityState.IDLE;
-                if (e.actTimer <= 0) {
+            if (!e.blocking()) {
+                e.setState(Enums.EntityState.IDLE);
+                if (e.aiTimer() <= 0) {
                     strike(w, e);
-                    e.actTimer = STRIKE_COOLDOWN;
+                    e.setAiTimer(STRIKE_COOLDOWN);
                 }
             }
         } else {
             // Advance toward the player unless mid-block.
             maybeBlock(e, rnd);
-            if (e.blocking) {
-                e.vx = 0;
+            if (e.blocking()) {
+                e.setVx(0);
             } else {
-                double dir = (e.facing == Enums.Facing.RIGHT) ? 1.0 : -1.0;
-                e.vx = dir * (Config.MOVE_SPEED * 0.8);
-                e.state = Enums.EntityState.WALK;
+                double dir = (e.facing() == Enums.Facing.RIGHT) ? 1.0 : -1.0;
+                e.setVx(dir * (Config.MOVE_SPEED * 0.8));
+                e.setState(Enums.EntityState.WALK);
             }
         }
     }
 
     private static void maybeBlock(Enemy e, Random rnd) {
-        if (e.blocking) {
-            e.state = Enums.EntityState.BLOCK;
+        if (e.blocking()) {
+            e.setState(Enums.EntityState.BLOCK);
             return;
         }
-        if (e.actTimer <= 0 && rnd.nextInt(BLOCK_CHANCE_DENOM) == 0) {
-            e.blocking = true;
-            e.blockTimer = BLOCK_DURATION;
-            e.state = Enums.EntityState.BLOCK;
+        if (e.aiTimer() <= 0 && rnd.nextInt(BLOCK_CHANCE_DENOM) == 0) {
+            e.setBlocking(true);
+            e.setAttackTimer(BLOCK_DURATION);
+            e.setState(Enums.EntityState.BLOCK);
         }
     }
 
     private static void patrol(Enemy e) {
-        double dir = (e.facing == Enums.Facing.RIGHT) ? 1.0 : -1.0;
-        if (e.box.x <= e.patrolMinX) { dir = 1.0; e.facing = Enums.Facing.RIGHT; }
-        else if (e.box.x >= e.patrolMaxX) { dir = -1.0; e.facing = Enums.Facing.LEFT; }
-        e.vx = dir * (Config.MOVE_SPEED * 0.5);
-        e.state = Enums.EntityState.WALK;
+        double dir = (e.facing() == Enums.Facing.RIGHT) ? 1.0 : -1.0;
+        if (e.box().x() <= e.patrolMinX()) { dir = 1.0; e.setFacing(Enums.Facing.RIGHT); }
+        else if (e.box().x() >= e.patrolMaxX()) { dir = -1.0; e.setFacing(Enums.Facing.LEFT); }
+        e.setVx(dir * (Config.MOVE_SPEED * 0.5));
+        e.setState(Enums.EntityState.WALK);
     }
 
     private static void strike(WorldState w, Enemy e) {
-        e.state = Enums.EntityState.ATTACK;
+        e.setState(Enums.EntityState.ATTACK);
         // Melee strike: damage the player if still adjacent and vulnerable.
-        Player p = w.player;
-        if (p.alive && p.plane == e.plane && p.invuln <= 0
-                && Physics.distance(p.box, e.box) <= Config.MELEE_RANGE + 6.0) {
+        Player p = w.playerEntity();
+        if (p.alive() && p.plane() == e.plane() && p.invulnTimer() <= 0
+                && Physics.distance(p.box(), e.box()) <= Config.MELEE_RANGE + 6.0) {
             CombatSystem.hitPlayer(w);
         }
     }

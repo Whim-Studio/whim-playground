@@ -28,11 +28,16 @@ public class Enemy extends Entity implements Views.EnemyView {
     private double homeX;
     /** True once the enemy has noticed the player. */
     private boolean aggro = false;
+    /** Patrol bounds (world X) the engine flips direction at; default span ±80. */
+    private double patrolMinX;
+    private double patrolMaxX;
 
     public Enemy(Aabb box, Enums.Plane plane, Enums.EnemyType type) {
         super(box, plane);
         this.type = type;
         this.homeX = box.x();
+        this.patrolMinX = box.x() - 80.0;
+        this.patrolMaxX = box.x() + 80.0;
         this.hp = 1;
     }
 
@@ -41,6 +46,11 @@ public class Enemy extends Entity implements Views.EnemyView {
     @Override public boolean blocking() { return blocking; }
 
     public void setBlocking(boolean blocking) { this.blocking = blocking; }
+
+    public double patrolMinX() { return patrolMinX; }
+    public double patrolMaxX() { return patrolMaxX; }
+    public void setPatrolMinX(double v) { this.patrolMinX = v; }
+    public void setPatrolMaxX(double v) { this.patrolMaxX = v; }
 
     // ---- AI bookkeeping accessors ----
     public int aiTimer() { return aiTimer; }
