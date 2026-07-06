@@ -1,0 +1,7 @@
+[
+  { "name": "Pulse Laser",    "type": "BEAM",    "min": 4,  "max": 8,  "accuracy": 85, "cost": 600 },
+  { "name": "Ion Beam",       "type": "BEAM",    "min": 6,  "max": 12, "accuracy": 75, "cost": 1200 },
+  { "name": "Phased Array",   "type": "BEAM",    "min": 9,  "max": 16, "accuracy": 70, "cost": 2400 },
+  { "name": "Photon Torpedo", "type": "MISSILE", "min": 12, "max": 22, "accuracy": 60, "cost": 1500 },
+  { "name": "Antimatter Mine","type": "MISSILE", "min": 18, "max": 30, "accuracy": 50, "cost": 3000 }
+]
