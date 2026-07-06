@@ -1,0 +1,6 @@
+[
+  { "class": "Scout",    "hull": 40,  "shield": 20, "engines": 6, "slots": 2, "cost": 0,     "start": true, "weapons": ["Pulse Laser", "Pulse Laser"] },
+  { "class": "Corvette", "hull": 70,  "shield": 35, "engines": 5, "slots": 3, "cost": 4000 },
+  { "class": "Frigate",  "hull": 110, "shield": 55, "engines": 4, "slots": 4, "cost": 9000 },
+  { "class": "Cruiser",  "hull": 160, "shield": 80, "engines": 3, "slots": 5, "cost": 18000 }
+]

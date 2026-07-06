@@ -1,0 +1,5 @@
+out/
+target/
+sources.txt
+*.class
+.starcommand/
