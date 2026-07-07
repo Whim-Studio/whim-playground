@@ -1,0 +1,11 @@
+{
+  "_note": "APPROXIMATED, unverified vs rulebook",
+  "entries": [
+    { "rollMin": 1,  "rollMax": 8,  "effect": "NONE" },
+    { "rollMin": 9,  "rollMax": 11, "effect": "CREW" },
+    { "rollMin": 12, "rollMax": 13, "effect": "SENSOR" },
+    { "rollMin": 14, "rollMax": 16, "effect": "WEAPON" },
+    { "rollMin": 17, "rollMax": 18, "effect": "ENGINE" },
+    { "rollMin": 19, "rollMax": 20, "effect": "REACTOR" }
+  ]
+}

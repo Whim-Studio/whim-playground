@@ -1,0 +1,26 @@
+{
+  "_note": "APPROXIMATED, unverified vs rulebook",
+  "name": "Border Skirmish",
+  "mapWidth": 20,
+  "mapHeight": 20,
+  "placements": [
+    {
+      "shipClassId": "hyperion",
+      "side": "A",
+      "q": 10,
+      "r": 1,
+      "facing": "B",
+      "speed": 6
+    },
+    {
+      "shipClassId": "gquan",
+      "side": "B",
+      "q": 10,
+      "r": 18,
+      "facing": "F",
+      "speed": 6
+    }
+  ],
+  "victory": "DESTROY_OR_CRIPPLE_ENEMY",
+  "turnLimit": 12
+}
