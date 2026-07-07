@@ -441,8 +441,12 @@ public final class CombatEngine implements CombatView {
     private void computeRewards() {
         for (int i = 0; i < enemies.size(); i++) {
             Combatant e = enemies.get(i);
+            // Task 1 convention: enemy id() is "<monsterId>#<index>"; strip the suffix
+            // before resolving the reward-bearing MonsterDef.
+            String baseId = e.id();
+            if (baseId != null) { int h = baseId.indexOf('#'); if (h >= 0) baseId = baseId.substring(0, h); }
             MonsterDef def = null;
-            try { def = model.content().monster(e.id()); } catch (RuntimeException ignore) { def = null; }
+            try { def = model.content().monster(baseId); } catch (RuntimeException ignore) { def = null; }
             if (def != null) {
                 totalXp += def.xpReward;
                 totalGold += def.goldReward;

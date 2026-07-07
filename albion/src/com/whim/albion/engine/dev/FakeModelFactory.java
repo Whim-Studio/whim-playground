@@ -292,20 +292,20 @@ final class FakeContent implements Content {
 
     @Override public List<Combatant> spawnEncounter(String encounterId) {
         List<Combatant> out = new ArrayList<Combatant>();
-        if ("rats".equals(encounterId)) {
-            out.add(rat("rat")); out.add(rat("rat"));
-        } else if ("guard".equals(encounterId)) {
-            out.add(rat("rat")); out.add(rat("rat")); out.add(rat("rat"));
-        }
+        int n = "guard".equals(encounterId) ? 3 : ("rats".equals(encounterId) ? 2 : 0);
+        // Mirrors Task 1: ids are "<monsterId>#<index>" with placeholder positions
+        // (index,0); the combat engine strips the suffix for rewards and re-lays out.
+        for (int i = 0; i < n; i++) out.add(rat("rat", i));
         return out;
     }
 
-    private FakeChar rat(String id) {
-        FakeChar c = new FakeChar(this, id, "Cave Rat", "beast", false, EnemyBehaviorType.AGGRESSIVE,
-                false, 3, 0, DamageType.PHYSICAL, 6, 0)
+    private FakeChar rat(String baseId, int index) {
+        FakeChar c = new FakeChar(this, baseId + "#" + index, "Cave Rat", "beast", false,
+                EnemyBehaviorType.AGGRESSIVE, false, 3, 0, DamageType.PHYSICAL, 6, 0)
                 .stat(StatType.STRENGTH, 8).stat(StatType.DEXTERITY, 9).stat(StatType.SPEED, 10)
                 .stat(StatType.LUCK, 2);
-        monsters.put(id, MonsterDef.builder(id, "Cave Rat").behavior(EnemyBehaviorType.AGGRESSIVE)
+        c.setPos(new GridPos(index, 0));   // placeholder position; engine overrides
+        monsters.put(baseId, MonsterDef.builder(baseId, "Cave Rat").behavior(EnemyBehaviorType.AGGRESSIVE)
                 .maxLp(6).attack(3).xp(20).gold(6).build());
         return c;
     }
