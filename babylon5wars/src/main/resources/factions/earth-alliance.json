@@ -1,0 +1,111 @@
+{
+  "_note": "APPROXIMATED, unverified vs rulebook",
+  "race": "EARTH_ALLIANCE",
+  "shipClasses": [
+    {
+      "id": "hyperion",
+      "name": "Hyperion Heavy Cruiser",
+      "race": "EARTH_ALLIANCE",
+      "points": 240,
+      "maxSpeed": 12,
+      "turnMode": 3,
+      "thrust": 8,
+      "power": 42,
+      "initiativeBonus": 2,
+      "crewQuality": 4,
+      "sensorRating": 5,
+      "ewRating": 4,
+      "defenseType": "ARMOR",
+      "armor": { "F": 6, "FR": 5, "BR": 4, "B": 4, "BL": 4, "FL": 5 },
+      "structure": { "FORE": 10, "AFT": 12, "PORT": 8, "STARBOARD": 8, "PRIMARY": 16 },
+      "weapons": [
+        {
+          "name": "Heavy Particle Beam",
+          "type": "PARTICLE_BEAM",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [10, 20, 30],
+          "baseToHit": 8,
+          "damage": { "count": 4, "sides": 6, "plus": 2 },
+          "reloadTurns": 0,
+          "traits": ["ARMOR_PIERCING"]
+        },
+        {
+          "name": "Medium Laser Cannon",
+          "type": "LASER",
+          "arc": ["F", "FR"],
+          "rangeBrackets": [8, 16, 24],
+          "baseToHit": 9,
+          "damage": { "count": 3, "sides": 6, "plus": 0 },
+          "reloadTurns": 0,
+          "traits": ["RAKING"]
+        },
+        {
+          "name": "Interceptor Grid",
+          "type": "INTERCEPTOR",
+          "arc": ["F", "FR", "BR", "B", "BL", "FL"],
+          "rangeBrackets": [3, 6, 9],
+          "baseToHit": 10,
+          "damage": { "count": 1, "sides": 6, "plus": 1 },
+          "reloadTurns": 0,
+          "traits": ["INTERCEPTOR"]
+        },
+        {
+          "name": "Missile Rack",
+          "type": "MISSILE",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [15, 30, 45],
+          "baseToHit": 11,
+          "damage": { "count": 4, "sides": 8, "plus": 0 },
+          "reloadTurns": 2,
+          "traits": ["GUIDED", "BALLISTIC"]
+        }
+      ],
+      "specials": [
+        { "id": "interceptors", "name": "Defensive Interceptors", "value": 4 },
+        { "id": "jump-engine", "name": "Jump Engine", "value": 1 }
+      ]
+    },
+    {
+      "id": "artemis",
+      "name": "Artemis Heavy Frigate",
+      "race": "EARTH_ALLIANCE",
+      "points": 145,
+      "maxSpeed": 14,
+      "turnMode": 2,
+      "thrust": 10,
+      "power": 28,
+      "initiativeBonus": 3,
+      "crewQuality": 4,
+      "sensorRating": 4,
+      "ewRating": 3,
+      "defenseType": "ARMOR",
+      "armor": { "F": 5, "FR": 4, "BR": 3, "B": 3, "BL": 3, "FL": 4 },
+      "structure": { "FORE": 7, "AFT": 8, "PORT": 6, "STARBOARD": 6, "PRIMARY": 10 },
+      "weapons": [
+        {
+          "name": "Twin Particle Array",
+          "type": "PARTICLE_BEAM",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [9, 18, 27],
+          "baseToHit": 9,
+          "damage": { "count": 3, "sides": 6, "plus": 1 },
+          "reloadTurns": 0,
+          "traits": ["ARMOR_PIERCING"]
+        },
+        {
+          "name": "Interceptor Grid",
+          "type": "INTERCEPTOR",
+          "arc": ["F", "FR", "BR", "B", "BL", "FL"],
+          "rangeBrackets": [3, 6, 9],
+          "baseToHit": 10,
+          "damage": { "count": 1, "sides": 6, "plus": 0 },
+          "reloadTurns": 0,
+          "traits": ["INTERCEPTOR"]
+        }
+      ],
+      "specials": [
+        { "id": "interceptors", "name": "Defensive Interceptors", "value": 3 }
+      ]
+    }
+  ]
+}
