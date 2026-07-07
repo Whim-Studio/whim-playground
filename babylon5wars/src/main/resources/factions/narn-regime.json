@@ -1,0 +1,111 @@
+{
+  "_note": "APPROXIMATED, unverified vs rulebook",
+  "race": "NARN_REGIME",
+  "shipClasses": [
+    {
+      "id": "gquan",
+      "name": "G'Quan Heavy Cruiser",
+      "race": "NARN_REGIME",
+      "points": 235,
+      "maxSpeed": 11,
+      "turnMode": 3,
+      "thrust": 7,
+      "power": 40,
+      "initiativeBonus": 1,
+      "crewQuality": 4,
+      "sensorRating": 4,
+      "ewRating": 3,
+      "defenseType": "ARMOR",
+      "armor": { "F": 6, "FR": 5, "BR": 5, "B": 4, "BL": 5, "FL": 5 },
+      "structure": { "FORE": 11, "AFT": 12, "PORT": 9, "STARBOARD": 9, "PRIMARY": 17 },
+      "weapons": [
+        {
+          "name": "Heavy Laser Cannon",
+          "type": "LASER",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [12, 24, 36],
+          "baseToHit": 8,
+          "damage": { "count": 4, "sides": 6, "plus": 1 },
+          "reloadTurns": 0,
+          "traits": ["ARMOR_PIERCING", "RAKING"]
+        },
+        {
+          "name": "Ion Torpedo Launcher",
+          "type": "ENERGY_MINE",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [18, 36, 54],
+          "baseToHit": 11,
+          "damage": { "count": 5, "sides": 8, "plus": 0 },
+          "reloadTurns": 3,
+          "traits": ["GUIDED", "BALLISTIC"]
+        },
+        {
+          "name": "Twin Particle Cannon",
+          "type": "PARTICLE_BEAM",
+          "arc": ["F", "FR", "BR"],
+          "rangeBrackets": [8, 16, 24],
+          "baseToHit": 9,
+          "damage": { "count": 2, "sides": 6, "plus": 2 },
+          "reloadTurns": 0,
+          "traits": []
+        },
+        {
+          "name": "Pulse Defense Battery",
+          "type": "INTERCEPTOR",
+          "arc": ["F", "FR", "BR", "B", "BL", "FL"],
+          "rangeBrackets": [3, 6, 9],
+          "baseToHit": 10,
+          "damage": { "count": 1, "sides": 6, "plus": 1 },
+          "reloadTurns": 0,
+          "traits": ["INTERCEPTOR"]
+        }
+      ],
+      "specials": [
+        { "id": "jump-engine", "name": "Jump Engine", "value": 1 },
+        { "id": "fighters", "name": "Frazi Fighter Bay", "value": 6 }
+      ]
+    },
+    {
+      "id": "thentus",
+      "name": "T'Loth Assault Cruiser",
+      "race": "NARN_REGIME",
+      "points": 210,
+      "maxSpeed": 10,
+      "turnMode": 4,
+      "thrust": 6,
+      "power": 36,
+      "initiativeBonus": 0,
+      "crewQuality": 4,
+      "sensorRating": 3,
+      "ewRating": 2,
+      "defenseType": "ARMOR",
+      "armor": { "F": 6, "FR": 6, "BR": 5, "B": 5, "BL": 5, "FL": 6 },
+      "structure": { "FORE": 12, "AFT": 13, "PORT": 10, "STARBOARD": 10, "PRIMARY": 18 },
+      "weapons": [
+        {
+          "name": "Heavy Ion Cannon",
+          "type": "ION_CANNON",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [10, 20, 30],
+          "baseToHit": 9,
+          "damage": { "count": 3, "sides": 6, "plus": 2 },
+          "reloadTurns": 0,
+          "traits": ["ARMOR_PIERCING"]
+        },
+        {
+          "name": "Energy Mine Launcher",
+          "type": "ENERGY_MINE",
+          "arc": ["FL", "F", "FR"],
+          "rangeBrackets": [16, 32, 48],
+          "baseToHit": 12,
+          "damage": { "count": 6, "sides": 6, "plus": 0 },
+          "reloadTurns": 4,
+          "traits": ["GUIDED", "BALLISTIC"]
+        }
+      ],
+      "specials": [
+        { "id": "fighters", "name": "Frazi Fighter Bay", "value": 12 }
+      ]
+    }
+  ]
+}
