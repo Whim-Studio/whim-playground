@@ -1,0 +1,6 @@
+# Build output
+out/
+target/
+# Render smoke artifacts
+out-render/
+*.class
