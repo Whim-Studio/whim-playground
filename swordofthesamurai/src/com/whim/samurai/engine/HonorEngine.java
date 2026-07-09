@@ -45,22 +45,32 @@ public final class HonorEngine {
         "Overlord of Provinces"
     };
 
-    /** Descriptive band for an honor value (~0..1000). See design ref §3. */
+    // Band cut-points calibrated to the campaign's actual honor/power economy
+    // (WorldGen seats a young samurai at honor~90/power~30; PoliticsEngine promotes
+    // at honor 150 -> hatamoto, 250/200 -> daimyo). Even division over 0..800 put a
+    // fresh, upstanding gokenin in the "Dishonored" band, which reads wrongly — so
+    // the lower bands are tightened to the range the game actually moves through.
+    // Cut-points are the lower bound (inclusive) of each successive band.
+    // honor: start 90 -> "Common"; hatamoto bar 150 -> "Respected"; daimyo bar 250 -> "Honorable".
+    private static final int[] HONOR_CUTS = { 0, 30, 60, 90, 140, 200, 280, 400, 600 };
+    // power: start 30 -> "Minor"; daimyo bar 200 -> "Formidable".
+    private static final int[] POWER_CUTS = { 0, 15, 60, 120, 200, 320, 480, 680 };
+
+    /** Descriptive band for an honor value. See design ref §3. */
     public static String honorBand(int honor) {
-        return band(honor, HONOR_BANDS);
+        return band(honor, HONOR_BANDS, HONOR_CUTS);
     }
 
-    /** Descriptive band for a power value (~0..1000). See design ref §3. */
+    /** Descriptive band for a power value. See design ref §3. */
     public static String powerBand(int power) {
-        return band(power, POWER_BANDS);
+        return band(power, POWER_BANDS, POWER_CUTS);
     }
 
-    private static String band(int value, String[] bands) {
-        if (value < 0) value = 0;
-        // Spread the bands across a 0..800 working range; anything above tops out.
-        int span = 800 / bands.length;               // approximation
-        int idx = value / Math.max(1, span);
-        if (idx >= bands.length) idx = bands.length - 1;
+    private static String band(int value, String[] bands, int[] cuts) {
+        int idx = 0;
+        for (int i = 0; i < cuts.length && i < bands.length; i++) {
+            if (value >= cuts[i]) idx = i;
+        }
         return bands[idx];
     }
 
