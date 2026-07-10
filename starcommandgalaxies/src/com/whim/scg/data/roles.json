@@ -1,0 +1,10 @@
+[
+  { "role": "CAPTAIN",     "title": "Captain",          "baseHp": 24 },
+  { "role": "PILOT",       "title": "Helm Pilot",       "baseHp": 20 },
+  { "role": "ENGINEER",    "title": "Engineer",         "baseHp": 22 },
+  { "role": "GUNNER",      "title": "Weapons Officer",  "baseHp": 22 },
+  { "role": "SHIELD_TECH", "title": "Shield Technician","baseHp": 20 },
+  { "role": "MEDIC",       "title": "Ship Medic",       "baseHp": 20 },
+  { "role": "SECURITY",    "title": "Security Marine",  "baseHp": 28 },
+  { "role": "SCIENCE",     "title": "Science Officer",  "baseHp": 18 }
+]

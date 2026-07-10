@@ -1,0 +1,8 @@
+[
+  { "id": "laser_mk1",    "name": "Pulse Laser I",   "type": "LASER",         "damage": 1, "chargeTicks": 8,  "power": 1, "cost": 0,   "piercesShields": false },
+  { "id": "laser_mk2",    "name": "Pulse Laser II",  "type": "LASER",         "damage": 2, "chargeTicks": 10, "power": 2, "cost": 220, "piercesShields": false },
+  { "id": "ion_mk1",      "name": "Ion Blaster",     "type": "ION",           "damage": 1, "chargeTicks": 9,  "power": 1, "cost": 180, "piercesShields": true  },
+  { "id": "torpedo_mk1",  "name": "Plasma Torpedo",  "type": "PLASMA_TORPEDO","damage": 3, "chargeTicks": 16, "power": 2, "cost": 320, "piercesShields": true  },
+  { "id": "missile_mk1",  "name": "Hornet Missile",  "type": "MISSILE",       "damage": 2, "chargeTicks": 13, "power": 1, "cost": 260, "piercesShields": true  },
+  { "id": "beam_mk1",     "name": "Halo Beam",       "type": "BEAM",          "damage": 2, "chargeTicks": 14, "power": 2, "cost": 380, "piercesShields": false }
+]

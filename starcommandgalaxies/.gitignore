@@ -1,0 +1,6 @@
+target/
+out/
+*.class
+saves/*.sav
+saves/*.json
+!saves/.gitkeep
