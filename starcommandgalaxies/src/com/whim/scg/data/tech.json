@@ -1,0 +1,9 @@
+[
+  { "type": "WEAPONS",    "name": "Weapon Systems",   "maxLevel": 4, "baseCost": 200 },
+  { "type": "SHIELDS",    "name": "Shield Emitters",  "maxLevel": 4, "baseCost": 200 },
+  { "type": "ENGINES",    "name": "Engine Output",    "maxLevel": 4, "baseCost": 180 },
+  { "type": "HULL",       "name": "Hull Plating",     "maxLevel": 4, "baseCost": 220 },
+  { "type": "MEDBAY",     "name": "Medbay",           "maxLevel": 3, "baseCost": 160 },
+  { "type": "TELEPORTER", "name": "Teleporter",       "maxLevel": 3, "baseCost": 240 },
+  { "type": "SENSORS",    "name": "Sensor Array",     "maxLevel": 3, "baseCost": 140 }
+]

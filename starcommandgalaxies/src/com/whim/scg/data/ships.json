@@ -1,0 +1,48 @@
+[
+  {
+    "id": "corvette", "name": "Kestrel Corvette", "faction": "FEDERATION",
+    "gridW": 8, "gridH": 6, "maxHull": 30, "reactor": 8, "cost": 0,
+    "weaponIds": ["laser_mk1", "ion_mk1"],
+    "rooms": [
+      { "type": "BRIDGE",     "w": 1, "h": 1, "maxPower": 0, "maxHp": 3 },
+      { "type": "ENGINES",    "w": 1, "h": 2, "maxPower": 3, "maxHp": 4 },
+      { "type": "WEAPONS",    "w": 1, "h": 2, "maxPower": 4, "maxHp": 4 },
+      { "type": "SHIELDS",    "w": 1, "h": 1, "maxPower": 4, "maxHp": 3 },
+      { "type": "MEDBAY",     "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "TELEPORTER", "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "OXYGEN",     "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "QUARTERS",   "w": 2, "h": 1, "maxPower": 0, "maxHp": 3 }
+    ]
+  },
+  {
+    "id": "cruiser", "name": "Vanguard Cruiser", "faction": "FEDERATION",
+    "gridW": 10, "gridH": 7, "maxHull": 45, "reactor": 12, "cost": 900,
+    "weaponIds": ["laser_mk2", "torpedo_mk1", "ion_mk1"],
+    "rooms": [
+      { "type": "BRIDGE",     "w": 1, "h": 1, "maxPower": 0, "maxHp": 4 },
+      { "type": "ENGINES",    "w": 2, "h": 2, "maxPower": 4, "maxHp": 5 },
+      { "type": "WEAPONS",    "w": 2, "h": 2, "maxPower": 6, "maxHp": 5 },
+      { "type": "SHIELDS",    "w": 1, "h": 2, "maxPower": 6, "maxHp": 4 },
+      { "type": "MEDBAY",     "w": 1, "h": 1, "maxPower": 3, "maxHp": 4 },
+      { "type": "TELEPORTER", "w": 1, "h": 1, "maxPower": 3, "maxHp": 3 },
+      { "type": "SENSORS",    "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "OXYGEN",     "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "QUARTERS",   "w": 2, "h": 1, "maxPower": 0, "maxHp": 3 },
+      { "type": "CARGO",      "w": 1, "h": 1, "maxPower": 0, "maxHp": 3 }
+    ]
+  },
+  {
+    "id": "raider", "name": "Corsair Raider", "faction": "PIRATE",
+    "gridW": 8, "gridH": 6, "maxHull": 26, "reactor": 8, "cost": 0,
+    "weaponIds": ["laser_mk1", "missile_mk1"],
+    "rooms": [
+      { "type": "BRIDGE",     "w": 1, "h": 1, "maxPower": 0, "maxHp": 3 },
+      { "type": "ENGINES",    "w": 1, "h": 2, "maxPower": 3, "maxHp": 4 },
+      { "type": "WEAPONS",    "w": 1, "h": 2, "maxPower": 4, "maxHp": 4 },
+      { "type": "SHIELDS",    "w": 1, "h": 1, "maxPower": 3, "maxHp": 3 },
+      { "type": "TELEPORTER", "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "OXYGEN",     "w": 1, "h": 1, "maxPower": 2, "maxHp": 3 },
+      { "type": "QUARTERS",   "w": 1, "h": 1, "maxPower": 0, "maxHp": 3 }
+    ]
+  }
+]
