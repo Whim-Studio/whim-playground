@@ -17,10 +17,10 @@ public final class Enums {
     public enum Mode {
         MENU,
         NAV, TACTICAL, ENGINEERING, POWER, COMMS, CARGO, PERSONNEL, FLIGHTDECK,
-        GAME_OVER;
+        GROUND, GAME_OVER;
 
-        /** True for the eight in-bridge consoles (everything but MENU/GAME_OVER). */
-        public boolean isConsole() { return this != MENU && this != GAME_OVER; }
+        /** True for the eight in-bridge consoles (not MENU/GROUND/GAME_OVER). */
+        public boolean isConsole() { return this != MENU && this != GAME_OVER && this != GROUND; }
     }
 
     /**

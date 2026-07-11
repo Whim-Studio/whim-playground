@@ -24,6 +24,16 @@ public final class CrewRoster {
         return m;
     }
 
+    /** Wipe the roster (used before restoring a save). */
+    public void clear() { crew.clear(); dnaVault.clear(); nextId = 1; }
+
+    /** Hire a crew member with restored vitals/position (used by save/load). */
+    public CrewMember hireLoaded(String name, int health, int fatigue, int hunger, ShipLocation loc) {
+        CrewMember m = hire(name);
+        m.loadState(health, fatigue, hunger, loc);
+        return m;
+    }
+
     public List<CrewMember> members() { return Collections.unmodifiableList(crew); }
     public int aliveCount() {
         int n = 0;

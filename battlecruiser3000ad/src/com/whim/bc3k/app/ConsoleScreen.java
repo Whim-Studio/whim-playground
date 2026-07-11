@@ -111,6 +111,9 @@ public final class ConsoleScreen implements Screen {
     private void drawNav(Graphics2D g, int x, int y, int w, int h, Views.GameView v) {
         Views.GalaxyView gal = v.galaxy();
         List<Views.SystemView> sys = gal.systems();
+        // Confine the star map to its panel so nodes/labels can't overflow the chrome.
+        java.awt.Shape oldClip = g.getClip();
+        g.clipRect(x - 4, y - 34, w + 8, h + 8);
         // links
         g.setStroke(new BasicStroke(1.2f));
         for (Views.SystemView a : sys) {
@@ -141,6 +144,7 @@ public final class ConsoleScreen implements Screen {
             UiKit.text(g, "[" + (i + 1) + "] " + reach.get(i).name(), x, ry, UiKit.BODY, Palette.INK);
             ry += 22;
         }
+        g.setClip(oldClip);
     }
 
     // ---- POWER (live) ----
@@ -207,6 +211,8 @@ public final class ConsoleScreen implements Screen {
         UiKit.bar(g, x + 60, y + 26, 300, 16, cb.enemyHull() / (double) cb.enemyMaxHull(), Palette.HULL, Palette.GRID);
         UiKit.text(g, "SHIELD", x, y + 66, UiKit.BODY, Palette.INK_DIM);
         UiKit.bar(g, x + 60, y + 54, 300, 16, cb.enemyShields() / (double) Math.max(1, cb.enemyMaxShields()), Palette.SHIELD, Palette.GRID);
+        UiKit.text(g, "FIGHTERS  you " + cb.playerFighters() + "  vs  enemy wing " + cb.enemyFighters()
+                + "   (launch fighters on FLIGHT DECK / F8)", x, y + 92, UiKit.BODY, Palette.INK_DIM);
         if (cb.over()) {
             UiKit.text(g, cb.playerWon() ? "ENEMY DESTROYED — press F1..F8 to stand down"
                     : "BATTLECRUISER LOST", x, y + 110, UiKit.H2, cb.playerWon() ? Palette.GOOD : Palette.BAD);
@@ -266,7 +272,8 @@ public final class ConsoleScreen implements Screen {
     // ---- FLIGHT DECK: craft complement ----
     private void drawFlightDeck(Graphics2D g, int x, int y, Views.GameView v) {
         List<Views.CraftView> craft = v.craft();
-        UiKit.text(g, "Up/Down select - L launch - R recall", x, y, UiKit.BODY, Palette.INK_DIM);
+        UiKit.text(g, "Up/Down select - L launch - R recall - D deploy ATVs to surface",
+                x, y, UiKit.BODY, Palette.INK_DIM);
         UiKit.text(g, "CRAFT        DOCKED   OUT   TOTAL", x, y + 28, UiKit.MONO, Palette.INK_DIM);
         int ry = y + 50;
         for (int i = 0; i < craft.size(); i++) {
@@ -348,6 +355,7 @@ public final class ConsoleScreen implements Screen {
                 else if (code == KeyEvent.VK_DOWN) cursor = (cursor + 1) % all.length;
                 else if (code == KeyEvent.VK_L) c.launchCraft(all[cursor % all.length]);
                 else if (code == KeyEvent.VK_R) c.recallCraft(all[cursor % all.length]);
+                else if (code == KeyEvent.VK_D) c.deployAtv();
                 break;
             }
             default: break;

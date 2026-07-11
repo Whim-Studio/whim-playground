@@ -39,6 +39,25 @@ public class CombatSimTest {
         assertTrue(player.shields() < shields0 || player.hull() < player.maxHull());
     }
 
+    @Test public void committedFightersDamageTheEnemyOverTime() {
+        ShipSystems player = new ShipSystems();
+        CombatSim c = new CombatSim(player, "Raider");
+        c.addPlayerFighters(4);
+        int enemyShield0 = c.enemy().shields();
+        for (int i = 0; i < 20; i++) c.tick(0.25);   // 5s of dogfight, no capital volleys fired
+        assertTrue(c.enemy().shields() < enemyShield0 || c.enemy().hull() < c.enemy().maxHull());
+    }
+
+    @Test public void fighterWingsAttriteEachOther() {
+        ShipSystems player = new ShipSystems();
+        CombatSim c = new CombatSim(player, "Raider");
+        c.addPlayerFighters(3);
+        int pf0 = c.playerFighters(), ef0 = c.enemyFighters();
+        for (int i = 0; i < 60; i++) c.tick(0.25);   // 15s
+        assertTrue(c.playerFighters() <= pf0);
+        assertTrue(c.enemyFighters() <= ef0);
+    }
+
     @Test public void higherWeaponPowerKillsFaster() {
         ShipSystems weak = new ShipSystems();
         ShipSystems strong = new ShipSystems();

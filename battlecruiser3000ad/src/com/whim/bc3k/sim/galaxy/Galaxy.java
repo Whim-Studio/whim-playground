@@ -58,6 +58,15 @@ public final class Galaxy {
         return true;
     }
 
+    /** Restore position directly (used by save/load; bypasses link checks). */
+    public void setCurrentUnchecked(int id) { if (byId(id) != null) currentId = id; }
+
+    /** Mark a system visited by id (used by save/load). */
+    public void markVisited(int id) {
+        StarSystemNode n = byId(id);
+        if (n != null) n.markVisited();
+    }
+
     /** Reachable neighbours from the current system. */
     public List<StarSystemNode> neighbours() {
         List<StarSystemNode> out = new ArrayList<StarSystemNode>();

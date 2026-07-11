@@ -6,17 +6,20 @@ import com.whim.bc3k.api.GameController;
 import com.whim.bc3k.api.Views;
 import com.whim.bc3k.sim.campaign.Campaign;
 import com.whim.bc3k.sim.combat.CombatSim;
+import com.whim.bc3k.sim.combat.GroundSkirmish;
 import com.whim.bc3k.sim.crew.CrewMember;
 import com.whim.bc3k.sim.crew.CrewRoster;
 import com.whim.bc3k.sim.crew.ShipLocation;
 import com.whim.bc3k.sim.galaxy.Galaxy;
 import com.whim.bc3k.sim.galaxy.StarSystemNode;
 import com.whim.bc3k.sim.ship.ShipSystems;
+import com.whim.bc3k.save.SaveManager;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * Phase 4 engine: binds the Phase 3 simulation modules (ship / crew / galaxy) and
@@ -40,11 +43,14 @@ public final class Engine implements GameController {
     private ShipSystems ship;
     private CrewRoster roster;
     private Galaxy galaxy;
-    private CombatSim combat;          // null unless a fight is active
+    private CombatSim combat;          // null unless a space fight is active
+    private GroundSkirmish ground;     // null unless a ground skirmish is active
     private Campaign campaign;         // null unless in Advanced Campaign mode
 
     private final GameViewImpl view = new GameViewImpl();
     private final List<String> log = new ArrayList<String>();
+    private final SaveManager saves = new SaveManager("saves");
+    private static final String AUTOSLOT = "auto";
 
     // logistics
     private int credits;
@@ -85,6 +91,7 @@ public final class Engine implements GameController {
         log.clear();
 
         combat = null;
+        ground = null;
         campaign = null;
         if (gm == Enums.GameMode.XTREME_CARNAGE) {
             combat = new CombatSim(ship, "Gammulan Raider");
@@ -99,6 +106,7 @@ public final class Engine implements GameController {
             }
             setMode(Enums.Mode.NAV);
         }
+        autosave();
     }
 
     private void seedCrew() {
@@ -126,14 +134,159 @@ public final class Engine implements GameController {
     @Override public void setMode(Enums.Mode m) { if (m != null) this.mode = m; }
     @Override public void togglePause() { paused = !paused; }
 
+    // ---- save / load ----
+
+    @Override public ActionResult save(String slot) {
+        if (!started) return ActionResult.fail("Nothing to save.");
+        if (saves.write(slot, snapshot())) { say("Game saved."); return ActionResult.ok("Saved."); }
+        return ActionResult.fail("Save failed (I/O).");
+    }
+
+    @Override public ActionResult load(String slot) {
+        Properties p = saves.read(slot);
+        if (p == null) return ActionResult.fail("No save in slot '" + slot + "'.");
+        restore(p);
+        say("Game loaded (" + gameMode.title() + ").");
+        return ActionResult.ok("Loaded.");
+    }
+
+    @Override public boolean hasSave(String slot) { return saves.exists(slot); }
+
+    private void autosave() { if (started) saves.write(AUTOSLOT, snapshot()); }
+
+    /** Serialize the full game state to a flat Properties map (public for round-trip testing). */
+    public Properties snapshot() {
+        Properties p = new Properties();
+        p.setProperty("version", "1");
+        p.setProperty("gameMode", gameMode.name());
+        p.setProperty("shipName", shipName);
+        p.setProperty("mode", mode.name());
+        p.setProperty("paused", Boolean.toString(paused));
+        p.setProperty("credits", Integer.toString(credits));
+        p.setProperty("fuel", Integer.toString(fuel));
+        p.setProperty("spareParts", Integer.toString(spareParts));
+        p.setProperty("ordnance", Integer.toString(ordnance));
+        p.setProperty("ship.hull", Integer.toString(ship.hull()));
+        p.setProperty("ship.shields", Integer.toString(ship.shields()));
+        p.setProperty("ship.reactorOnline", Boolean.toString(ship.reactorOnline()));
+        for (Enums.PowerSystem s : Enums.PowerSystem.values())
+            p.setProperty("ship.power." + s.name(), Integer.toString(ship.system(s).power()));
+        for (Enums.CraftType t : Enums.CraftType.values()) {
+            int[] c = craft.get(t);
+            p.setProperty("craft." + t.name() + ".total", Integer.toString(c[0]));
+            p.setProperty("craft." + t.name() + ".launched", Integer.toString(c[1]));
+        }
+        p.setProperty("galaxy.current", Integer.toString(galaxy.currentId()));
+        StringBuilder vis = new StringBuilder();
+        for (StarSystemNode n : galaxy.systems())
+            if (n.visited()) { if (vis.length() > 0) vis.append(','); vis.append(n.id()); }
+        p.setProperty("galaxy.visited", vis.toString());
+        p.setProperty("campaign.present", campaign == null ? "0" : "1");
+        if (campaign != null) {
+            p.setProperty("campaign.threat", Integer.toString(campaign.threat()));
+            p.setProperty("campaign.resolved", Integer.toString(campaign.resolvedCount()));
+        }
+        List<CrewMember> ms = roster.members();
+        p.setProperty("crew.count", Integer.toString(ms.size()));
+        for (int i = 0; i < ms.size(); i++) {
+            CrewMember m = ms.get(i);
+            p.setProperty("crew." + i + ".name", m.name());
+            p.setProperty("crew." + i + ".health", Integer.toString(m.health()));
+            p.setProperty("crew." + i + ".fatigue", Integer.toString(m.fatigue()));
+            p.setProperty("crew." + i + ".hunger", Integer.toString(m.hunger()));
+            p.setProperty("crew." + i + ".loc", m.location().name());
+        }
+        return p;
+    }
+
+    /** Rebuild the full game state from a snapshot (public for round-trip testing). */
+    public void restore(Properties p) {
+        gameMode = parseEnum(p.getProperty("gameMode"), Enums.GameMode.FREE_FLIGHT);
+        shipName = p.getProperty("shipName", "GCV Whimsy");
+        paused = Boolean.parseBoolean(p.getProperty("paused", "false"));
+        started = true;
+
+        credits = pi(p, "credits", 5000);
+        fuel = pi(p, "fuel", MAX_FUEL);
+        spareParts = pi(p, "spareParts", 0);
+        ordnance = pi(p, "ordnance", 0);
+
+        ship = new ShipSystems();
+        ship.setHull(pi(p, "ship.hull", ship.maxHull()));
+        ship.setShields(pi(p, "ship.shields", ship.maxShields()));
+        ship.setReactorOnline(Boolean.parseBoolean(p.getProperty("ship.reactorOnline", "true")));
+        for (Enums.PowerSystem s : Enums.PowerSystem.values())
+            ship.setPowerAbsolute(s, pi(p, "ship.power." + s.name(), ship.system(s).power()));
+
+        for (Enums.CraftType t : Enums.CraftType.values()) {
+            int[] c = craft.get(t);
+            if (c == null) { c = new int[2]; craft.put(t, c); }
+            c[0] = pi(p, "craft." + t.name() + ".total", c[0]);
+            c[1] = pi(p, "craft." + t.name() + ".launched", 0);
+        }
+
+        galaxy = Galaxy.defaultSector();
+        for (String id : p.getProperty("galaxy.visited", "").split(",")) {
+            if (!id.isEmpty()) galaxy.markVisited(Integer.parseInt(id.trim()));
+        }
+        galaxy.setCurrentUnchecked(pi(p, "galaxy.current", 0));
+
+        roster = new CrewRoster();
+        int n = pi(p, "crew.count", 0);
+        for (int i = 0; i < n; i++) {
+            roster.hireLoaded(
+                    p.getProperty("crew." + i + ".name", "Crew " + i),
+                    pi(p, "crew." + i + ".health", 100),
+                    pi(p, "crew." + i + ".fatigue", 0),
+                    pi(p, "crew." + i + ".hunger", 0),
+                    parseEnum(p.getProperty("crew." + i + ".loc"), ShipLocation.BRIDGE));
+        }
+
+        if ("1".equals(p.getProperty("campaign.present"))) {
+            campaign = new Campaign();
+            int res = pi(p, "campaign.resolved", 0);
+            campaign.loadState(pi(p, "campaign.threat", 20), res, res);
+        } else {
+            campaign = null;
+        }
+        // In-progress engagements aren't persisted; loading Xtreme Carnage re-arms a fresh raider.
+        combat = gameMode == Enums.GameMode.XTREME_CARNAGE ? new CombatSim(ship, "Gammulan Raider") : null;
+        ground = null;
+
+        mode = parseEnum(p.getProperty("mode"), Enums.Mode.NAV);
+        flash = "";
+        flashTtl = 0;
+    }
+
+    private static int pi(Properties p, String key, int dflt) {
+        try { return Integer.parseInt(p.getProperty(key, Integer.toString(dflt)).trim()); }
+        catch (NumberFormatException e) { return dflt; }
+    }
+    private static <E extends Enum<E>> E parseEnum(String name, E dflt) {
+        if (name == null) return dflt;
+        try { return Enum.valueOf(dflt.getDeclaringClass(), name.trim()); }
+        catch (IllegalArgumentException e) { return dflt; }
+    }
+
     // ---- simulation tick ----
 
     @Override public void tick(double dt) {
         if (!started) return;
         ship.tick(dt);
         roster.tick(dt);
+        // Critical hull damage scrams the reactor — the player must restart it (Shift+R).
+        if (ship.reactorOnline() && ship.hull() < ship.maxHull() * 0.15) {
+            ship.shutdownReactor();
+            say("Reactor breach! Core scrammed — restart with Shift+R.");
+        }
         if (flashTtl > 0) { flashTtl -= dt; if (flashTtl <= 0) flash = ""; }
         if (campaign != null) campaign.tick(dt);
+        if (ground != null && !ground.over()) {
+            ground.tick(dt);
+            if (ground.over()) say(ground.playerWon()
+                    ? "Ground forces cleared the LZ. ATVs returning."
+                    : "Ground detachment overrun. Survivors extracting.");
+        }
         if (combat != null && !combat.over()) {
             combat.tick(dt);
             if (combat.over()) {
@@ -190,6 +343,7 @@ public final class Engine implements GameController {
         galaxy.jumpTo(systemId);
         StarSystemNode n = galaxy.current();
         say("Jumped to " + n.name() + (n.hasStation() ? " (starstation in range)." : "."));
+        autosave();
         return ActionResult.ok("Arrived at " + n.name() + ".");
     }
 
@@ -257,6 +411,7 @@ public final class Engine implements GameController {
         if (campaign == null) return ActionResult.fail("Objectives only exist in Advanced Campaign mode.");
         campaign.resolveObjective();
         say("Objective complete. New orders: " + campaign.objective());
+        autosave();
         return ActionResult.ok("Objective resolved.");
     }
 
@@ -265,6 +420,8 @@ public final class Engine implements GameController {
         int[] c = craft.get(type);
         if (c[1] >= c[0]) return ActionResult.fail("No " + type.name().toLowerCase() + "s docked to launch.");
         c[1]++;
+        // A fighter launched mid-battle joins the dogfight.
+        if (type == Enums.CraftType.FIGHTER && combat != null && !combat.over()) combat.addPlayerFighters(1);
         say(type.name() + " launched (" + c[1] + "/" + c[0] + " out).");
         return ActionResult.ok(type.name() + " launched.");
     }
@@ -274,8 +431,27 @@ public final class Engine implements GameController {
         int[] c = craft.get(type);
         if (c[1] <= 0) return ActionResult.fail("No " + type.name().toLowerCase() + "s are out.");
         c[1]--;
+        if (type == Enums.CraftType.FIGHTER && combat != null && !combat.over()) combat.removePlayerFighters(1);
         say(type.name() + " recalled (" + c[1] + "/" + c[0] + " out).");
         return ActionResult.ok(type.name() + " recalled.");
+    }
+
+    @Override public ActionResult deployAtv() {
+        if (!started) return ActionResult.fail("No active game.");
+        int[] atv = craft.get(Enums.CraftType.ATV);
+        if (atv[0] <= 0) return ActionResult.fail("No ATVs aboard to deploy.");
+        if (ground != null && !ground.over()) return ActionResult.fail("Ground skirmish already underway.");
+        ground = new GroundSkirmish(atv[0]);
+        say("ATV detachment deployed to the surface. SPACE to assault.");
+        setMode(Enums.Mode.GROUND);
+        return ActionResult.ok("Ground skirmish started.");
+    }
+
+    @Override public ActionResult assaultGround() {
+        if (!started) return ActionResult.fail("No active game.");
+        if (ground == null || ground.over()) return ActionResult.fail("No active ground engagement.");
+        double dmg = ground.assault();
+        return ActionResult.ok("Assault (" + (int) dmg + " dmg).");
     }
 
     // ---- helpers ----
@@ -356,8 +532,19 @@ public final class Engine implements GameController {
         @Override public int enemyMaxHull() { return combat.enemy().maxHull(); }
         @Override public int enemyShields() { return combat.enemy().shields(); }
         @Override public int enemyMaxShields() { return combat.enemy().maxShields(); }
+        @Override public int playerFighters() { return combat.playerFighters(); }
+        @Override public int enemyFighters() { return combat.enemyFighters(); }
         @Override public boolean over() { return combat.over(); }
         @Override public boolean playerWon() { return combat.playerWon(); }
+    }
+
+    private final class GroundViewImpl implements Views.GroundView {
+        @Override public int playerHp() { return ground.playerHp(); }
+        @Override public int playerMaxHp() { return ground.playerMaxHp(); }
+        @Override public int enemyHp() { return ground.enemyHp(); }
+        @Override public int enemyMaxHp() { return ground.enemyMaxHp(); }
+        @Override public boolean over() { return ground.over(); }
+        @Override public boolean playerWon() { return ground.playerWon(); }
     }
 
     private final class CargoViewImpl implements Views.CargoView {
@@ -407,6 +594,9 @@ public final class Engine implements GameController {
         }
         @Override public Views.CombatView combat() {
             return combat == null ? null : new CombatViewImpl();
+        }
+        @Override public Views.GroundView ground() {
+            return ground == null ? null : new GroundViewImpl();
         }
         @Override public Views.CampaignView campaign() {
             return campaign == null ? null : new CampaignViewImpl();

@@ -49,7 +49,19 @@ public final class CrewMember {
     public int aptitude(Skill s) { return skills.get(s); }
 
     // ---- movement between named ship locations ----
-    public void orderTo(ShipLocation dest) { this.destination = dest; }
+    public void orderTo(ShipLocation dest) {
+        // Ordering to the current location is a no-op, not a perpetual "walking" state.
+        this.destination = (dest == location) ? null : dest;
+    }
+
+    /** Restore persisted vitals/position (used by save/load). */
+    public void loadState(int health, int fatigue, int hunger, ShipLocation loc) {
+        this.health = clamp(health, 0, 100);
+        this.fatigue = clamp(fatigue, 0, 100);
+        this.hunger = clamp(hunger, 0, 100);
+        this.location = loc;
+        this.destination = null;
+    }
 
     /** Advance one step: walk toward destination, and update needs. */
     public void tick(double dt) {

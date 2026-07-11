@@ -86,6 +86,14 @@ public final class ShipSystems {
         return true;
     }
 
+    // ---- save/load restore ----
+    public void setHull(int h) { hull = clamp(h, 0, MAX_HULL); }
+    public void setShields(int s) { shields = clamp(s, 0, MAX_SHIELDS); }
+    public void setReactorOnline(boolean online) { reactorOnline = online; }
+    public void setPowerAbsolute(Enums.PowerSystem s, int p) {
+        systems.get(s).power = (int) clamp(p, 0, MAX_PER_SYSTEM);
+    }
+
     public boolean restartReactor() {
         if (reactorOnline) return false;
         reactorOnline = true;

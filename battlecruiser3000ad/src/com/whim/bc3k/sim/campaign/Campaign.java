@@ -42,6 +42,13 @@ public final class Campaign {
         threat = clamp(threat - THREAT_RELIEF, 0, 100);
     }
 
+    /** Restore persisted campaign state (used by save/load). */
+    public void loadState(int threat, int objectiveIndex, int resolved) {
+        this.threat = clamp(threat, 0, 100);
+        this.objectiveIndex = Math.max(0, objectiveIndex);
+        this.resolved = Math.max(0, resolved);
+    }
+
     private static double clamp(double v, double lo, double hi) {
         return v < lo ? lo : (v > hi ? hi : v);
     }

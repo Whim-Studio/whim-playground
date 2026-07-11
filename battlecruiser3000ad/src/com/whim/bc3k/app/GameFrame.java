@@ -98,6 +98,7 @@ public final class GameFrame extends JFrame {
         }
 
         if (code == KeyEvent.VK_P) { controller.togglePause(); return true; }
+        if (code == KeyEvent.VK_F9) { controller.save("auto"); return true; }
 
         // Verified original shortcuts: Shift+R restart reactor, Ctrl+S request tow.
         if (code == KeyEvent.VK_R && e.isShiftDown()) { controller.restartReactor(); return true; }

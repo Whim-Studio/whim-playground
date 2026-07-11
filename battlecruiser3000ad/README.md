@@ -23,6 +23,22 @@ Runnable skeleton in place:
 - **Placeholder art:** procedural starfield + vector HUD; other consoles show a
   labelled placeholder body until their phase lands.
 
+## Status — Post-review (save/load + promoted combat)
+
+- **Save/load**: `save.SaveManager` persists a flat `Properties` snapshot per slot.
+  Autosaves to `auto` on new game / jump / objective; `F9` saves manually; the menu's
+  `[C] Continue` loads it. `Engine.snapshot()/restore()` round-trip the full state.
+- **Fighter combat**: launching a FIGHTER (FLIGHT DECK, `L`) during Xtreme Carnage now
+  commits it to a dogfight — wings attrite and strafe the enemy capital ship; TACTICAL
+  shows both wings.
+- **Ground combat**: FLIGHT DECK `D` deploys ATVs into a playable planetary skirmish on
+  a new GROUND screen (`SPACE` to assault; forces also trade fire over time).
+- **Review fixes folded in** (`/code-review` high pass, 6 findings): crew no longer sticks
+  in a phantom "walking" state (#3); enemy shields no longer self-decay (#4); combat now
+  degrades subsystems so ENG repair matters mid-fight (#5); a reactor scram on critical
+  hull makes the `Shift+R` restart meaningful (#1); the NAV star map is clipped to its
+  panel (#6). Per-frame view allocation (#2) is noted for later, not yet cached.
+
 ## Status — Phase 6 (Integration & Known-Issues)
 
 - All three modes distinct and playable: **Advanced Campaign** now has a live dynamic

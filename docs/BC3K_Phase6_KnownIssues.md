@@ -42,8 +42,10 @@ Treat "playable" claims as *design-complete and logic-traced*, not *executed*.
 3. **Combat is abstracted, not spatial.** Xtreme Carnage resolves as deterministic
    volley exchange (damage = weapon power × integrity) rather than 3D dogfighting with
    projectile flight, facing, and range. *Why:* keeps combat unit-testable and matches
-   the "practice combat" intent; **fighter dogfights and planetary/ATV ground combat
-   are represented only as launch/recall counts, not playable engagements** (biggest cut).
+   the "practice combat" intent. **Update (post-review):** fighter dogfights and
+   planetary/ATV ground combat are now *playable* — launched fighters attrite/strafe in
+   space combat, and `deployAtv()` starts a real `GroundSkirmish` on a dedicated screen.
+   Both remain HP-pool abstractions (no spatial movement), which is the remaining cut.
 
 4. **Advanced Campaign is a thin slice.** The original ACM was a sprawling dynamic sim of
    politics and fleet movement. Ours models one felt dynamic: a rising Gammulan **threat**
@@ -62,22 +64,37 @@ Treat "playable" claims as *design-complete and logic-traced*, not *executed*.
    not the DOS original. *Why:* the full original keymap was not recoverable from
    accessible sources.
 
-7. **No save/load, no sound.** Out of scope for v1. *Why:* not needed to demonstrate the
-   structure and loops; `saves/` and a `SaveManager` seam can be added like the sibling
-   projects in this repo.
+7. **No sound.** Out of scope for v1. **Save/load is now implemented** (`save.SaveManager`
+   + `Engine.snapshot()/restore()`, autosave + manual `F9` + menu Continue); an
+   in-progress fight/skirmish is not persisted (loading Xtreme Carnage re-arms a fresh
+   enemy). *Why:* transient combat state isn't worth the serialization surface for v1.
 
 8. **Numbers are design approximations.** Every magnitude (reactor 100 units, 15 fuel/jump,
    volley coefficients, need rates) is invented for balance and labelled as such — the
    original's exact values were not verifiable. *Why:* the no-fabrication rule.
 
+## Code-review dispositions (high-effort `/code-review`, 6 findings)
+
+- **#3 crew phantom-walk** — FIXED: `orderTo(currentLocation)` now clears the destination.
+- **#4 enemy shields self-decay** — FIXED: the enemy ship is no longer ticked, so shields
+  are static until damaged (no power-drain hack).
+- **#5 combat left subsystems untouched** — FIXED: volleys now target subsystems
+  (`WEAPONS`/`SHIELDS`), so ENGINEERING repair is meaningful mid-fight.
+- **#1 reactor never went offline** — FIXED: a critical-hull reactor scram now occurs,
+  making the verified `Shift+R` restart reachable.
+- **#6 NAV star map could overflow** — FIXED: the map is clipped to its panel.
+- **#2 per-frame view allocations** — OPEN (perf only): `crew()/craft()/galaxy().systems()`
+  allocate per render call; cache if profiling warrants. Not addressed yet.
+
 ## Known open items / follow-ups
 
 - **[compile]** Build & run `mvn test` on JDK 8 to confirm the recreation compiles and the
-  suite passes; fix any issues surfaced (none expected from tracing, but unverified here).
-- **[balance]** Free Flight shields out-regen enemy fire at default power; intentional
-  (player is tanky unless they divert power to weapons), but worth tuning after playtest.
-- **[content]** Enlarge the galaxy, add planets/moons and starstation services beyond refuel.
-- **[combat]** If desired later: promote fighter/ATV counts into actual playable engagements.
+  55 tests pass; fix anything surfaced (none expected from tracing, but unverified here).
+- **[balance]** Free Flight shields out-regen enemy fire at default power; intentional,
+  but worth tuning after playtest.
+- **[perf]** Cache the read-only view projections (review finding #2).
+- **[content]** Enlarge the galaxy; add planets/moons and starstation services beyond refuel.
+- **[combat]** Optional: give fighter/ground combat real spatial movement instead of HP pools.
 
 ## Package map (final)
 

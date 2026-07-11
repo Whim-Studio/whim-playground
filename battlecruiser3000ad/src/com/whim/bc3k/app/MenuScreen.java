@@ -14,6 +14,7 @@ import java.awt.event.KeyEvent;
 public final class MenuScreen implements Screen {
     private final GameController c;
     private final Starfield stars = new Starfield(220, 30L);
+    private String note = "";
 
     public MenuScreen(GameController c) { this.c = c; }
 
@@ -38,8 +39,12 @@ public final class MenuScreen implements Screen {
             UiKit.textCenter(g, modes[i].blurb(), cx, y + 22, UiKit.BODY, Palette.INK_DIM);
             y += 62;
         }
-        UiKit.textCenter(g, "[Q] Quit", cx, y + 4, UiKit.BODY, Palette.INK_DIM);
-        UiKit.textCenter(g, "In the bridge: F1-F8 switch consoles - P pauses - Esc returns here",
+        boolean canContinue = c.hasSave("auto");
+        UiKit.textCenter(g, "[C] Continue (load autosave)", cx, y + 4,
+                UiKit.BODY, canContinue ? Palette.INK : Palette.INK_DIM);
+        UiKit.textCenter(g, "[Q] Quit", cx, y + 26, UiKit.BODY, Palette.INK_DIM);
+        if (!note.isEmpty()) UiKit.textCenter(g, note, cx, y + 52, UiKit.BODY, Palette.ACCENT_WARM);
+        UiKit.textCenter(g, "In the bridge: F1-F8 switch consoles - F9 save - P pauses - Esc returns here",
                 cx, h - 40, UiKit.BODY, Palette.INK_DIM);
     }
 
@@ -48,6 +53,9 @@ public final class MenuScreen implements Screen {
             case KeyEvent.VK_1: c.newGame(Enums.GameMode.FREE_FLIGHT, "GCV Whimsy"); break;
             case KeyEvent.VK_2: c.newGame(Enums.GameMode.XTREME_CARNAGE, "GCV Whimsy"); break;
             case KeyEvent.VK_3: c.newGame(Enums.GameMode.CAMPAIGN, "GCV Whimsy"); break;
+            case KeyEvent.VK_C:
+                note = c.load("auto").message();   // engine restores mode; shell follows view().mode()
+                break;
             case KeyEvent.VK_Q: System.exit(0); break;
             default: break;
         }

@@ -23,7 +23,8 @@ public final class Views {
         List<CrewView> crew();
         CargoView cargo();
         List<CraftView> craft();
-        CombatView combat();        // null unless a combat is active
+        CombatView combat();        // null unless a space combat is active
+        GroundView ground();        // null unless a ground skirmish is active
         CampaignView campaign();    // null unless in Advanced Campaign mode
         List<String> log();
         String flash();             // transient mission banner, empty when idle
@@ -100,13 +101,25 @@ public final class Views {
         List<Integer> links();
     }
 
-    /** Xtreme Carnage combat snapshot. */
+    /** Xtreme Carnage space-combat snapshot. */
     public interface CombatView {
         String enemyName();
         int enemyHull();
         int enemyMaxHull();
         int enemyShields();
         int enemyMaxShields();
+        int playerFighters();       // fighters you have committed to the dogfight
+        int enemyFighters();        // enemy wing still flying
+        boolean over();
+        boolean playerWon();
+    }
+
+    /** Planetary ground/ATV skirmish snapshot. */
+    public interface GroundView {
+        int playerHp();
+        int playerMaxHp();
+        int enemyHp();
+        int enemyMaxHp();
         boolean over();
         boolean playerWon();
     }

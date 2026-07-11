@@ -28,6 +28,7 @@ public final class ScreenManager {
         this.controller = controller;
         screens.put(Enums.Mode.MENU, new MenuScreen(controller));
         screens.put(Enums.Mode.GAME_OVER, new EndScreen(controller));
+        screens.put(Enums.Mode.GROUND, new GroundScreen(controller));
         for (Enums.Mode m : CONSOLES) {
             screens.put(m, new ConsoleScreen(controller, m));
         }

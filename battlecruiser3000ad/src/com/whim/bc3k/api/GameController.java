@@ -17,6 +17,11 @@ public interface GameController {
     void tick(double dtSeconds);
     void togglePause();
 
+    // ---- save / load ----
+    ActionResult save(String slot);
+    ActionResult load(String slot);
+    boolean hasSave(String slot);
+
     // ---- power management (PWR console) ----
     ActionResult setPower(Enums.PowerSystem s, int delta);
 
@@ -34,6 +39,10 @@ public interface GameController {
 
     // ---- combat (TACTICAL console, Xtreme Carnage) ----
     ActionResult fireWeapons();                    // fire a volley at the enemy
+
+    // ---- ground combat (FLIGHT DECK -> GROUND screen) ----
+    ActionResult deployAtv();                      // start a planetary ground skirmish
+    ActionResult assaultGround();                  // order a ground assault burst
 
     // ---- logistics (CARGO console) ----
     ActionResult refuel();                         // refuel at a starstation
