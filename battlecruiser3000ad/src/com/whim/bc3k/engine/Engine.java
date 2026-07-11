@@ -518,11 +518,17 @@ public final class Engine implements GameController {
     }
 
     private final class GalaxyViewImpl implements Views.GalaxyView {
+        private Galaxy cachedFor;                      // rebuild the wrapper list only when galaxy changes
+        private List<Views.SystemView> cache;
         @Override public int currentId() { return galaxy.currentId(); }
         @Override public List<Views.SystemView> systems() {
-            List<Views.SystemView> out = new ArrayList<Views.SystemView>();
-            for (StarSystemNode n : galaxy.systems()) out.add(new SystemViewImpl(n));
-            return out;
+            if (cache == null || cachedFor != galaxy) {
+                cachedFor = galaxy;
+                List<Views.SystemView> out = new ArrayList<Views.SystemView>();
+                for (StarSystemNode n : galaxy.systems()) out.add(new SystemViewImpl(n));
+                cache = out;
+            }
+            return cache;
         }
     }
 
@@ -572,9 +578,18 @@ public final class Engine implements GameController {
     }
 
     private final class GameViewImpl implements Views.GameView {
+        // These wrappers are thin, live views over the model, so a single instance each
+        // can be reused every frame instead of allocating on the ~60 fps render path.
         private final ShipViewImpl shipView = new ShipViewImpl();
         private final GalaxyViewImpl galaxyView = new GalaxyViewImpl();
         private final CargoViewImpl cargoView = new CargoViewImpl();
+        private final CombatViewImpl combatView = new CombatViewImpl();
+        private final GroundViewImpl groundView = new GroundViewImpl();
+        private final CampaignViewImpl campaignView = new CampaignViewImpl();
+        private List<Views.CraftView> craftCache;             // craft set is fixed; build once
+        private CrewRoster crewCachedFor;                     // rebuild crew list on roster swap or growth
+        private int crewCachedSize = -1;
+        private List<Views.CrewView> crewCache;
         @Override public Enums.Mode mode() { return mode; }
         @Override public Enums.GameMode gameMode() { return gameMode; }
         @Override public boolean paused() { return paused; }
@@ -582,25 +597,27 @@ public final class Engine implements GameController {
         @Override public Views.ShipView ship() { return shipView; }
         @Override public Views.GalaxyView galaxy() { return galaxyView; }
         @Override public List<Views.CrewView> crew() {
-            List<Views.CrewView> out = new ArrayList<Views.CrewView>();
-            for (CrewMember m : roster.members()) out.add(new CrewViewImpl(m));
-            return out;
+            if (crewCache == null || crewCachedFor != roster || crewCachedSize != roster.size()) {
+                crewCachedFor = roster;
+                crewCachedSize = roster.size();
+                List<Views.CrewView> out = new ArrayList<Views.CrewView>();
+                for (CrewMember m : roster.members()) out.add(new CrewViewImpl(m));
+                crewCache = out;
+            }
+            return crewCache;
         }
         @Override public Views.CargoView cargo() { return cargoView; }
         @Override public List<Views.CraftView> craft() {
-            List<Views.CraftView> out = new ArrayList<Views.CraftView>();
-            for (Enums.CraftType t : Enums.CraftType.values()) out.add(new CraftViewImpl(t));
-            return out;
+            if (craftCache == null) {
+                List<Views.CraftView> out = new ArrayList<Views.CraftView>();
+                for (Enums.CraftType t : Enums.CraftType.values()) out.add(new CraftViewImpl(t));
+                craftCache = out;
+            }
+            return craftCache;
         }
-        @Override public Views.CombatView combat() {
-            return combat == null ? null : new CombatViewImpl();
-        }
-        @Override public Views.GroundView ground() {
-            return ground == null ? null : new GroundViewImpl();
-        }
-        @Override public Views.CampaignView campaign() {
-            return campaign == null ? null : new CampaignViewImpl();
-        }
+        @Override public Views.CombatView combat() { return combat == null ? null : combatView; }
+        @Override public Views.GroundView ground() { return ground == null ? null : groundView; }
+        @Override public Views.CampaignView campaign() { return campaign == null ? null : campaignView; }
         @Override public List<String> log() { return log; }
         @Override public String flash() { return flash; }
     }

@@ -35,6 +35,8 @@ public final class CrewRoster {
     }
 
     public List<CrewMember> members() { return Collections.unmodifiableList(crew); }
+    /** Total roster size (living + dead). Cheap; avoids allocating a view wrapper. */
+    public int size() { return crew.size(); }
     public int aliveCount() {
         int n = 0;
         for (CrewMember m : crew) if (m.alive()) n++;

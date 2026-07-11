@@ -37,7 +37,8 @@ Runnable skeleton in place:
   in a phantom "walking" state (#3); enemy shields no longer self-decay (#4); combat now
   degrades subsystems so ENG repair matters mid-fight (#5); a reactor scram on critical
   hull makes the `Shift+R` restart meaningful (#1); the NAV star map is clipped to its
-  panel (#6). Per-frame view allocation (#2) is noted for later, not yet cached.
+  panel (#6); view projections are now cached so the render path allocates nothing in
+  steady state (#2). All six findings addressed.
 
 ## Status — Phase 6 (Integration & Known-Issues)
 

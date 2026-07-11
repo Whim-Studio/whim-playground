@@ -83,8 +83,10 @@ Treat "playable" claims as *design-complete and logic-traced*, not *executed*.
 - **#1 reactor never went offline** — FIXED: a critical-hull reactor scram now occurs,
   making the verified `Shift+R` restart reachable.
 - **#6 NAV star map could overflow** — FIXED: the map is clipped to its panel.
-- **#2 per-frame view allocations** — OPEN (perf only): `crew()/craft()/galaxy().systems()`
-  allocate per render call; cache if profiling warrants. Not addressed yet.
+- **#2 per-frame view allocations** — FIXED: list projections (`crew()/craft()/
+  galaxy().systems()`) and the combat/ground/campaign wrappers are cached and reused;
+  they rebuild only when the underlying model container is swapped or the roster grows,
+  so the ~60 fps render path allocates nothing in steady state.
 
 ## Known open items / follow-ups
 
@@ -92,7 +94,6 @@ Treat "playable" claims as *design-complete and logic-traced*, not *executed*.
   55 tests pass; fix anything surfaced (none expected from tracing, but unverified here).
 - **[balance]** Free Flight shields out-regen enemy fire at default power; intentional,
   but worth tuning after playtest.
-- **[perf]** Cache the read-only view projections (review finding #2).
 - **[content]** Enlarge the galaxy; add planets/moons and starstation services beyond refuel.
 - **[combat]** Optional: give fighter/ground combat real spatial movement instead of HP pools.
 
