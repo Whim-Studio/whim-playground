@@ -10,3 +10,4 @@ coverage/
 # Java build output
 target/
 out/
+.docvenv/
