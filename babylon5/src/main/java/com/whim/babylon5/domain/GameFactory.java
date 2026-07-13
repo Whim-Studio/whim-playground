@@ -1,9 +1,12 @@
 package com.whim.babylon5.domain;
 
 import com.whim.babylon5.data.CardDatabase;
+import com.whim.babylon5.data.DeckStore;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds the standard single-player game: one human (index 0) plus exactly
@@ -60,16 +63,19 @@ public final class GameFactory {
 
         List<Card> pool = CardDatabase.forFaction(p.getFaction());
 
+        // The starting Ambassador always comes from the faction pool (never drawn),
+        // so the game is playable regardless of any custom deck.
         Card ambassador = null;
-        List<Card> deckCards = new ArrayList<Card>();
         for (Card def : pool) {
-            Card inPlay = CardDatabase.copyOf(def);
-            if (ambassador == null && inPlay.getType() == CardType.AMBASSADOR) {
-                ambassador = inPlay;          // first Ambassador becomes the starting one
-            } else {
-                deckCards.add(inPlay);
+            if (def.getType() == CardType.AMBASSADOR) {
+                ambassador = CardDatabase.copyOf(def);
+                break;
             }
         }
+
+        List<Card> deckCards = DeckStore.hasDeck(p.getFaction())
+                ? buildCustomDeck(p.getFaction())
+                : buildDefaultDeck(pool);
 
         // Place the Ambassador in the Inner Circle (rulebook: the Ambassador is
         // always a member of the faction's Inner Circle).
@@ -90,5 +96,37 @@ public final class GameFactory {
             if (drawn == null) break;
             hand.add(drawn);
         }
+    }
+
+    /** Default deck: one in-play copy of every non-Ambassador card in the faction pool. */
+    private static List<Card> buildDefaultDeck(List<Card> pool) {
+        List<Card> deck = new ArrayList<Card>();
+        for (Card def : pool) {
+            if (def.getType() != CardType.AMBASSADOR) {
+                deck.add(CardDatabase.copyOf(def));
+            }
+        }
+        return deck;
+    }
+
+    /**
+     * Custom deck: expand the faction's saved id-&gt;count list into in-play copies.
+     * Ambassadors are skipped (the starting Ambassador is placed separately) and
+     * unknown ids are ignored, so a stale deck can never break game creation.
+     */
+    private static List<Card> buildCustomDeck(FactionId faction) {
+        List<Card> deck = new ArrayList<Card>();
+        Map<String, Integer> counts = new LinkedHashMap<String, Integer>(DeckStore.deckFor(faction));
+        for (Map.Entry<String, Integer> e : counts.entrySet()) {
+            Card def = CardDatabase.byId(e.getKey());
+            if (def == null || def.getType() == CardType.AMBASSADOR) {
+                continue;
+            }
+            int n = e.getValue() == null ? 0 : e.getValue();
+            for (int i = 0; i < n; i++) {
+                deck.add(CardDatabase.copyOf(def));
+            }
+        }
+        return deck;
     }
 }

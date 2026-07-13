@@ -23,6 +23,7 @@ import javax.swing.SwingUtilities;
 import com.whim.babylon5.domain.Card;
 import com.whim.babylon5.domain.CardType;
 import com.whim.babylon5.domain.ConflictType;
+import com.whim.babylon5.domain.GameFactory;
 import com.whim.babylon5.domain.GameListener;
 import com.whim.babylon5.domain.GameState;
 import com.whim.babylon5.domain.Phase;
@@ -150,12 +151,31 @@ public final class MainWindow extends JFrame implements GameListener {
 
     private javax.swing.JMenuBar buildMenuBar() {
         javax.swing.JMenuBar bar = new javax.swing.JMenuBar();
+
+        javax.swing.JMenu game = new javax.swing.JMenu("Game");
+        javax.swing.JMenuItem newGame = new javax.swing.JMenuItem("New Game");
+        newGame.addActionListener(e -> newGame());
+        game.add(newGame);
+        bar.add(game);
+
         javax.swing.JMenu cards = new javax.swing.JMenu("Cards");
-        javax.swing.JMenuItem edit = new javax.swing.JMenuItem("Edit Cards…");
-        edit.addActionListener(e -> new CardEditorDialog(this).setVisible(true));
-        cards.add(edit);
+        javax.swing.JMenuItem editCards = new javax.swing.JMenuItem("Edit Cards…");
+        editCards.addActionListener(e -> new CardEditorDialog(this).setVisible(true));
+        javax.swing.JMenuItem deckBuilder = new javax.swing.JMenuItem("Deck Builder…");
+        deckBuilder.addActionListener(e -> new DeckEditorDialog(this).setVisible(true));
+        cards.add(editCards);
+        cards.add(deckBuilder);
         bar.add(cards);
         return bar;
+    }
+
+    /** Start a fresh standard game in a new window, applying any card/deck edits. */
+    private void newGame() {
+        GameState st = GameFactory.newStandardGame(System.currentTimeMillis());
+        MainWindow w = new MainWindow(new GameEngine(st));
+        dispose();
+        worker.shutdownNow();
+        w.start();
     }
 
     private JPanel buildSidebar() {
