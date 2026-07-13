@@ -349,6 +349,17 @@ public final class GameEngine {
         return result;
     }
 
+    /**
+     * Resolve a conflict declared by a player (the human/UI): the named target
+     * reflexively defends with its ready, type-capable cards, then the core math
+     * runs. Mirrors what {@link #runAiTurn} does for AI-initiated conflicts, so a
+     * human conflict is no longer resolved unopposed.
+     */
+    public ConflictResult resolvePlayerConflict(Conflict pending) {
+        commitOpposition(pending.getInitiator(), pending);
+        return resolveConflict(pending);
+    }
+
     /** Sum of each committed card's modified ability for the conflict type (neutralized = 0). */
     private int modifiedTotal(List<Card> cards, ConflictType t) {
         int total = 0;

@@ -11,8 +11,10 @@ import java.util.concurrent.Executors;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -210,7 +212,7 @@ public final class MainWindow extends JFrame implements GameListener {
                 onStateChanged();
             });
         });
-        conflictBtn.addActionListener(e -> submit(this::humanDeclareConflict));
+        conflictBtn.addActionListener(e -> chooseAndDeclareConflict());
         bar.add(advanceBtn);
         bar.add(sponsorBtn);
         bar.add(deployBtn);
@@ -259,33 +261,62 @@ public final class MainWindow extends JFrame implements GameListener {
         }
     }
 
-    /** Human declares a simple Diplomacy conflict from a ready Inner-Circle/Supporting card. */
-    private void humanDeclareConflict() {
+    /**
+     * Ask the human which conflict type to wage and against whom (EDT), then hand
+     * the resolution to the worker. Lets the player exploit deployed fleets
+     * (Military) or groups (Intrigue), not just Diplomacy.
+     */
+    private void chooseAndDeclareConflict() {
         int me = state.getActiveIndex();
-        Conflict c = new Conflict(me, ConflictType.DIPLOMACY, nextOpponent(me));
-        for (Card card : state.getActivePlayer().zone(ZoneType.SUPPORTING).getCards()) {
-            if (card.isReady() && engine.contributesToConflict(card)
-                    && card.support(ConflictType.DIPLOMACY) > 0) {
-                c.getSupport().add(card);
+        ConflictType[] types = ConflictType.values();
+        JComboBox<ConflictType> typeBox = new JComboBox<ConflictType>(types);
+
+        java.util.List<Integer> oppIdx = new java.util.ArrayList<Integer>();
+        java.util.List<String> oppNames = new java.util.ArrayList<String>();
+        for (int i = 0; i < state.getPlayers().size(); i++) {
+            if (i != me) {
+                oppIdx.add(i);
+                oppNames.add(state.getPlayers().get(i).getName());
             }
         }
-        for (Card card : state.getActivePlayer().zone(ZoneType.INNER_CIRCLE).getCards()) {
-            if (card.isReady() && engine.contributesToConflict(card)
-                    && card.support(ConflictType.DIPLOMACY) > 0) {
-                c.getSupport().add(card);
+        JComboBox<String> targetBox = new JComboBox<String>(oppNames.toArray(new String[0]));
+
+        JPanel panel = new JPanel(new java.awt.GridLayout(2, 2, 6, 6));
+        panel.add(new JLabel("Conflict type:"));
+        panel.add(typeBox);
+        panel.add(new JLabel("Target:"));
+        panel.add(targetBox);
+
+        int ok = JOptionPane.showConfirmDialog(this, panel, "Declare Conflict",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION) {
+            return;
+        }
+        final ConflictType type = (ConflictType) typeBox.getSelectedItem();
+        final int target = oppIdx.get(Math.max(0, targetBox.getSelectedIndex()));
+        submit(() -> humanDeclareConflict(type, target));
+    }
+
+    /** Commit the human's ready, type-capable cards to a chosen conflict and resolve it (defended). */
+    private void humanDeclareConflict(ConflictType type, int target) {
+        int me = state.getActiveIndex();
+        Conflict c = new Conflict(me, type, target);
+        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+            for (Card card : state.getActivePlayer().zone(zt).getCards()) {
+                if (card.isReady() && engine.contributesToConflict(card)
+                        && engine.effectiveAbility(card, type) > 0) {
+                    c.getSupport().add(card);
+                    card.setReady(false);
+                }
             }
         }
         if (c.getSupport().isEmpty()) {
-            appendLog("No ready characters to support a Diplomacy conflict.");
+            appendLog("No ready cards can wage a " + type + " conflict.");
             return;
         }
-        ConflictResult r = engine.resolveConflict(c);
+        ConflictResult r = engine.resolvePlayerConflict(c);
         appendLog(r.summary());
         onStateChanged();
-    }
-
-    private int nextOpponent(int me) {
-        return (me + 1) % state.getPlayers().size();
     }
 
     // ---- GameListener (called from worker; marshal to EDT) -------------------
