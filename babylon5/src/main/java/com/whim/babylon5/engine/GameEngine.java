@@ -249,6 +249,30 @@ public final class GameEngine {
         }
 
         Phase phase = state.getPhase();
+
+        // EVENT: a one-shot played in the Action round for an immediate effect,
+        // then discarded. Prototype ruling (card text is not scripted): an event
+        // buys tempo — draw a card, or gain 1 influence if the deck is empty.
+        if (card.getType() == CardType.EVENT) {
+            if (phase != Phase.ACTION) return false;
+            int ecost = card.getCost();
+            if (p.getInfluencePool() < ecost) return false;
+            p.adjustInfluencePool(-ecost);
+            p.zone(ZoneType.HAND).remove(card);
+            Card drawn = p.zone(ZoneType.DRAW_DECK).draw();
+            String effect;
+            if (drawn != null) {
+                p.zone(ZoneType.HAND).add(drawn);
+                effect = "draws a card";
+            } else {
+                p.adjustInfluencePool(1);
+                effect = "gains 1 influence";
+            }
+            p.zone(ZoneType.DISCARD).add(card);
+            log(p.getName() + " plays event " + card.getName() + " — " + effect);
+            fireStateChanged();
+            return true;
+        }
         ZoneType dest;
         String verb;
         switch (type) {
@@ -552,7 +576,8 @@ public final class GameEngine {
             CardType t = c.getType();
             boolean playable = resolution
                     ? (t == CardType.AFTERMATH)
-                    : (t == CardType.SUPPORT || t == CardType.LOCATION || t == CardType.AGENDA);
+                    : (t == CardType.SUPPORT || t == CardType.LOCATION
+                            || t == CardType.AGENDA || t == CardType.EVENT);
             if (!playable) {
                 continue;
             }

@@ -13,5 +13,6 @@ package com.whim.babylon5.domain;
  *  - AGENDA     : faction agenda cards.
  *  - LOCATION   : location cards (military opposition to war conflicts).
  *  - SUPPORT    : groups / fleets / enhancements — generic supporting cards.
+ *  - EVENT      : one-shot cards played for an immediate effect, then discarded.
  */
-public enum CardType { AMBASSADOR, CHARACTER, CONFLICT, AFTERMATH, AGENDA, LOCATION, SUPPORT }
+public enum CardType { AMBASSADOR, CHARACTER, CONFLICT, AFTERMATH, AGENDA, LOCATION, SUPPORT, EVENT }
