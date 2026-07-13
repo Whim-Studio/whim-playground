@@ -150,6 +150,11 @@ public final class GameEngine {
         }
         for (Card c : doomed) {
             supporting.remove(c);
+            // An attached enhancement is discarded along with its host.
+            for (Card e : c.getAttachments()) {
+                p.zone(ZoneType.DISCARD).add(e);
+            }
+            c.clearAttachments();
             p.zone(ZoneType.DISCARD).add(c);
         }
         // Step 3: draw one free card from the top of the draw deck (if any remain).
@@ -221,6 +226,152 @@ public final class GameEngine {
         return true;
     }
 
+    /**
+     * Play a non-character card from hand into the appropriate zone, dispatching by type:
+     * <ul>
+     *   <li><b>CHARACTER / AMBASSADOR</b> — routed to {@link #sponsorCharacter}.</li>
+     *   <li><b>SUPPORT / LOCATION</b> (fleets, groups, enhancements, locations) — pay the printed
+     *       cost and deploy into SUPPORTING, ready to commit to conflicts (they carry the same
+     *       D/I/P/M abilities as characters).</li>
+     *   <li><b>AGENDA</b> — pay the cost and enact into the INNER_CIRCLE as a persistent card that
+     *       adds to the faction's Power total (see {@link #powerBonus}). Enacted in the Action round.</li>
+     *   <li><b>AFTERMATH</b> — a Resolution-round reward: pay the cost and keep it in SUPPORTING as a
+     *       trophy that adds Power.</li>
+     * </ul>
+     * @return false (and no mutation) if the card can't be played now.
+     */
+    public boolean deployCard(int playerIndex, Card card) {
+        if (playerIndex < 0 || playerIndex >= state.getPlayers().size() || card == null) {
+            return false;
+        }
+        CardType type = card.getType();
+        if (type == CardType.CHARACTER || type == CardType.AMBASSADOR) {
+            return sponsorCharacter(playerIndex, card);
+        }
+        PlayerState p = state.getPlayers().get(playerIndex);
+        if (!p.zone(ZoneType.HAND).getCards().contains(card)) {
+            return false;
+        }
+
+        Phase phase = state.getPhase();
+
+        // EVENT: a one-shot played in the Action round for an immediate effect,
+        // then discarded. Prototype ruling (card text is not scripted): an event
+        // buys tempo — draw a card, or gain 1 influence if the deck is empty.
+        if (card.getType() == CardType.EVENT) {
+            if (phase != Phase.ACTION) return false;
+            int ecost = card.getCost();
+            if (p.getInfluencePool() < ecost) return false;
+            p.adjustInfluencePool(-ecost);
+            p.zone(ZoneType.HAND).remove(card);
+            Card drawn = p.zone(ZoneType.DRAW_DECK).draw();
+            String effect;
+            if (drawn != null) {
+                p.zone(ZoneType.HAND).add(drawn);
+                effect = "draws a card";
+            } else {
+                p.adjustInfluencePool(1);
+                effect = "gains 1 influence";
+            }
+            p.zone(ZoneType.DISCARD).add(card);
+            log(p.getName() + " plays event " + card.getName() + " — " + effect);
+            fireStateChanged();
+            return true;
+        }
+        ZoneType dest;
+        String verb;
+        switch (type) {
+            case SUPPORT:
+            case LOCATION:
+                if (phase != Phase.ACTION) return false;
+                dest = ZoneType.SUPPORTING;
+                verb = "deploys";
+                break;
+            case AGENDA:
+                if (phase != Phase.ACTION) return false;
+                dest = ZoneType.INNER_CIRCLE;
+                verb = "enacts agenda";
+                break;
+            case AFTERMATH:
+                if (phase != Phase.RESOLUTION) return false;
+                dest = ZoneType.SUPPORTING;
+                verb = "claims aftermath";
+                break;
+            default:
+                return false; // CONFLICT cards are declared, not deployed
+        }
+
+        int cost = card.getCost();
+        if (p.getInfluencePool() < cost) {
+            return false;
+        }
+        p.adjustInfluencePool(-cost);
+        p.zone(ZoneType.HAND).remove(card);
+        p.zone(dest).add(card);
+        card.setReady(true);
+
+        log(p.getName() + " " + verb + " " + card.getName()
+                + (cost > 0 ? " for " + cost + " influence" : ""));
+        fireStateChanged();
+        return true;
+    }
+
+    /**
+     * Attach an ENHANCEMENT from hand onto one of the player's in-play cards (Action round).
+     * The enhancement's ability ratings are added to the host in every conflict it wages
+     * (see {@link #effectiveAbility}). Paid for with influence like any other play.
+     *
+     * @return false (and no mutation) unless the enhancement is in hand, the host is a
+     *         conflict-capable card the player controls, and the cost can be paid.
+     */
+    public boolean attachEnhancement(int playerIndex, Card enhancement, Card host) {
+        if (playerIndex < 0 || playerIndex >= state.getPlayers().size()
+                || enhancement == null || host == null) {
+            return false;
+        }
+        if (state.getPhase() != Phase.ACTION || enhancement.getType() != CardType.ENHANCEMENT) {
+            return false;
+        }
+        PlayerState p = state.getPlayers().get(playerIndex);
+        if (!p.zone(ZoneType.HAND).getCards().contains(enhancement)) {
+            return false;
+        }
+        boolean hostInPlay = p.zone(ZoneType.INNER_CIRCLE).getCards().contains(host)
+                || p.zone(ZoneType.SUPPORTING).getCards().contains(host);
+        if (!hostInPlay || !contributesToConflict(host)) {
+            return false;
+        }
+        int cost = enhancement.getCost();
+        if (p.getInfluencePool() < cost) {
+            return false;
+        }
+        p.adjustInfluencePool(-cost);
+        p.zone(ZoneType.HAND).remove(enhancement);
+        host.attach(enhancement);
+        log(p.getName() + " attaches " + enhancement.getName() + " to " + host.getName()
+                + (cost > 0 ? " for " + cost + " influence" : ""));
+        fireStateChanged();
+        return true;
+    }
+
+    /**
+     * Whether a card type takes part in conflicts as support/opposition. Characters,
+     * ambassadors, deployed support and locations fight; agendas and aftermath trophies
+     * sit in play for their Power/effect but never commit to a conflict.
+     */
+    public boolean contributesToConflict(Card c) {
+        if (c == null) return false;
+        switch (c.getType()) {
+            case CHARACTER:
+            case AMBASSADOR:
+            case SUPPORT:
+            case LOCATION:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /** Rulebook: same-race/neutral cost = printed; different-race "loyal" cost = doubled. */
     public int sponsorCost(PlayerState p, Card character) {
         int cost = character.getCost();
@@ -265,6 +416,17 @@ public final class GameEngine {
         return result;
     }
 
+    /**
+     * Resolve a conflict declared by a player (the human/UI): the named target
+     * reflexively defends with its ready, type-capable cards, then the core math
+     * runs. Mirrors what {@link #runAiTurn} does for AI-initiated conflicts, so a
+     * human conflict is no longer resolved unopposed.
+     */
+    public ConflictResult resolvePlayerConflict(Conflict pending) {
+        commitOpposition(pending.getInitiator(), pending);
+        return resolveConflict(pending);
+    }
+
     /** Sum of each committed card's modified ability for the conflict type (neutralized = 0). */
     private int modifiedTotal(List<Card> cards, ConflictType t) {
         int total = 0;
@@ -274,12 +436,19 @@ public final class GameEngine {
         return total;
     }
 
-    /** A card's ability for this conflict after damage; 0 if neutralized or reduced below zero. */
+    /**
+     * A card's ability for this conflict after damage; 0 if neutralized or reduced below zero.
+     * Includes the ability ratings of any attached enhancements.
+     */
     public int effectiveAbility(Card c, ConflictType t) {
         if (isNeutralized(c)) {
             return 0;
         }
-        return Math.max(0, c.support(t) - c.getDamage());
+        int base = c.support(t);
+        for (Card e : c.getAttachments()) {
+            base += e.support(t);
+        }
+        return Math.max(0, base - c.getDamage());
     }
 
     private List<Card> applyFallout(List<Card> losers, int margin, ConflictType t) {
@@ -346,7 +515,16 @@ public final class GameEngine {
      * points to a player's Power total") and gives Task 1 a place to wire bonuses in.
      */
     private int powerBonus(PlayerState p) {
-        return 0;
+        int bonus = 0;
+        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+            for (Card c : p.zone(zt).getCards()) {
+                // Enacted agendas and claimed aftermath each add 1 point of Power.
+                if (c.getType() == CardType.AGENDA || c.getType() == CardType.AFTERMATH) {
+                    bonus += 1;
+                }
+            }
+        }
+        return bonus;
     }
 
     /**
@@ -413,20 +591,81 @@ public final class GameEngine {
         } catch (RuntimeException ex) {
             log("AI sponsor decision skipped: " + ex.getMessage());
         }
+        // Deploy affordable support / locations / agendas alongside sponsoring.
+        aiDeploy(playerIndex, false);
         if (pending != null) {
             commitSupport(brain, playerIndex, pending);
             commitOpposition(playerIndex, pending);
         }
         advancePhase(); // ACTION -> RESOLUTION
 
-        // RESOLUTION round (includes aftermath): resolve the conflict if one was initiated.
+        // RESOLUTION round (includes aftermath): resolve the conflict if one was initiated,
+        // then claim any affordable aftermath rewards.
         if (pending != null) {
             resolveConflict(pending);
         }
+        aiDeploy(playerIndex, true);
         advancePhase(); // RESOLUTION -> DRAW
 
         // DRAW round, then pass play onward.
         advancePhase(); // DRAW -> next player's READY
+    }
+
+    /**
+     * Greedy AI deployment: in the Action round, play every affordable SUPPORT / LOCATION /
+     * AGENDA in hand (cheapest first, so a turn buys as many as the pool allows); in the
+     * Resolution round, claim every affordable AFTERMATH. Purely additive — never blocks the turn.
+     */
+    private void aiDeploy(int playerIndex, boolean resolution) {
+        PlayerState p = state.getPlayers().get(playerIndex);
+        // Snapshot: deployCard mutates the hand as we go.
+        List<Card> hand = new ArrayList<Card>(p.zone(ZoneType.HAND).getCards());
+        // Cheapest first.
+        hand.sort((a, b) -> Integer.compare(a.getCost(), b.getCost()));
+        for (Card c : hand) {
+            CardType t = c.getType();
+            if (p.getInfluencePool() < c.getCost()) {
+                continue;
+            }
+            try {
+                if (!resolution && t == CardType.ENHANCEMENT) {
+                    Card host = bestEnhancementHost(p);
+                    if (host != null) {
+                        attachEnhancement(playerIndex, c, host);
+                    }
+                    continue;
+                }
+                boolean playable = resolution
+                        ? (t == CardType.AFTERMATH)
+                        : (t == CardType.SUPPORT || t == CardType.LOCATION
+                                || t == CardType.AGENDA || t == CardType.EVENT);
+                if (playable) {
+                    deployCard(playerIndex, c);
+                }
+            } catch (RuntimeException ex) {
+                log("AI deploy skipped: " + ex.getMessage());
+            }
+        }
+    }
+
+    /** The AI's preferred enhancement host: its highest-rated in-play conflict card. */
+    private Card bestEnhancementHost(PlayerState p) {
+        Card best = null;
+        int bestScore = -1;
+        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+            for (Card c : p.zone(zt).getCards()) {
+                if (!contributesToConflict(c)) {
+                    continue;
+                }
+                int score = Math.max(Math.max(c.getDiplomacy(), c.getIntrigue()),
+                        Math.max(c.getPsi(), c.getMilitary()));
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = c;
+                }
+            }
+        }
+        return best;
     }
 
     private Conflict safeChooseConflict(AIPlayer brain, int playerIndex) {
@@ -443,7 +682,7 @@ public final class GameEngine {
         PlayerState p = state.getPlayers().get(playerIndex);
         for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
             for (Card c : p.zone(zt).getCards()) {
-                if (!c.isReady() || isNeutralized(c)) {
+                if (!contributesToConflict(c) || !c.isReady() || isNeutralized(c)) {
                     continue;
                 }
                 if (effectiveAbility(c, pending.getType()) <= 0) {
@@ -471,7 +710,7 @@ public final class GameEngine {
         AIPlayer defBrain = aiFor(target);
         for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
             for (Card c : d.zone(zt).getCards()) {
-                if (!c.isReady() || isNeutralized(c)) {
+                if (!contributesToConflict(c) || !c.isReady() || isNeutralized(c)) {
                     continue;
                 }
                 if (effectiveAbility(c, pending.getType()) <= 0) {

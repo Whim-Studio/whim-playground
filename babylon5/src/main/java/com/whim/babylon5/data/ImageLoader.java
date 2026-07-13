@@ -48,6 +48,10 @@ public final class ImageLoader {
     private static final ConcurrentHashMap<String, Boolean> IN_FLIGHT =
             new ConcurrentHashMap<String, Boolean>();
 
+    /** urls that have permanently failed (404, non-image, network error). */
+    private static final ConcurrentHashMap<String, Boolean> FAILED =
+            new ConcurrentHashMap<String, Boolean>();
+
     private static final Image PLACEHOLDER = makePlaceholder();
 
     private static final ExecutorService POOL = Executors.newFixedThreadPool(
@@ -83,6 +87,29 @@ public final class ImageLoader {
         return PLACEHOLDER;
     }
 
+    /**
+     * Return the <em>real</em> loaded art for a URL, or {@code null} if it is not
+     * (yet) available — still loading, empty URL, or permanently failed. Kicks off
+     * an async load on first request. Unlike {@link #get(String)} this never
+     * returns the generic placeholder, so callers can render their own richer
+     * fallback (e.g. a faction-tinted card face) when art is unavailable.
+     */
+    public static Image getReal(String url) {
+        if (url == null || url.trim().isEmpty()) return null;
+        Image cached = MEMORY.get(url);
+        if (cached != null) return cached;
+        if (FAILED.containsKey(url)) return null;
+        if (IN_FLIGHT.putIfAbsent(url, Boolean.TRUE) == null) {
+            POOL.submit(new Loader(url));
+        }
+        return null;
+    }
+
+    /** True once a URL has been tried and could not be loaded. */
+    public static boolean hasFailed(String url) {
+        return url != null && FAILED.containsKey(url);
+    }
+
     public static void preload(Collection<String> urls) {
         if (urls == null) return;
         for (String u : urls) {
@@ -112,9 +139,11 @@ public final class ImageLoader {
                 }
                 if (img != null) {
                     MEMORY.put(url, img);
+                } else {
+                    FAILED.put(url, Boolean.TRUE); // 404 / non-image / unreachable
                 }
             } catch (Throwable t) {
-                // Leave the placeholder in place on any failure.
+                FAILED.put(url, Boolean.TRUE);
             } finally {
                 IN_FLIGHT.remove(url);
             }

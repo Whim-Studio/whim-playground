@@ -71,6 +71,14 @@ final class CardView extends JComponent {
         if (card.getText() != null && !card.getText().isEmpty()) {
             sb.append("<br><i>").append(esc(card.getText())).append("</i>");
         }
+        if (!card.getAttachments().isEmpty()) {
+            sb.append("<br><b>Enhancements:</b>");
+            for (Card e : card.getAttachments()) {
+                sb.append("<br>• ").append(esc(e.getName()))
+                  .append(" (D").append(e.getDiplomacy()).append("/I").append(e.getIntrigue())
+                  .append("/P").append(e.getPsi()).append("/M").append(e.getMilitary()).append(")");
+            }
+        }
         return sb.append("</html>").toString();
     }
 
@@ -90,11 +98,15 @@ final class CardView extends JComponent {
         g2.setColor(frame.darker());
         g2.fillRoundRect(3, 3, W - 7, H - 7, 10, 10);
 
-        // art window
+        // art window: real art if a host ever serves it, otherwise a
+        // faction-tinted panel showing the card type (the shipped card data
+        // carries no working art URLs, so this is the normal case).
         int ax = 8, ay = 22, aw = W - 16, ah = 92;
-        Image art = ImageLoader.get(card.getImageUrl());
+        Image art = ImageLoader.getReal(card.getImageUrl());
         if (art != null) {
             g2.drawImage(art, ax, ay, aw, ah, null);
+        } else {
+            paintArtFallback(g2, ax, ay, aw, ah, frame);
         }
         g2.setColor(new Color(0, 0, 0, 90));
         g2.drawRect(ax, ay, aw, ah);
@@ -123,6 +135,16 @@ final class CardView extends JComponent {
         g2.setFont(UiTheme.BODY.deriveFont(9f));
         g2.drawString(card.getType().toString(), 8, H - 8);
 
+        // attachment badge (enhancements pinned to this card)
+        int attached = card.getAttachments().size();
+        if (attached > 0) {
+            g2.setColor(UiTheme.OK);
+            g2.fillRoundRect(W - 26, H - 20, 20, 14, 8, 8);
+            g2.setColor(UiTheme.SPACE);
+            g2.setFont(UiTheme.MONO.deriveFont(10f));
+            g2.drawString("+" + attached, W - 23, H - 9);
+        }
+
         // in-play state: marked (exhausted) overlay + damage badge
         if (!card.isReady()) {
             g2.setColor(new Color(0, 0, 0, 120));
@@ -145,6 +167,29 @@ final class CardView extends JComponent {
             g2.drawRoundRect(2, 2, W - 5, H - 5, 12, 12);
         }
         g2.dispose();
+    }
+
+    /** A faction-tinted art panel used when no real card art is available. */
+    private void paintArtFallback(Graphics2D g2, int ax, int ay, int aw, int ah, Color frame) {
+        java.awt.Paint old = g2.getPaint();
+        g2.setPaint(new java.awt.GradientPaint(
+                ax, ay, frame.darker().darker(),
+                ax, ay + ah, frame.darker()));
+        g2.fillRect(ax, ay, aw, ah);
+        g2.setPaint(old);
+        // faint faction initial as a crest
+        String crest = card.getFaction().toString();
+        crest = crest.isEmpty() ? "?" : crest.substring(0, 1);
+        g2.setColor(new Color(255, 255, 255, 40));
+        g2.setFont(UiTheme.H1.deriveFont(46f));
+        int cw = g2.getFontMetrics().stringWidth(crest);
+        g2.drawString(crest, ax + (aw - cw) / 2, ay + ah / 2 + 16);
+        // card type caption
+        g2.setColor(new Color(235, 240, 255, 200));
+        g2.setFont(UiTheme.BODY.deriveFont(9f));
+        String ty = card.getType().toString();
+        int tw = g2.getFontMetrics().stringWidth(ty);
+        g2.drawString(ty, ax + (aw - tw) / 2, ay + ah - 6);
     }
 
     private void drawAttr(Graphics2D g2, int x, int y, String key, int val, ConflictType t) {

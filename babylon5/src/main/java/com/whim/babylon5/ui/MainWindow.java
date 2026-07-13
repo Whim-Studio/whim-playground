@@ -11,8 +11,10 @@ import java.util.concurrent.Executors;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -21,6 +23,7 @@ import javax.swing.SwingUtilities;
 import com.whim.babylon5.domain.Card;
 import com.whim.babylon5.domain.CardType;
 import com.whim.babylon5.domain.ConflictType;
+import com.whim.babylon5.domain.GameFactory;
 import com.whim.babylon5.domain.GameListener;
 import com.whim.babylon5.domain.GameState;
 import com.whim.babylon5.domain.Phase;
@@ -61,6 +64,7 @@ public final class MainWindow extends JFrame implements GameListener {
     private final JLabel centerLabel = new JLabel("", JLabel.CENTER);
     private final JButton advanceBtn = new JButton("Advance Phase ▶");
     private final JButton sponsorBtn = new JButton("Sponsor Selected");
+    private final JButton deployBtn = new JButton("Deploy Selected");
     private final JButton conflictBtn = new JButton("Declare Conflict");
 
     private Card selected;
@@ -95,6 +99,7 @@ public final class MainWindow extends JFrame implements GameListener {
     private void buildUi() {
         getContentPane().setBackground(UiTheme.SPACE);
         setLayout(new BorderLayout(8, 8));
+        setJMenuBar(buildMenuBar());
 
         JLabel title = new JLabel("BABYLON 5 — Collectible Card Game");
         title.setFont(UiTheme.H1);
@@ -144,6 +149,35 @@ public final class MainWindow extends JFrame implements GameListener {
         add(buildControls(), BorderLayout.SOUTH);
     }
 
+    private javax.swing.JMenuBar buildMenuBar() {
+        javax.swing.JMenuBar bar = new javax.swing.JMenuBar();
+
+        javax.swing.JMenu game = new javax.swing.JMenu("Game");
+        javax.swing.JMenuItem newGame = new javax.swing.JMenuItem("New Game");
+        newGame.addActionListener(e -> newGame());
+        game.add(newGame);
+        bar.add(game);
+
+        javax.swing.JMenu cards = new javax.swing.JMenu("Cards");
+        javax.swing.JMenuItem editCards = new javax.swing.JMenuItem("Edit Cards…");
+        editCards.addActionListener(e -> new CardEditorDialog(this).setVisible(true));
+        javax.swing.JMenuItem deckBuilder = new javax.swing.JMenuItem("Deck Builder…");
+        deckBuilder.addActionListener(e -> new DeckEditorDialog(this).setVisible(true));
+        cards.add(editCards);
+        cards.add(deckBuilder);
+        bar.add(cards);
+        return bar;
+    }
+
+    /** Start a fresh standard game in a new window, applying any card/deck edits. */
+    private void newGame() {
+        GameState st = GameFactory.newStandardGame(System.currentTimeMillis());
+        MainWindow w = new MainWindow(new GameEngine(st));
+        dispose();
+        worker.shutdownNow();
+        w.start();
+    }
+
     private JPanel buildSidebar() {
         log.setEditable(false);
         log.setBackground(UiTheme.PANEL);
@@ -166,6 +200,7 @@ public final class MainWindow extends JFrame implements GameListener {
         bar.setBackground(UiTheme.PANEL);
         styleButton(advanceBtn);
         styleButton(sponsorBtn);
+        styleButton(deployBtn);
         styleButton(conflictBtn);
         advanceBtn.addActionListener(e -> submit(() -> {
             engine.advancePhase();
@@ -184,14 +219,62 @@ public final class MainWindow extends JFrame implements GameListener {
                 onStateChanged();
             });
         });
-        conflictBtn.addActionListener(e -> submit(this::humanDeclareConflict));
+        deployBtn.addActionListener(e -> deploySelected());
+        conflictBtn.addActionListener(e -> chooseAndDeclareConflict());
         bar.add(advanceBtn);
         bar.add(sponsorBtn);
+        bar.add(deployBtn);
         bar.add(conflictBtn);
-        JLabel hint = new JLabel("  Sponsor in ACTION · declare conflicts in CONFLICT · AI plays itself");
+        JLabel hint = new JLabel("  Sponsor/Deploy in ACTION · aftermath in RESOLUTION · conflicts in CONFLICT · AI plays itself");
         hint.setForeground(UiTheme.INK_DIM);
         bar.add(hint);
         return bar;
+    }
+
+    /**
+     * Play the selected hand card. Enhancements prompt (on the EDT) for an in-play
+     * host to attach to; everything else routes to {@link GameEngine#deployCard}.
+     */
+    private void deploySelected() {
+        final Card c = selected;
+        if (c == null) {
+            appendLog("Select a card in your hand first.");
+            return;
+        }
+        if (c.getType() == CardType.ENHANCEMENT) {
+            PlayerState me = state.getActivePlayer();
+            java.util.List<Card> hosts = new java.util.ArrayList<Card>();
+            for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+                for (Card h : me.zone(zt).getCards()) {
+                    if (engine.contributesToConflict(h)) {
+                        hosts.add(h);
+                    }
+                }
+            }
+            if (hosts.isEmpty()) {
+                appendLog("No in-play card to attach " + c.getName() + " to (sponsor a character first).");
+                return;
+            }
+            Card host = (Card) JOptionPane.showInputDialog(this,
+                    "Attach " + c.getName() + " to which card?", "Attach Enhancement",
+                    JOptionPane.PLAIN_MESSAGE, null, hosts.toArray(new Card[0]), hosts.get(0));
+            if (host == null) {
+                return; // cancelled
+            }
+            submit(() -> {
+                boolean ok = engine.attachEnhancement(state.getActiveIndex(), c, host);
+                appendLog(ok ? "Attached " + c.getName() + " to " + host.getName() + "."
+                             : "Cannot attach " + c.getName() + " now (cost/phase).");
+                onStateChanged();
+            });
+            return;
+        }
+        submit(() -> {
+            boolean ok = engine.deployCard(state.getActiveIndex(), c);
+            appendLog(ok ? "Played " + c.getName() + " (" + c.getType() + ")."
+                         : "Cannot play " + c.getName() + " now (cost/phase/type).");
+            onStateChanged();
+        });
     }
 
     // ---- Worker-thread game actions ------------------------------------------
@@ -232,31 +315,62 @@ public final class MainWindow extends JFrame implements GameListener {
         }
     }
 
-    /** Human declares a simple Diplomacy conflict from a ready Inner-Circle/Supporting card. */
-    private void humanDeclareConflict() {
+    /**
+     * Ask the human which conflict type to wage and against whom (EDT), then hand
+     * the resolution to the worker. Lets the player exploit deployed fleets
+     * (Military) or groups (Intrigue), not just Diplomacy.
+     */
+    private void chooseAndDeclareConflict() {
         int me = state.getActiveIndex();
-        Conflict c = new Conflict(me, ConflictType.DIPLOMACY, nextOpponent(me));
-        for (Card card : state.getActivePlayer().zone(ZoneType.SUPPORTING).getCards()) {
-            if (card.isReady() && card.support(ConflictType.DIPLOMACY) > 0) {
-                c.getSupport().add(card);
+        ConflictType[] types = ConflictType.values();
+        JComboBox<ConflictType> typeBox = new JComboBox<ConflictType>(types);
+
+        java.util.List<Integer> oppIdx = new java.util.ArrayList<Integer>();
+        java.util.List<String> oppNames = new java.util.ArrayList<String>();
+        for (int i = 0; i < state.getPlayers().size(); i++) {
+            if (i != me) {
+                oppIdx.add(i);
+                oppNames.add(state.getPlayers().get(i).getName());
             }
         }
-        for (Card card : state.getActivePlayer().zone(ZoneType.INNER_CIRCLE).getCards()) {
-            if (card.isReady() && card.support(ConflictType.DIPLOMACY) > 0) {
-                c.getSupport().add(card);
+        JComboBox<String> targetBox = new JComboBox<String>(oppNames.toArray(new String[0]));
+
+        JPanel panel = new JPanel(new java.awt.GridLayout(2, 2, 6, 6));
+        panel.add(new JLabel("Conflict type:"));
+        panel.add(typeBox);
+        panel.add(new JLabel("Target:"));
+        panel.add(targetBox);
+
+        int ok = JOptionPane.showConfirmDialog(this, panel, "Declare Conflict",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION) {
+            return;
+        }
+        final ConflictType type = (ConflictType) typeBox.getSelectedItem();
+        final int target = oppIdx.get(Math.max(0, targetBox.getSelectedIndex()));
+        submit(() -> humanDeclareConflict(type, target));
+    }
+
+    /** Commit the human's ready, type-capable cards to a chosen conflict and resolve it (defended). */
+    private void humanDeclareConflict(ConflictType type, int target) {
+        int me = state.getActiveIndex();
+        Conflict c = new Conflict(me, type, target);
+        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+            for (Card card : state.getActivePlayer().zone(zt).getCards()) {
+                if (card.isReady() && engine.contributesToConflict(card)
+                        && engine.effectiveAbility(card, type) > 0) {
+                    c.getSupport().add(card);
+                    card.setReady(false);
+                }
             }
         }
         if (c.getSupport().isEmpty()) {
-            appendLog("No ready characters to support a Diplomacy conflict.");
+            appendLog("No ready cards can wage a " + type + " conflict.");
             return;
         }
-        ConflictResult r = engine.resolveConflict(c);
+        ConflictResult r = engine.resolvePlayerConflict(c);
         appendLog(r.summary());
         onStateChanged();
-    }
-
-    private int nextOpponent(int me) {
-        return (me + 1) % state.getPlayers().size();
     }
 
     // ---- GameListener (called from worker; marshal to EDT) -------------------
@@ -320,6 +434,8 @@ public final class MainWindow extends JFrame implements GameListener {
         boolean myTurn = active != null && active.isHuman();
         advanceBtn.setEnabled(myTurn);
         sponsorBtn.setEnabled(myTurn && state.getPhase() == Phase.ACTION);
+        deployBtn.setEnabled(myTurn
+                && (state.getPhase() == Phase.ACTION || state.getPhase() == Phase.RESOLUTION));
         conflictBtn.setEnabled(myTurn && state.getPhase() == Phase.CONFLICT);
 
         revalidate();

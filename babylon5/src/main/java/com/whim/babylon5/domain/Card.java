@@ -29,6 +29,8 @@ public final class Card {
     // ---- mutable in-play physical state ----
     private boolean ready = true;
     private int damage = 0;
+    /** Enhancement cards attached to this card while it is in play. */
+    private final java.util.List<Card> attachments = new java.util.ArrayList<Card>();
 
     public Card(String id, String name, CardType type, FactionId faction, int cost,
                 int influence, int diplomacy, int intrigue, int psi, int military,
@@ -88,6 +90,18 @@ public final class Card {
     public void addDamage(int d) { this.damage += d; }
 
     public void clearDamage() { this.damage = 0; }
+
+    /** Enhancement cards attached to this card (live view; empty for a fresh copy). */
+    public java.util.List<Card> getAttachments() { return attachments; }
+
+    /** Attach an enhancement to this card while it is in play. */
+    public void attach(Card enhancement) {
+        if (enhancement != null) {
+            attachments.add(enhancement);
+        }
+    }
+
+    public void clearAttachments() { attachments.clear(); }
 
     @Override
     public String toString() {
