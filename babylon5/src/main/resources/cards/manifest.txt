@@ -1,8 +1,9 @@
 # CardDatabase manifest — one JSON filename per line (relative to cards/).
 # Lines starting with '#' and blank lines are ignored. Keep this in sync when
 # adding card files so loading works from a packaged jar (not just exploded).
-premiere-ambassadors.json
-premiere-characters.json
-premiere-conflicts.json
-premiere-aftermath.json
-deluxe-cards.json
+#
+# Full Premiere + Deluxe card lists, merged from the uploaded card data.
+# Sponsor `cost` is computed; hand-correct any value via the in-app Card Editor
+# (menu: Cards ▸ Edit Cards…). User edits persist to ~/.babylon5/card-overrides.json.
+premiere-full.json
+deluxe-full.json

@@ -95,6 +95,7 @@ public final class MainWindow extends JFrame implements GameListener {
     private void buildUi() {
         getContentPane().setBackground(UiTheme.SPACE);
         setLayout(new BorderLayout(8, 8));
+        setJMenuBar(buildMenuBar());
 
         JLabel title = new JLabel("BABYLON 5 — Collectible Card Game");
         title.setFont(UiTheme.H1);
@@ -142,6 +143,16 @@ public final class MainWindow extends JFrame implements GameListener {
 
         add(buildSidebar(), BorderLayout.EAST);
         add(buildControls(), BorderLayout.SOUTH);
+    }
+
+    private javax.swing.JMenuBar buildMenuBar() {
+        javax.swing.JMenuBar bar = new javax.swing.JMenuBar();
+        javax.swing.JMenu cards = new javax.swing.JMenu("Cards");
+        javax.swing.JMenuItem edit = new javax.swing.JMenuItem("Edit Cards…");
+        edit.addActionListener(e -> new CardEditorDialog(this).setVisible(true));
+        cards.add(edit);
+        bar.add(cards);
+        return bar;
     }
 
     private JPanel buildSidebar() {
