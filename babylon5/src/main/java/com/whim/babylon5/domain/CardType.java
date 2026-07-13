@@ -12,7 +12,8 @@ package com.whim.babylon5.domain;
  *  - AFTERMATH  : aftermath cards played in the Resolution round.
  *  - AGENDA     : faction agenda cards.
  *  - LOCATION   : location cards (military opposition to war conflicts).
- *  - SUPPORT    : groups / fleets / enhancements — generic supporting cards.
+ *  - SUPPORT    : groups / fleets — generic supporting cards that fight conflicts.
  *  - EVENT      : one-shot cards played for an immediate effect, then discarded.
+ *  - ENHANCEMENT: attaches to a card in play, adding its ability ratings to the host.
  */
-public enum CardType { AMBASSADOR, CHARACTER, CONFLICT, AFTERMATH, AGENDA, LOCATION, SUPPORT, EVENT }
+public enum CardType { AMBASSADOR, CHARACTER, CONFLICT, AFTERMATH, AGENDA, LOCATION, SUPPORT, EVENT, ENHANCEMENT }

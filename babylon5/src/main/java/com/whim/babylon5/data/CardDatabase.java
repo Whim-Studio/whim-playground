@@ -82,6 +82,7 @@ public final class CardDatabase {
                 c.getPsi(), c.getMilitary(), c.getText(), c.getImageUrl());
         copy.setReady(true);
         copy.clearDamage();
+        copy.clearAttachments();
         return copy;
     }
 

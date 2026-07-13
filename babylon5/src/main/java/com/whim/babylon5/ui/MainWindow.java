@@ -199,19 +199,7 @@ public final class MainWindow extends JFrame implements GameListener {
                 onStateChanged();
             });
         });
-        deployBtn.addActionListener(e -> {
-            final Card c = selected;
-            if (c == null) {
-                appendLog("Select a card in your hand first.");
-                return;
-            }
-            submit(() -> {
-                boolean ok = engine.deployCard(state.getActiveIndex(), c);
-                appendLog(ok ? "Played " + c.getName() + " (" + c.getType() + ")."
-                             : "Cannot play " + c.getName() + " now (cost/phase/type).");
-                onStateChanged();
-            });
-        });
+        deployBtn.addActionListener(e -> deploySelected());
         conflictBtn.addActionListener(e -> chooseAndDeclareConflict());
         bar.add(advanceBtn);
         bar.add(sponsorBtn);
@@ -221,6 +209,52 @@ public final class MainWindow extends JFrame implements GameListener {
         hint.setForeground(UiTheme.INK_DIM);
         bar.add(hint);
         return bar;
+    }
+
+    /**
+     * Play the selected hand card. Enhancements prompt (on the EDT) for an in-play
+     * host to attach to; everything else routes to {@link GameEngine#deployCard}.
+     */
+    private void deploySelected() {
+        final Card c = selected;
+        if (c == null) {
+            appendLog("Select a card in your hand first.");
+            return;
+        }
+        if (c.getType() == CardType.ENHANCEMENT) {
+            PlayerState me = state.getActivePlayer();
+            java.util.List<Card> hosts = new java.util.ArrayList<Card>();
+            for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+                for (Card h : me.zone(zt).getCards()) {
+                    if (engine.contributesToConflict(h)) {
+                        hosts.add(h);
+                    }
+                }
+            }
+            if (hosts.isEmpty()) {
+                appendLog("No in-play card to attach " + c.getName() + " to (sponsor a character first).");
+                return;
+            }
+            Card host = (Card) JOptionPane.showInputDialog(this,
+                    "Attach " + c.getName() + " to which card?", "Attach Enhancement",
+                    JOptionPane.PLAIN_MESSAGE, null, hosts.toArray(new Card[0]), hosts.get(0));
+            if (host == null) {
+                return; // cancelled
+            }
+            submit(() -> {
+                boolean ok = engine.attachEnhancement(state.getActiveIndex(), c, host);
+                appendLog(ok ? "Attached " + c.getName() + " to " + host.getName() + "."
+                             : "Cannot attach " + c.getName() + " now (cost/phase).");
+                onStateChanged();
+            });
+            return;
+        }
+        submit(() -> {
+            boolean ok = engine.deployCard(state.getActiveIndex(), c);
+            appendLog(ok ? "Played " + c.getName() + " (" + c.getType() + ")."
+                         : "Cannot play " + c.getName() + " now (cost/phase/type).");
+            onStateChanged();
+        });
     }
 
     // ---- Worker-thread game actions ------------------------------------------

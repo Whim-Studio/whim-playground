@@ -71,6 +71,14 @@ final class CardView extends JComponent {
         if (card.getText() != null && !card.getText().isEmpty()) {
             sb.append("<br><i>").append(esc(card.getText())).append("</i>");
         }
+        if (!card.getAttachments().isEmpty()) {
+            sb.append("<br><b>Enhancements:</b>");
+            for (Card e : card.getAttachments()) {
+                sb.append("<br>• ").append(esc(e.getName()))
+                  .append(" (D").append(e.getDiplomacy()).append("/I").append(e.getIntrigue())
+                  .append("/P").append(e.getPsi()).append("/M").append(e.getMilitary()).append(")");
+            }
+        }
         return sb.append("</html>").toString();
     }
 
@@ -126,6 +134,16 @@ final class CardView extends JComponent {
         g2.setColor(UiTheme.INK_DIM);
         g2.setFont(UiTheme.BODY.deriveFont(9f));
         g2.drawString(card.getType().toString(), 8, H - 8);
+
+        // attachment badge (enhancements pinned to this card)
+        int attached = card.getAttachments().size();
+        if (attached > 0) {
+            g2.setColor(UiTheme.OK);
+            g2.fillRoundRect(W - 26, H - 20, 20, 14, 8, 8);
+            g2.setColor(UiTheme.SPACE);
+            g2.setFont(UiTheme.MONO.deriveFont(10f));
+            g2.drawString("+" + attached, W - 23, H - 9);
+        }
 
         // in-play state: marked (exhausted) overlay + damage badge
         if (!card.isReady()) {
