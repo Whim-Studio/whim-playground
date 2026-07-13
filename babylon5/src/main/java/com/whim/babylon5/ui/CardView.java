@@ -90,11 +90,15 @@ final class CardView extends JComponent {
         g2.setColor(frame.darker());
         g2.fillRoundRect(3, 3, W - 7, H - 7, 10, 10);
 
-        // art window
+        // art window: real art if a host ever serves it, otherwise a
+        // faction-tinted panel showing the card type (the shipped card data
+        // carries no working art URLs, so this is the normal case).
         int ax = 8, ay = 22, aw = W - 16, ah = 92;
-        Image art = ImageLoader.get(card.getImageUrl());
+        Image art = ImageLoader.getReal(card.getImageUrl());
         if (art != null) {
             g2.drawImage(art, ax, ay, aw, ah, null);
+        } else {
+            paintArtFallback(g2, ax, ay, aw, ah, frame);
         }
         g2.setColor(new Color(0, 0, 0, 90));
         g2.drawRect(ax, ay, aw, ah);
@@ -145,6 +149,29 @@ final class CardView extends JComponent {
             g2.drawRoundRect(2, 2, W - 5, H - 5, 12, 12);
         }
         g2.dispose();
+    }
+
+    /** A faction-tinted art panel used when no real card art is available. */
+    private void paintArtFallback(Graphics2D g2, int ax, int ay, int aw, int ah, Color frame) {
+        java.awt.Paint old = g2.getPaint();
+        g2.setPaint(new java.awt.GradientPaint(
+                ax, ay, frame.darker().darker(),
+                ax, ay + ah, frame.darker()));
+        g2.fillRect(ax, ay, aw, ah);
+        g2.setPaint(old);
+        // faint faction initial as a crest
+        String crest = card.getFaction().toString();
+        crest = crest.isEmpty() ? "?" : crest.substring(0, 1);
+        g2.setColor(new Color(255, 255, 255, 40));
+        g2.setFont(UiTheme.H1.deriveFont(46f));
+        int cw = g2.getFontMetrics().stringWidth(crest);
+        g2.drawString(crest, ax + (aw - cw) / 2, ay + ah / 2 + 16);
+        // card type caption
+        g2.setColor(new Color(235, 240, 255, 200));
+        g2.setFont(UiTheme.BODY.deriveFont(9f));
+        String ty = card.getType().toString();
+        int tw = g2.getFontMetrics().stringWidth(ty);
+        g2.drawString(ty, ax + (aw - tw) / 2, ay + ah - 6);
     }
 
     private void drawAttr(Graphics2D g2, int x, int y, String key, int val, ConflictType t) {

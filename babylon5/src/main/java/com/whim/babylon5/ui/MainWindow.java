@@ -61,6 +61,7 @@ public final class MainWindow extends JFrame implements GameListener {
     private final JLabel centerLabel = new JLabel("", JLabel.CENTER);
     private final JButton advanceBtn = new JButton("Advance Phase ▶");
     private final JButton sponsorBtn = new JButton("Sponsor Selected");
+    private final JButton deployBtn = new JButton("Deploy Selected");
     private final JButton conflictBtn = new JButton("Declare Conflict");
 
     private Card selected;
@@ -177,6 +178,7 @@ public final class MainWindow extends JFrame implements GameListener {
         bar.setBackground(UiTheme.PANEL);
         styleButton(advanceBtn);
         styleButton(sponsorBtn);
+        styleButton(deployBtn);
         styleButton(conflictBtn);
         advanceBtn.addActionListener(e -> submit(() -> {
             engine.advancePhase();
@@ -195,11 +197,25 @@ public final class MainWindow extends JFrame implements GameListener {
                 onStateChanged();
             });
         });
+        deployBtn.addActionListener(e -> {
+            final Card c = selected;
+            if (c == null) {
+                appendLog("Select a card in your hand first.");
+                return;
+            }
+            submit(() -> {
+                boolean ok = engine.deployCard(state.getActiveIndex(), c);
+                appendLog(ok ? "Played " + c.getName() + " (" + c.getType() + ")."
+                             : "Cannot play " + c.getName() + " now (cost/phase/type).");
+                onStateChanged();
+            });
+        });
         conflictBtn.addActionListener(e -> submit(this::humanDeclareConflict));
         bar.add(advanceBtn);
         bar.add(sponsorBtn);
+        bar.add(deployBtn);
         bar.add(conflictBtn);
-        JLabel hint = new JLabel("  Sponsor in ACTION · declare conflicts in CONFLICT · AI plays itself");
+        JLabel hint = new JLabel("  Sponsor/Deploy in ACTION · aftermath in RESOLUTION · conflicts in CONFLICT · AI plays itself");
         hint.setForeground(UiTheme.INK_DIM);
         bar.add(hint);
         return bar;
@@ -248,12 +264,14 @@ public final class MainWindow extends JFrame implements GameListener {
         int me = state.getActiveIndex();
         Conflict c = new Conflict(me, ConflictType.DIPLOMACY, nextOpponent(me));
         for (Card card : state.getActivePlayer().zone(ZoneType.SUPPORTING).getCards()) {
-            if (card.isReady() && card.support(ConflictType.DIPLOMACY) > 0) {
+            if (card.isReady() && engine.contributesToConflict(card)
+                    && card.support(ConflictType.DIPLOMACY) > 0) {
                 c.getSupport().add(card);
             }
         }
         for (Card card : state.getActivePlayer().zone(ZoneType.INNER_CIRCLE).getCards()) {
-            if (card.isReady() && card.support(ConflictType.DIPLOMACY) > 0) {
+            if (card.isReady() && engine.contributesToConflict(card)
+                    && card.support(ConflictType.DIPLOMACY) > 0) {
                 c.getSupport().add(card);
             }
         }
@@ -331,6 +349,8 @@ public final class MainWindow extends JFrame implements GameListener {
         boolean myTurn = active != null && active.isHuman();
         advanceBtn.setEnabled(myTurn);
         sponsorBtn.setEnabled(myTurn && state.getPhase() == Phase.ACTION);
+        deployBtn.setEnabled(myTurn
+                && (state.getPhase() == Phase.ACTION || state.getPhase() == Phase.RESOLUTION));
         conflictBtn.setEnabled(myTurn && state.getPhase() == Phase.CONFLICT);
 
         revalidate();
