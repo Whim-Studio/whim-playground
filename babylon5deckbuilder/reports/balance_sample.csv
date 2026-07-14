@@ -1,0 +1,10 @@
+# ILLUSTRATIVE PLACEHOLDER — shows report shape only, not from an executed run.
+# Regenerate with: --sim --games 1000 --players 4 --seed 42 --ai hard
+faction,wins,games,win_rate,within_target_band
+NARN_REGIME,268,1000,0.2680,true
+CENTAURI_REPUBLIC,241,1000,0.2410,true
+MINBARI_FEDERATION,262,1000,0.2620,true
+EARTH_ALLIANCE,229,1000,0.2290,true
+# avg_turns,34.10
+# min_turns,22
+# max_turns,71

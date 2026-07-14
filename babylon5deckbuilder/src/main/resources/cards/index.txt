@@ -1,0 +1,4 @@
+# Bundled card catalogue files, one filename per line (comments start with #).
+# Drop additional *.json files into assets/cards/ (external) to extend the market
+# without editing this list.
+cards.json
