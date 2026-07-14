@@ -16,11 +16,14 @@ import javax.swing.KeyStroke;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.whim.stars.app.DemoGalaxy;
+import com.whim.stars.app.GalaxyFactory;
+import com.whim.stars.app.GameSetup;
 import com.whim.stars.io.SaveGame;
 import com.whim.stars.model.Galaxy;
 import com.whim.stars.model.Planet;
 import com.whim.stars.model.Player;
 import com.whim.stars.sim.TurnEngine;
+import com.whim.stars.sim.ai.SimpleAi;
 
 /**
  * The application's main window: menu bar, the {@link GalaxyMapPanel} in the
@@ -118,11 +121,82 @@ public final class MainWindow extends JFrame {
         game.addSeparator();
         game.add(exit);
         bar.add(game);
+
+        JMenu commands = new JMenu("Commands");
+        JMenuItem research = new JMenuItem("Research…");
+        research.setAccelerator(KeyStroke.getKeyStroke("F5"));
+        research.addActionListener(e -> openResearch());
+        JMenuItem designs = new JMenuItem("Ship Designs…");
+        designs.addActionListener(e -> openDesigns());
+        JMenuItem production = new JMenuItem("Production (selected planet)…");
+        production.addActionListener(e -> openProduction());
+        JMenuItem fleets = new JMenuItem("Fleets…");
+        fleets.addActionListener(e -> openFleets());
+        JMenuItem planets = new JMenuItem("Planet Report…");
+        planets.addActionListener(e -> openPlanetReport());
+        JMenuItem relations = new JMenuItem("Relations / Battle Plans…");
+        relations.addActionListener(e -> openRelations());
+        commands.add(research);
+        commands.add(designs);
+        commands.add(production);
+        commands.add(fleets);
+        commands.add(planets);
+        commands.addSeparator();
+        commands.add(relations);
+        bar.add(commands);
         return bar;
+    }
+
+    // --- Command screens -------------------------------------------------------
+    private void openResearch() {
+        new ResearchDialog(this, human).setVisible(true);
+        commandPanel.refreshResearchControls();
+        afterModelChange();
+    }
+
+    private void openDesigns() {
+        new ShipDesignDialog(this, human).setVisible(true);
+        afterModelChange();
+    }
+
+    private void openProduction() {
+        Planet sel = mapPanel.selected();
+        if (sel == null || sel.ownerId() != human.id()) {
+            JOptionPane.showMessageDialog(this,
+                    "Select one of your planets on the map first.",
+                    "Production", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        new ProductionDialog(this, human, sel).setVisible(true);
+        afterModelChange();
+    }
+
+    private void openFleets() {
+        new FleetDialog(this, galaxy, human).setVisible(true);
+        afterModelChange();
+    }
+
+    private void openPlanetReport() {
+        new PlanetReportDialog(this, galaxy, human).setVisible(true);
+    }
+
+    private void openRelations() {
+        new RelationsDialog(this, galaxy, human).setVisible(true);
+    }
+
+    /** Repaint views after a dialog may have edited the model. */
+    private void afterModelChange() {
+        Planet sel = mapPanel.selected();
+        if (sel != null) {
+            commandPanel.showPlanet(galaxy.planet(sel.id()));
+        }
+        mapPanel.repaint();
+        updateStatus();
     }
 
     private void generateTurn() {
         int before = galaxy.year();
+        new SimpleAi(galaxy).planAll(); // AI issues its orders, then the turn resolves
         new TurnEngine(galaxy).generateTurn();
         commandPanel.log("Year " + before + " → " + galaxy.year()
                 + ": " + galaxy.planetsOf(human).size() + " planets, "
@@ -137,7 +211,11 @@ public final class MainWindow extends JFrame {
     }
 
     private void newGame() {
-        installGalaxy(DemoGalaxy.build(System.nanoTime()));
+        GameSetup setup = new NewGameDialog(this).showDialog();
+        if (setup == null) {
+            return; // cancelled
+        }
+        installGalaxy(GalaxyFactory.build(setup));
         currentFile = null;
     }
 

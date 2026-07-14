@@ -118,4 +118,18 @@ public final class Catalogue {
         d.place(2, MOLE_SKIN);
         return d;
     }
+
+    /** Fresh instances of every catalogue hull — for the ship-design screen. */
+    public static java.util.List<HullType> hulls() {
+        return java.util.Arrays.asList(
+                scoutHull(), colonyHull(), frigateHull(), destroyerHull(),
+                smallFreighterHull(), spaceStationHull());
+    }
+
+    /** Every catalogue component — for populating slot pickers. */
+    public static java.util.List<Component> components() {
+        return java.util.Arrays.asList(
+                QUICK_JUMP_5, LONG_HUMP_6, TRITANIUM, MOLE_SKIN, LASER, X_RAY,
+                BAT_SCANNER, FUEL_TANK, COLONIZATION_MODULE, CARGO_POD);
+    }
 }
