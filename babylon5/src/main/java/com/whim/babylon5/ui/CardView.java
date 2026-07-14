@@ -68,6 +68,12 @@ final class CardView extends JComponent {
                 .append(" / I ").append(card.getIntrigue())
                 .append(" / P ").append(card.getPsi())
                 .append(" / M ").append(card.getMilitary());
+        if (card.getType() == com.whim.babylon5.domain.CardType.CONFLICT && card.getConflictType() != null) {
+            sb.append("<br><b>").append(card.getConflictType()).append(" conflict</b>");
+            if (card.getInfluenceReward() > 0) {
+                sb.append(" — winner gains ").append(card.getInfluenceReward()).append(" Influence");
+            }
+        }
         if (card.getText() != null && !card.getText().isEmpty()) {
             sb.append("<br><i>").append(esc(card.getText())).append("</i>");
         }
@@ -123,12 +129,26 @@ final class CardView extends JComponent {
         g2.setFont(UiTheme.H2.deriveFont(11f));
         g2.drawString(String.valueOf(card.getCost()), W - 18, 16);
 
-        // attribute strip D / I / P / M
         int sy = ay + ah + 14;
-        drawAttr(g2, 10,        sy, "D", card.getDiplomacy(), ConflictType.DIPLOMACY);
-        drawAttr(g2, 10 + 27,   sy, "I", card.getIntrigue(),  ConflictType.INTRIGUE);
-        drawAttr(g2, 10 + 54,   sy, "P", card.getPsi(),       ConflictType.PSI);
-        drawAttr(g2, 10 + 81,   sy, "M", card.getMilitary(),  ConflictType.MILITARY);
+        if (card.getType() == com.whim.babylon5.domain.CardType.CONFLICT
+                && card.getConflictType() != null) {
+            // Conflict cards have no D/I/P/M of their own — show their discipline + reward.
+            ConflictType ct = card.getConflictType();
+            g2.setColor(UiTheme.conflictColor(ct));
+            g2.setFont(UiTheme.H2.deriveFont(11f));
+            g2.drawString("⚔ " + ct, 8, sy);
+            if (card.getInfluenceReward() > 0) {
+                g2.setColor(UiTheme.GOLD);
+                g2.setFont(UiTheme.MONO.deriveFont(10f));
+                g2.drawString("win +" + card.getInfluenceReward() + " Inf", 8, sy + 14);
+            }
+        } else {
+            // attribute strip D / I / P / M
+            drawAttr(g2, 10,        sy, "D", card.getDiplomacy(), ConflictType.DIPLOMACY);
+            drawAttr(g2, 10 + 27,   sy, "I", card.getIntrigue(),  ConflictType.INTRIGUE);
+            drawAttr(g2, 10 + 54,   sy, "P", card.getPsi(),       ConflictType.PSI);
+            drawAttr(g2, 10 + 81,   sy, "M", card.getMilitary(),  ConflictType.MILITARY);
+        }
 
         // type label
         g2.setColor(UiTheme.INK_DIM);

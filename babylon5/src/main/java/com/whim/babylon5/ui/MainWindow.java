@@ -225,7 +225,7 @@ public final class MainWindow extends JFrame implements GameListener {
         bar.add(sponsorBtn);
         bar.add(deployBtn);
         bar.add(conflictBtn);
-        JLabel hint = new JLabel("  Sponsor/Deploy in ACTION · aftermath in RESOLUTION · conflicts in CONFLICT · AI plays itself");
+        JLabel hint = new JLabel("  CONFLICT: play a conflict card (1/turn) · ACTION: sponsor/deploy to bolster it · it resolves in RESOLUTION · AI plays itself");
         hint.setForeground(UiTheme.INK_DIM);
         bar.add(hint);
         return bar;
@@ -316,14 +316,38 @@ public final class MainWindow extends JFrame implements GameListener {
     }
 
     /**
-     * Ask the human which conflict type to wage and against whom (EDT), then hand
-     * the resolution to the worker. Lets the player exploit deployed fleets
-     * (Military) or groups (Intrigue), not just Diplomacy.
+     * Ask the human which conflict card (or conflict-granting agenda) to initiate with and
+     * against whom (EDT), then hand the declaration to the worker. Rulebook: a conflict must
+     * be initiated by a conflict card or an agenda, at most one per turn, and its discipline
+     * is fixed by the card. Declared conflicts resolve during the Resolution round.
      */
     private void chooseAndDeclareConflict() {
         int me = state.getActiveIndex();
-        ConflictType[] types = ConflictType.values();
-        JComboBox<ConflictType> typeBox = new JComboBox<ConflictType>(types);
+        if (state.getActivePlayer().hasInitiatedConflictThisTurn()) {
+            appendLog("You have already initiated a conflict this turn (one per turn).");
+            return;
+        }
+
+        // Legal initiators: conflict cards in hand + conflict-granting agendas in play.
+        java.util.List<Card> conflictCards = engine.conflictCardsInHand(me);
+        java.util.List<Card> agendas = engine.conflictAgendasInPlay(me);
+        java.util.List<Card> initiators = new java.util.ArrayList<Card>();
+        initiators.addAll(conflictCards);
+        initiators.addAll(agendas);
+        if (initiators.isEmpty()) {
+            appendLog("No conflict card in hand and no conflict-granting agenda in play — cannot declare a conflict.");
+            return;
+        }
+
+        // Label each initiator with its name + discipline so the choice is clear.
+        String[] labels = new String[initiators.size()];
+        for (int i = 0; i < initiators.size(); i++) {
+            Card c = initiators.get(i);
+            ConflictType t = c.getConflictType();
+            labels[i] = c.getName()
+                    + (c.getType() == CardType.AGENDA ? "  (agenda)" : "  (" + (t == null ? "?" : t) + ")");
+        }
+        JComboBox<String> cardBox = new JComboBox<String>(labels);
 
         java.util.List<Integer> oppIdx = new java.util.ArrayList<Integer>();
         java.util.List<String> oppNames = new java.util.ArrayList<String>();
@@ -335,8 +359,13 @@ public final class MainWindow extends JFrame implements GameListener {
         }
         JComboBox<String> targetBox = new JComboBox<String>(oppNames.toArray(new String[0]));
 
-        JPanel panel = new JPanel(new java.awt.GridLayout(2, 2, 6, 6));
-        panel.add(new JLabel("Conflict type:"));
+        // Agendas let the player pick the discipline; conflict cards fix it.
+        JComboBox<ConflictType> typeBox = new JComboBox<ConflictType>(ConflictType.values());
+
+        JPanel panel = new JPanel(new java.awt.GridLayout(3, 2, 6, 6));
+        panel.add(new JLabel("Conflict card / agenda:"));
+        panel.add(cardBox);
+        panel.add(new JLabel("Discipline (agenda only):"));
         panel.add(typeBox);
         panel.add(new JLabel("Target:"));
         panel.add(targetBox);
@@ -346,31 +375,19 @@ public final class MainWindow extends JFrame implements GameListener {
         if (ok != JOptionPane.OK_OPTION) {
             return;
         }
-        final ConflictType type = (ConflictType) typeBox.getSelectedItem();
+        final Card source = initiators.get(Math.max(0, cardBox.getSelectedIndex()));
+        final ConflictType chosenType = (ConflictType) typeBox.getSelectedItem();
         final int target = oppIdx.get(Math.max(0, targetBox.getSelectedIndex()));
-        submit(() -> humanDeclareConflict(type, target));
-    }
-
-    /** Commit the human's ready, type-capable cards to a chosen conflict and resolve it (defended). */
-    private void humanDeclareConflict(ConflictType type, int target) {
-        int me = state.getActiveIndex();
-        Conflict c = new Conflict(me, type, target);
-        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
-            for (Card card : state.getActivePlayer().zone(zt).getCards()) {
-                if (card.isReady() && engine.contributesToConflict(card)
-                        && engine.effectiveAbility(card, type) > 0) {
-                    c.getSupport().add(card);
-                    card.setReady(false);
-                }
+        submit(() -> {
+            boolean declared = engine.declareConflict(me, source, chosenType, target);
+            if (declared) {
+                appendLog("Conflict declared — it resolves in the Resolution round. "
+                        + "Sponsor/deploy in ACTION to bolster your side, then advance.");
+            } else {
+                appendLog("Could not declare that conflict now.");
             }
-        }
-        if (c.getSupport().isEmpty()) {
-            appendLog("No ready cards can wage a " + type + " conflict.");
-            return;
-        }
-        ConflictResult r = engine.resolvePlayerConflict(c);
-        appendLog(r.summary());
-        onStateChanged();
+            onStateChanged();
+        });
     }
 
     // ---- GameListener (called from worker; marshal to EDT) -------------------
@@ -398,9 +415,18 @@ public final class MainWindow extends JFrame implements GameListener {
 
     private void refresh() {
         PlayerState active = state.getActivePlayer();
-        phaseLabel.setText("Turn " + state.getTurn() + "   ·   Phase: " + state.getPhase()
-                + "   ·   Active: " + (active == null ? "-" : active.getName()));
+        phaseLabel.setText(buildPhaseStepper(active));
         phaseLabel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 12));
+
+        // Center banner: reflect the declared-but-unresolved conflict while it is pending.
+        Conflict pending = engine.getPendingConflict();
+        if (pending != null && state.getPhase() != Phase.RESOLUTION) {
+            String src = pending.getSourceCard() == null ? "" : pending.getSourceCard().getName() + " — ";
+            centerLabel.setText("<html><center>⚔ Pending: " + src + pending.getType()
+                    + " conflict vs " + state.getPlayers().get(pending.getTarget()).getName()
+                    + "<br><font size='2'>resolves in the Resolution round</font></center></html>");
+            centerLabel.setForeground(UiTheme.GOLD);
+        }
 
         CardView.SelectionListener sel = (view, card) -> selectInHand(card);
 
@@ -440,6 +466,34 @@ public final class MainWindow extends JFrame implements GameListener {
 
         revalidate();
         repaint();
+    }
+
+    /** A compact READY ▸ CONFLICT ▸ ACTION ▸ RESOLUTION ▸ DRAW stepper with the current phase lit. */
+    private String buildPhaseStepper(PlayerState active) {
+        Phase current = state.getPhase();
+        Phase[] order = { Phase.READY, Phase.CONFLICT, Phase.ACTION, Phase.RESOLUTION, Phase.DRAW };
+        StringBuilder sb = new StringBuilder("<html>Turn ").append(state.getTurn())
+                .append(" &nbsp; ");
+        for (int i = 0; i < order.length; i++) {
+            boolean on = order[i] == current;
+            String color = hex(on ? UiTheme.GOLD : UiTheme.INK_DIM);
+            sb.append("<span style='color:#").append(color).append("'>")
+              .append(on ? "<b>" : "").append(order[i]).append(on ? "</b>" : "")
+              .append("</span>");
+            if (i < order.length - 1) {
+                sb.append(" <span style='color:#").append(hex(UiTheme.PANEL_HI)).append("'>▸</span> ");
+            }
+        }
+        sb.append(" &nbsp; | &nbsp; ").append(active == null ? "-" : esc(active.getName()));
+        return sb.append("</html>").toString();
+    }
+
+    private static String hex(Color c) {
+        return String.format("%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
+    private static String esc(String s) {
+        return s == null ? "" : s.replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private void selectInHand(Card card) {

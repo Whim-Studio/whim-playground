@@ -23,6 +23,13 @@ public final class PlayerState {
     private int influencePool = 4;     // spendable; restored to rating each Ready round
     private int power = 4;             // base Power == Influence Rating; engine recomputes
 
+    /**
+     * Rulebook ("Conflict Cards"): "Each faction may normally initiate only one conflict
+     * per turn." Set when this faction declares a conflict, cleared at the start of its
+     * next Conflict round.
+     */
+    private boolean initiatedConflictThisTurn = false;
+
     private final Map<ZoneType, Zone> zones = new EnumMap<ZoneType, Zone>(ZoneType.class);
 
     public PlayerState(String name, FactionId faction, boolean human) {
@@ -48,6 +55,9 @@ public final class PlayerState {
 
     public int getPower() { return power; }
     public void setPower(int power) { this.power = power; }
+
+    public boolean hasInitiatedConflictThisTurn() { return initiatedConflictThisTurn; }
+    public void setInitiatedConflictThisTurn(boolean v) { this.initiatedConflictThisTurn = v; }
 
     public Zone zone(ZoneType t) { return zones.get(t); }
 

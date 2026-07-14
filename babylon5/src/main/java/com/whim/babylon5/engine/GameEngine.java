@@ -56,6 +56,12 @@ public final class GameEngine {
     /** AI controllers indexed by player; index 0 (the human) is null. */
     private final AIPlayer[] ai;
 
+    /**
+     * The active player's declared-but-unresolved conflict, awaiting the Resolution round.
+     * Set during the Conflict round (by a conflict card or agenda) and cleared once resolved.
+     */
+    private Conflict pendingConflict;
+
     public GameEngine(GameState state) {
         this.state = state;
         int n = state.getPlayers().size();
@@ -101,13 +107,21 @@ public final class GameEngine {
             case READY:
                 // The Ready round just completed: ready all cards & restore applied influence.
                 readyAndRestore(state.getActivePlayer());
+                // Rulebook: one conflict per faction per turn — clear last turn's flag & pending.
+                state.getActivePlayer().setInitiatedConflictThisTurn(false);
+                pendingConflict = null;
                 state.setPhase(Phase.CONFLICT);
                 break;
             case CONFLICT:
                 state.setPhase(Phase.ACTION);
                 break;
             case ACTION:
+                // Resolution round begins: resolve the conflict declared this turn (if any).
                 state.setPhase(Phase.RESOLUTION);
+                if (pendingConflict != null && pendingConflict.getInitiator() == state.getActiveIndex()) {
+                    resolvePlayerConflict(pendingConflict);
+                    pendingConflict = null;
+                }
                 break;
             case RESOLUTION:
                 // Aftermath play is part of RESOLUTION and handled before we leave it.
@@ -408,7 +422,11 @@ public final class GameEngine {
         int margin = Math.abs(support - opposition);
         List<Card> neutralized = applyFallout(losers, margin, t);
 
-        String summary = describe(t, support, opposition, won, neutralized.size());
+        // Apply the card's win reward and discard a spent conflict card (rulebook: the
+        // initiator "wins" on strict support > opposition and gains the card's Influence).
+        applyConflictOutcome(c, won);
+
+        String summary = describe(c, t, support, opposition, won, neutralized.size());
         ConflictResult result = new ConflictResult(won, support, opposition, t, neutralized, summary);
         log(summary);
         fireConflictResolved(result);
@@ -417,14 +435,149 @@ public final class GameEngine {
     }
 
     /**
-     * Resolve a conflict declared by a player (the human/UI): the named target
-     * reflexively defends with its ready, type-capable cards, then the core math
-     * runs. Mirrors what {@link #runAiTurn} does for AI-initiated conflicts, so a
-     * human conflict is no longer resolved unopposed.
+     * Resolve a conflict declared by a player (the human/UI): the initiator commits its
+     * ready, type-capable cards in support, the named target reflexively defends with its
+     * own, then the core math runs. Mirrors what {@link #runAiTurn} does for AI-initiated
+     * conflicts, so a human conflict is neither free nor unopposed.
      */
     public ConflictResult resolvePlayerConflict(Conflict pending) {
+        commitInitiatorSupport(pending);
         commitOpposition(pending.getInitiator(), pending);
         return resolveConflict(pending);
+    }
+
+    /** Commit the initiator's ready, type-capable cards that aren't already supporting. */
+    private void commitInitiatorSupport(Conflict pending) {
+        PlayerState p = state.getPlayers().get(pending.getInitiator());
+        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
+            for (Card c : p.zone(zt).getCards()) {
+                if (!contributesToConflict(c) || !c.isReady() || isNeutralized(c)) {
+                    continue;
+                }
+                if (effectiveAbility(c, pending.getType()) <= 0 || pending.getSupport().contains(c)) {
+                    continue;
+                }
+                pending.getSupport().add(c);
+                c.setReady(false);
+            }
+        }
+    }
+
+    /**
+     * Apply a resolved conflict's card effect: on a win the initiator gains the conflict
+     * card's Influence reward; a spent CONFLICT card is discarded (an initiating AGENDA
+     * stays in play, per the rulebook — it may initiate one conflict each turn).
+     */
+    private void applyConflictOutcome(Conflict c, boolean won) {
+        Card source = c.getSourceCard();
+        if (source == null) {
+            return;
+        }
+        PlayerState initiator = state.getPlayers().get(c.getInitiator());
+        if (won && source.getInfluenceReward() > 0) {
+            int gain = source.getInfluenceReward();
+            initiator.setInfluenceRating(initiator.getInfluenceRating() + gain);
+            initiator.adjustInfluencePool(gain);
+            log(initiator.getName() + " gains " + gain + " Influence from " + source.getName());
+        }
+        if (source.getType() == CardType.CONFLICT) {
+            initiator.zone(ZoneType.DISCARD).add(source);
+        }
+    }
+
+    // ------------------------------------------------------------------ declaring conflicts
+
+    /**
+     * Declare a conflict during the Conflict round. Rulebook ("The Conflict Round" /
+     * "Conflict Cards"): a conflict is initiated by playing a CONFLICT card from hand
+     * (or by an AGENDA that grants one), each faction may initiate only one per turn,
+     * and the discipline is fixed by the card. The conflict is recorded as pending and
+     * resolved in the Resolution round (after the Action round lets cards be committed).
+     *
+     * @param source a CONFLICT card in the player's hand, or an in-play AGENDA that allows
+     *               initiating a conflict.
+     * @return false (and no mutation) if it is not the Conflict round, the player has
+     *         already initiated this turn, or {@code source} is not a legal initiator.
+     */
+    public boolean declareConflict(int playerIndex, Card source, ConflictType type, int target) {
+        if (playerIndex < 0 || playerIndex >= state.getPlayers().size() || source == null) {
+            return false;
+        }
+        if (state.getPhase() != Phase.CONFLICT || playerIndex != state.getActiveIndex()) {
+            return false;
+        }
+        PlayerState p = state.getPlayers().get(playerIndex);
+        if (p.hasInitiatedConflictThisTurn()) {
+            log(p.getName() + " has already initiated a conflict this turn.");
+            return false;
+        }
+        ConflictType t;
+        if (source.getType() == CardType.CONFLICT) {
+            if (!p.zone(ZoneType.HAND).getCards().contains(source)) {
+                return false;
+            }
+            t = source.getConflictType() != null ? source.getConflictType() : ConflictType.DIPLOMACY;
+            p.zone(ZoneType.HAND).remove(source); // played face-down; discarded when resolved
+        } else if (source.getType() == CardType.AGENDA && agendaCanInitiate(source)) {
+            boolean inPlay = p.zone(ZoneType.INNER_CIRCLE).getCards().contains(source);
+            if (!inPlay) {
+                return false;
+            }
+            t = (type != null) ? type : ConflictType.DIPLOMACY; // agenda lets the player choose
+        } else {
+            return false;
+        }
+
+        pendingConflict = new Conflict(playerIndex, t, target, source);
+        p.setInitiatedConflictThisTurn(true);
+        log(p.getName() + " declares a " + t + " conflict"
+                + (source.getType() == CardType.AGENDA ? " via agenda " : " with ")
+                + source.getName() + " vs " + state.getPlayers().get(target).getName());
+        fireStateChanged();
+        return true;
+    }
+
+    /** The pending (declared, unresolved) conflict for the active player, or {@code null}. */
+    public Conflict getPendingConflict() {
+        return pendingConflict;
+    }
+
+    /** Conflict cards currently in a player's hand (legal initiators this Conflict round). */
+    public List<Card> conflictCardsInHand(int playerIndex) {
+        List<Card> out = new ArrayList<Card>();
+        if (playerIndex < 0 || playerIndex >= state.getPlayers().size()) {
+            return out;
+        }
+        for (Card c : state.getPlayers().get(playerIndex).zone(ZoneType.HAND).getCards()) {
+            if (c.getType() == CardType.CONFLICT) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    /** In-play agendas that allow initiating a conflict (text mentions initiating one). */
+    public List<Card> conflictAgendasInPlay(int playerIndex) {
+        List<Card> out = new ArrayList<Card>();
+        if (playerIndex < 0 || playerIndex >= state.getPlayers().size()) {
+            return out;
+        }
+        for (Card c : state.getPlayers().get(playerIndex).zone(ZoneType.INNER_CIRCLE).getCards()) {
+            if (c.getType() == CardType.AGENDA && agendaCanInitiate(c)) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    /** Whether an agenda's text lets its faction initiate a conflict (rulebook: some do). */
+    private boolean agendaCanInitiate(Card agenda) {
+        String text = agenda.getText();
+        if (text == null) {
+            return false;
+        }
+        String lower = text.toLowerCase();
+        return lower.contains("initiate") && lower.contains("conflict");
     }
 
     /** Sum of each committed card's modified ability for the conflict type (neutralized = 0). */
@@ -484,8 +637,12 @@ public final class GameEngine {
         return h;
     }
 
-    private String describe(ConflictType t, int support, int opposition, boolean won, int neut) {
+    private String describe(Conflict c, ConflictType t, int support, int opposition, boolean won, int neut) {
         StringBuilder sb = new StringBuilder();
+        Card source = c.getSourceCard();
+        if (source != null) {
+            sb.append(source.getName()).append(" — ");
+        }
         sb.append(t).append(" conflict: support ").append(support)
           .append(" vs opposition ").append(opposition)
           .append(" — initiator ").append(won ? "WON" : "LOST");
@@ -578,11 +735,16 @@ public final class GameEngine {
         // READY -> CONFLICT (readies cards, restores influence).
         advancePhase();
 
-        // CONFLICT round: decide whether (and what) to initiate.
-        Conflict pending = safeChooseConflict(brain, playerIndex);
+        // CONFLICT round: decide whether (and what) to initiate. A conflict may only be
+        // initiated with a conflict card in hand (or a conflict-granting agenda in play),
+        // and at most one per turn — declareConflict enforces both.
+        Conflict chosen = safeChooseConflict(brain, playerIndex);
+        if (chosen != null) {
+            declareConflict(playerIndex, chosen.getSourceCard(), chosen.getType(), chosen.getTarget());
+        }
         advancePhase(); // CONFLICT -> ACTION
 
-        // ACTION round: sponsor a character, then commit supporters to any pending conflict.
+        // ACTION round: sponsor a character and deploy affordable support/locations/agendas.
         try {
             Card toSponsor = brain.chooseCharacterToSponsor(state, playerIndex);
             if (toSponsor != null) {
@@ -591,19 +753,13 @@ public final class GameEngine {
         } catch (RuntimeException ex) {
             log("AI sponsor decision skipped: " + ex.getMessage());
         }
-        // Deploy affordable support / locations / agendas alongside sponsoring.
         aiDeploy(playerIndex, false);
-        if (pending != null) {
-            commitSupport(brain, playerIndex, pending);
-            commitOpposition(playerIndex, pending);
-        }
-        advancePhase(); // ACTION -> RESOLUTION
 
-        // RESOLUTION round (includes aftermath): resolve the conflict if one was initiated,
-        // then claim any affordable aftermath rewards.
-        if (pending != null) {
-            resolveConflict(pending);
-        }
+        // ACTION -> RESOLUTION: any pending conflict is resolved automatically (committing the
+        // initiator's ready cards in support and the target's in opposition).
+        advancePhase();
+
+        // RESOLUTION round (includes aftermath): claim any affordable aftermath rewards.
         aiDeploy(playerIndex, true);
         advancePhase(); // RESOLUTION -> DRAW
 
@@ -674,25 +830,6 @@ public final class GameEngine {
         } catch (RuntimeException ex) {
             log("AI conflict decision skipped: " + ex.getMessage());
             return null;
-        }
-    }
-
-    /** Rotate the initiator's ready, type-capable characters that the AI elects to commit. */
-    private void commitSupport(AIPlayer brain, int playerIndex, Conflict pending) {
-        PlayerState p = state.getPlayers().get(playerIndex);
-        for (ZoneType zt : new ZoneType[] { ZoneType.INNER_CIRCLE, ZoneType.SUPPORTING }) {
-            for (Card c : p.zone(zt).getCards()) {
-                if (!contributesToConflict(c) || !c.isReady() || isNeutralized(c)) {
-                    continue;
-                }
-                if (effectiveAbility(c, pending.getType()) <= 0) {
-                    continue; // cannot contribute to this conflict type
-                }
-                if (brain.willCommit(c, pending, true)) {
-                    pending.getSupport().add(c);
-                    c.setReady(false); // rotated to support
-                }
-            }
         }
     }
 
