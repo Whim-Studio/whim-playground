@@ -1,0 +1,6 @@
+id,name,faction,type,cost,prestige,diplomacy,intrigue,military,psi,contest,difficulty,effects,text
+lord_refa,Lord Refa,CENTAURI_REPUBLIC,CHARACTER,2,0,2,5,3,0,,0,[],Centauri schemer; strong Intrigue.
+gsten,G'Sten,NARN_REGIME,CHARACTER,3,0,2,3,6,0,,0,[],Narn heavy hitter.
+grey_council_fleet,Grey Council Fleet,MINBARI_FEDERATION,FLEET,3,0,0,0,4,0,,0,[],Uncounterable Minbari fleet.
+homeworld,Homeworld,NON_ALIGNED,LOCATION,1,0,0,0,0,0,,0,[GAIN_INFLUENCE(2)],+2 Influence each turn.
+brighter_future,A Brighter Future,NON_ALIGNED,CONFLICT,1,3,0,0,0,0,DIPLOMACY,5,[],Diplomacy conflict: win for +3 Prestige.

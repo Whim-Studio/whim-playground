@@ -1,0 +1,11 @@
+{
+  "id": "gquan_eth",
+  "name": "G'Quan Eth",
+  "faction": "NARN_REGIME",
+  "type": "CHARACTER",
+  "cost": 2,
+  "prestige": 0,
+  "attributes": { "DIPLOMACY": 3, "INTRIGUE": 2, "MILITARY": 2 },
+  "effects": [ { "type": "GAIN_INFLUENCE", "amount": 1 } ],
+  "text": "Sample runtime-loaded card: proves assets/cards extension works."
+}

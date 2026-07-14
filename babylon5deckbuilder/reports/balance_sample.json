@@ -1,0 +1,14 @@
+{
+  "_note": "ILLUSTRATIVE PLACEHOLDER — report shape only, not from an executed run. Regenerate with --sim.",
+  "games": 1000,
+  "avgTurns": 34.10,
+  "minTurns": 22,
+  "maxTurns": 71,
+  "withinTargetBand": true,
+  "factions": [
+    {"faction": "NARN_REGIME", "wins": 268, "winRate": 0.2680},
+    {"faction": "CENTAURI_REPUBLIC", "wins": 241, "winRate": 0.2410},
+    {"faction": "MINBARI_FEDERATION", "wins": 262, "winRate": 0.2620},
+    {"faction": "EARTH_ALLIANCE", "wins": 229, "winRate": 0.2290}
+  ]
+}
