@@ -1,0 +1,6 @@
+out/
+target/
+lib/
+*.class
+*.starsave
+sources.txt
