@@ -136,17 +136,24 @@ The original's major screens and how this recreation maps them:
 |---|---|
 | Galaxy/Starmap view | `GalaxyMapPanel` — `Graphics2D`, pannable (drag), zoomable (wheel), owner-coloured planets + fleet markers, click-to-select. |
 | Planet report | `CommandPanel` "Planet Report" — owner, environment, pop, factories/mines/defenses, surface & concentration minerals, habitability. |
-| Research screen | `CommandPanel` "Research" — current field + budget %. Full tech-tree browser is TODO. |
+| Research screen | `ResearchDialog` — all six fields, level, banked points, cost-to-next; set current field, budget %, next-field policy. |
 | Status/summary bar | `MainWindow` status bar — year, player, tech string, planet/fleet counts. |
-| Production / Ship design | TODO — model supports queues & designs; editors are a later phase. |
-| Battle plans / Score / History | TODO. |
+| Production screen | `ProductionDialog` — edit the selected planet's queue (add/reorder/remove factories, mines, defenses, scanner, ships, auto-build). |
+| Ship design screen | `ShipDesignDialog` — pick a hull, fill typed slots from compatible components, live mass/warp/firepower/cost. |
+| Fleet composition + cargo transfer | `FleetDialog` — composition/fuel/cargo, add waypoints, load/unload colonists & minerals at an orbited colony. |
+| Battle plans / relations | `RelationsDialog` — set Friend/Neutral/Enemy per rival. Score/History screens still TODO. |
+| New game wizard | `NewGameDialog` — universe size, race name + PRT, AI opponent count. |
 
 ## Known gaps summary (next phases)
 
-1. Ship-design & production-queue editor screens.
-2. Full component/hull tech tables and field-unlock data.
-3. Real tactical combat (battle board + battle plans).
-4. Minefields, packets, stargates, bombing, ground invasion.
-5. Strategic AI (the demo Rival only scouts).
-6. Terraforming action, cargo-transfer UI, fleet merge/split UI.
-7. Victory conditions & scoring.
+Done since the first draft: ship-design & production editors, research/fleet/planet/
+relations screens, cargo transfer, the new-game wizard, and a basic expansion AI (Phases
+5–7). Remaining:
+
+1. Full component/hull tech tables and field-unlock data.
+2. Real tactical combat (10×10 battle board + battle plans) — combat is a deterministic
+   attrition exchange today.
+3. Minefields, packets, stargates, bombing, ground invasion.
+4. Terraforming action and fleet merge/split UI.
+5. A stronger, military-aware AI (current `SimpleAi` is expansion-only).
+6. Victory conditions & scoring; Score/History screens.

@@ -70,9 +70,19 @@ public final class Race implements Serializable {
      * are the widely published Humanoid defaults (✅) where known; growth 15%.
      */
     public static Race humanoid(String name) {
+        return humanoid(name, PRT.JOAT);
+    }
+
+    /**
+     * A balanced Humanoid-style race with a chosen primary trait. The economy
+     * numbers are the Humanoid defaults; only the PRT label varies, so the race
+     * picker's choice is preserved on the model even though most PRT mechanical
+     * effects are later-phase wiring.
+     */
+    public static Race humanoid(String name, PRT prt) {
         double[] rc = new double[TechField.values().length];
         for (int i = 0; i < rc.length; i++) rc[i] = 1.0;
-        return new Race(name, name + "s", PRT.JOAT, EnumSet.noneOf(LRT.class),
+        return new Race(name, name + "s", prt == null ? PRT.JOAT : prt, EnumSet.noneOf(LRT.class),
                 HabBand.of(50, 25), HabBand.of(50, 25), HabBand.of(50, 25),
                 0.15,
                 10, 10, 10,   // 10 resources / 10 factories, 10 G each, 10 per 10k pop
