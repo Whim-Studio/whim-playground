@@ -2,6 +2,7 @@ package com.whim.babylon5.data;
 
 import com.whim.babylon5.domain.Card;
 import com.whim.babylon5.domain.CardType;
+import com.whim.babylon5.domain.ConflictType;
 import com.whim.babylon5.domain.FactionId;
 
 import java.io.BufferedReader;
@@ -38,6 +39,10 @@ public final class CardDatabase {
     private static final String CARDS_DIR = "cards";
     private static final String MANIFEST = "cards/manifest.txt";
     private static final Charset UTF8 = Charset.forName("UTF-8");
+
+    /** Pulls the winner's Influence reward out of conflict text like "Winner gains 3 Influence." */
+    private static final java.util.regex.Pattern REWARD_PATTERN =
+            java.util.regex.Pattern.compile("gains?\\s+(\\d+)\\s+influence", java.util.regex.Pattern.CASE_INSENSITIVE);
 
     /** id -> definition, insertion-ordered. */
     private static final Map<String, Card> BY_ID = new LinkedHashMap<String, Card>();
@@ -79,7 +84,8 @@ public final class CardDatabase {
         if (c == null) return null;
         Card copy = new Card(c.getId(), c.getName(), c.getType(), c.getFaction(),
                 c.getCost(), c.getInfluence(), c.getDiplomacy(), c.getIntrigue(),
-                c.getPsi(), c.getMilitary(), c.getText(), c.getImageUrl());
+                c.getPsi(), c.getMilitary(), c.getText(), c.getImageUrl(),
+                c.getConflictType(), c.getInfluenceReward());
         copy.setReady(true);
         copy.clearDamage();
         copy.clearAttachments();
@@ -206,6 +212,10 @@ public final class CardDatabase {
         sb.append("\"military\": ").append(c.getMilitary()).append(", ");
         sb.append("\"text\": ").append(jsonStr(c.getText())).append(", ");
         sb.append("\"imageUrl\": ").append(jsonStr(c.getImageUrl()));
+        if (c.getType() == CardType.CONFLICT && c.getConflictType() != null) {
+            sb.append(", \"conflictType\": ").append(jsonStr(c.getConflictType().name()));
+            sb.append(", \"influenceReward\": ").append(c.getInfluenceReward());
+        }
         sb.append("}");
     }
 
@@ -242,6 +252,13 @@ public final class CardDatabase {
             loaded += loadFromManifest();
             if (loaded == 0) {
                 loaded += loadFromDirectory();
+            }
+            // Classpath loading yields nothing when the app is launched with the card
+            // resources off the classpath (e.g. `java -cp out ...` after `javac -d out`,
+            // which never copies src/main/resources). Fall back to reading the JSON
+            // straight off disk so the full ~800-card catalogue always loads.
+            if (loaded == 0) {
+                loaded += loadFromDisk();
             }
         } catch (Throwable t) {
             // Never let resource loading break the prototype.
@@ -295,6 +312,53 @@ public final class CardDatabase {
         }
     }
 
+    /**
+     * Last-resort disk load: locate the packaged {@code cards/} JSON directory on the
+     * filesystem, searching the working directory and its ancestors for a
+     * {@code .../babylon5/src/main/resources/cards} (or bare {@code src/main/resources/cards})
+     * folder. Parses every {@code *.json} found. Portable across launching from the repo
+     * root or the module directory.
+     */
+    private static int loadFromDisk() {
+        File dir = findCardsDirOnDisk();
+        if (dir == null) return 0;
+        File[] files = dir.listFiles();
+        if (files == null) return 0;
+        int count = 0;
+        for (File f : files) {
+            if (f.isFile() && f.getName().toLowerCase().endsWith(".json")) {
+                try {
+                    count += parseInto(readAll(new java.io.FileInputStream(f)));
+                } catch (Throwable t) {
+                    System.err.println("[CardDatabase] disk card file failed (" + f + "): " + t);
+                }
+            }
+        }
+        if (count > 0) {
+            System.out.println("[CardDatabase] loaded " + count + " card(s) from disk: " + dir);
+        }
+        return count;
+    }
+
+    private static File findCardsDirOnDisk() {
+        String[] relatives = {
+                "babylon5/src/main/resources/cards",
+                "src/main/resources/cards",
+                "resources/cards",
+                "cards",
+        };
+        File base = new File(System.getProperty("user.dir", "."));
+        for (int depth = 0; base != null && depth < 6; depth++, base = base.getParentFile()) {
+            for (String rel : relatives) {
+                File candidate = new File(base, rel);
+                if (candidate.isDirectory()) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
     @SuppressWarnings("unchecked")
     private static int parseInto(String json) {
         Object root = MiniJson.parse(json);
@@ -326,16 +390,52 @@ public final class CardDatabase {
             if (id == null || name == null) return null;
             CardType type = CardType.valueOf(str(m, "type", "CHARACTER").toUpperCase());
             FactionId faction = FactionId.valueOf(str(m, "faction", "NONALIGNED").toUpperCase());
+            String text = str(m, "text", "");
+            ConflictType conflictType = null;
+            int reward = 0;
+            if (type == CardType.CONFLICT) {
+                conflictType = parseConflictType(str(m, "conflictType", null), text);
+                Object r = m.get("influenceReward");
+                reward = (r != null) ? intOf(m, "influenceReward") : parseReward(text);
+            }
             return new Card(
                     id, name, type, faction,
                     intOf(m, "cost"), intOf(m, "influence"),
                     intOf(m, "diplomacy"), intOf(m, "intrigue"),
                     intOf(m, "psi"), intOf(m, "military"),
-                    str(m, "text", ""), str(m, "imageUrl", ""));
+                    text, str(m, "imageUrl", ""), conflictType, reward);
         } catch (Throwable t) {
             System.err.println("[CardDatabase] bad card record: " + t);
             return null;
         }
+    }
+
+    /**
+     * Resolve a conflict card's discipline: an explicit {@code conflictType} JSON value wins;
+     * otherwise infer it from the card text, whose first sentence reads e.g. "Diplomacy conflict."
+     * (the uploaded card data encodes the type only in the text). Defaults to DIPLOMACY.
+     */
+    private static ConflictType parseConflictType(String explicit, String text) {
+        String s = (explicit != null ? explicit : text);
+        if (s != null) {
+            String lower = s.toLowerCase();
+            if (lower.contains("military")) return ConflictType.MILITARY;
+            if (lower.contains("intrigue")) return ConflictType.INTRIGUE;
+            if (lower.contains("psi"))      return ConflictType.PSI;
+            if (lower.contains("diplomacy") || lower.contains("diplomatic")) return ConflictType.DIPLOMACY;
+        }
+        return ConflictType.DIPLOMACY;
+    }
+
+    /** Pull the winner's Influence reward out of text like "Winner gains 3 Influence." (default 2). */
+    private static int parseReward(String text) {
+        if (text != null) {
+            java.util.regex.Matcher mm = REWARD_PATTERN.matcher(text);
+            if (mm.find()) {
+                try { return Integer.parseInt(mm.group(1)); } catch (NumberFormatException ignored) { }
+            }
+        }
+        return 2;
     }
 
     private static String str(Map<String, Object> m, String k, String def) {
@@ -411,9 +511,11 @@ public final class CardDatabase {
                 3, 0, 1, 1, 3, 0, "Neutral telepath.", ""));
         // A conflict and an aftermath so the engine has something to resolve.
         c.add(new Card("emb-cnf-diplomacy", "Diplomatic Summit", CardType.CONFLICT, FactionId.NONALIGNED,
-                0, 0, 0, 0, 0, 0, "Diplomacy conflict.", ""));
+                0, 0, 0, 0, 0, 0, "Diplomacy conflict. Winner gains 2 Influence.", "",
+                ConflictType.DIPLOMACY, 2));
         c.add(new Card("emb-cnf-military", "Border Skirmish", CardType.CONFLICT, FactionId.NONALIGNED,
-                0, 0, 0, 0, 0, 0, "Military conflict.", ""));
+                0, 0, 0, 0, 0, 0, "Military conflict. Winner gains 2 Influence.", "",
+                ConflictType.MILITARY, 2));
         c.add(new Card("emb-aft-warhero", "War Hero", CardType.AFTERMATH, FactionId.NONALIGNED,
                 0, 0, 0, 0, 0, 0, "Won Military aftermath.", ""));
         return c;

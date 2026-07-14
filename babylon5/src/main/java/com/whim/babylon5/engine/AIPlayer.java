@@ -131,29 +131,54 @@ public final class AIPlayer {
      */
     public Conflict chooseConflict(GameState state, int playerIndex) {
         PlayerState me = state.getPlayers().get(playerIndex);
-        ConflictType bestType = strongestType(me);
-        int myStrength = readyStrength(me, bestType);
-        if (myStrength <= 0) {
-            return null; // nothing to fight with
+
+        // Rulebook: a conflict can only be initiated with a conflict card in hand (or a
+        // conflict-granting agenda in play). No card, no conflict.
+        List<Card> conflictCards = new ArrayList<Card>();
+        for (Card c : me.zone(ZoneType.HAND).getCards()) {
+            if (c.getType() == CardType.CONFLICT) {
+                conflictCards.add(c);
+            }
+        }
+        if (conflictCards.isEmpty()) {
+            return null;
         }
 
+        // Pick the conflict card whose discipline our ready cards are strongest in.
+        Card bestCard = null;
+        int bestStrength = -1;
+        for (Card c : conflictCards) {
+            ConflictType t = c.getConflictType() != null ? c.getConflictType() : ConflictType.DIPLOMACY;
+            int s = readyStrength(me, t);
+            if (s > bestStrength) {
+                bestStrength = s;
+                bestCard = c;
+            }
+        }
+        if (bestCard == null || bestStrength <= 0) {
+            return null; // nothing to fight with
+        }
+        ConflictType type = bestCard.getConflictType() != null
+                ? bestCard.getConflictType() : ConflictType.DIPLOMACY;
+        int myStrength = bestStrength;
+
         if (difficulty == AiDifficulty.EASY) {
-            // Random/greedy: ~half the time pick a random valid target and swing.
+            // Random/greedy: ~half the time swing at a random valid target.
             if (state.getRng().nextBoolean()) {
                 return null;
             }
             int target = randomOpponent(state, playerIndex);
-            return target < 0 ? null : new Conflict(playerIndex, bestType, target);
+            return target < 0 ? null : new Conflict(playerIndex, type, target, bestCard);
         }
 
-        // MEDIUM/HARD: target the opponent we can most likely beat in our strongest discipline.
+        // MEDIUM/HARD: target the opponent we can most likely beat in this discipline.
         int target = -1;
         int bestDefenseGap = Integer.MIN_VALUE;
         for (int i = 0; i < state.getPlayers().size(); i++) {
             if (i == playerIndex) {
                 continue;
             }
-            int defense = readyStrength(state.getPlayers().get(i), bestType);
+            int defense = readyStrength(state.getPlayers().get(i), type);
             int gap = myStrength - defense;
             if (gap > bestDefenseGap) {
                 bestDefenseGap = gap;
@@ -163,15 +188,14 @@ public final class AIPlayer {
         if (target < 0) {
             return null;
         }
-        // HARD only commits when it projects a strict win (support must exceed opposition);
-        // MEDIUM is willing to contest an even matchup.
+        // HARD only commits when it projects a strict win; MEDIUM contests an even matchup.
         if (difficulty == AiDifficulty.HARD && bestDefenseGap <= 0) {
             return null;
         }
         if (difficulty == AiDifficulty.MEDIUM && bestDefenseGap < 0) {
             return null;
         }
-        return new Conflict(playerIndex, bestType, target);
+        return new Conflict(playerIndex, type, target, bestCard);
     }
 
     // ------------------------------------------------------------------ committing cards
@@ -222,20 +246,6 @@ public final class AIPlayer {
         if (c.getPsi() > 0) n++;
         if (c.getMilitary() > 0) n++;
         return n;
-    }
-
-    /** The conflict type in which this faction's ready cards are collectively strongest. */
-    private ConflictType strongestType(PlayerState me) {
-        ConflictType best = ConflictType.DIPLOMACY;
-        int bestVal = -1;
-        for (ConflictType t : ConflictType.values()) {
-            int v = readyStrength(me, t);
-            if (v > bestVal) {
-                bestVal = v;
-                best = t;
-            }
-        }
-        return best;
     }
 
     /** Sum of ready, un-damaged-out ability for the given conflict type across a faction's cards. */

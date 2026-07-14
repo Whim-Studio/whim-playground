@@ -34,6 +34,7 @@ public class EngineSelfTest {
         testInfluenceSpendOnSponsor();
         testVictoryCondition();
         testAiSponsorDecision();
+        testConflictDeclaration();
         System.out.println("----------------------------");
         System.out.println("PASSED: " + passed + "  FAILED: " + failed);
         if (failed > 0) {
@@ -205,6 +206,57 @@ public class EngineSelfTest {
         // Nothing affordable -> decline (null).
         ai.setInfluencePool(0);
         check("AI declines when nothing is affordable", medium.chooseCharacterToSponsor(s, 1) == null);
+    }
+
+    // ---- Rulebook: conflicts are initiated by a conflict card, one per turn ----------------
+
+    private static void testConflictDeclaration() {
+        GameState s = newGame(2, 0);
+        GameEngine engine = new GameEngine(s);
+        s.setActiveIndex(0);
+        s.setPhase(Phase.CONFLICT);
+        PlayerState me = s.getPlayers().get(0);
+        me.setInitiatedConflictThisTurn(false);
+
+        // Give the initiator a strong diplomat and the target a weak one, so the initiator wins.
+        Card diplomat = card("dp", "Envoy", CardType.CHARACTER, FactionId.HUMAN, 0, 6, 0, 0, 0);
+        me.zone(ZoneType.SUPPORTING).add(diplomat);
+
+        // A Diplomacy conflict card that rewards 3 Influence on a win.
+        Card conflictCard = new Card("cf1", "Peace Summit", CardType.CONFLICT, FactionId.NONALIGNED,
+                0, 0, 0, 0, 0, 0, "Diplomacy conflict. Winner gains 3 Influence.", null,
+                ConflictType.DIPLOMACY, 3);
+        me.zone(ZoneType.HAND).add(conflictCard);
+
+        // Cannot declare without naming a legal source card.
+        check("declare rejected for a non-conflict source",
+                !engine.declareConflict(0, diplomat, null, 1));
+
+        int ratingBefore = me.getInfluenceRating();
+        boolean ok = engine.declareConflict(0, conflictCard, null, 1);
+        check("declare succeeds with a conflict card in hand", ok);
+        check("conflict card leaves hand when declared",
+                !me.zone(ZoneType.HAND).getCards().contains(conflictCard));
+        check("one-per-turn flag set after declaring", me.hasInitiatedConflictThisTurn());
+        check("pending conflict uses the card's discipline",
+                engine.getPendingConflict() != null
+                        && engine.getPendingConflict().getType() == ConflictType.DIPLOMACY);
+
+        // Second declaration same turn is rejected (one conflict per turn).
+        Card second = new Card("cf2", "Border Raid", CardType.CONFLICT, FactionId.NONALIGNED,
+                0, 0, 0, 0, 0, 0, "Military conflict. Winner gains 2 Influence.", null,
+                ConflictType.MILITARY, 2);
+        me.zone(ZoneType.HAND).add(second);
+        check("second conflict same turn is rejected", !engine.declareConflict(0, second, null, 1));
+
+        // Advancing ACTION -> RESOLUTION resolves the pending conflict, applies reward, discards card.
+        engine.advancePhase(); // CONFLICT -> ACTION
+        engine.advancePhase(); // ACTION -> RESOLUTION (auto-resolves)
+        check("pending conflict cleared after resolution", engine.getPendingConflict() == null);
+        check("winner gained the card's 3 Influence reward",
+                me.getInfluenceRating() == ratingBefore + 3);
+        check("spent conflict card is in the discard pile",
+                me.zone(ZoneType.DISCARD).getCards().contains(conflictCard));
     }
 
     // ---------------------------------------------------------------- helpers

@@ -26,6 +26,18 @@ public final class Card {
     private final String text;
     private final String imageUrl;
 
+    /**
+     * For {@link CardType#CONFLICT} cards, the discipline the conflict is fought in
+     * (Diplomacy/Intrigue/Psi/Military). {@code null} for every other card type.
+     */
+    private final ConflictType conflictType;
+
+    /**
+     * For {@link CardType#CONFLICT} cards, the Influence the initiator gains on a win
+     * (rulebook: most conflicts read "Winner gains N Influence"). 0 for other cards.
+     */
+    private final int influenceReward;
+
     // ---- mutable in-play physical state ----
     private boolean ready = true;
     private int damage = 0;
@@ -35,6 +47,13 @@ public final class Card {
     public Card(String id, String name, CardType type, FactionId faction, int cost,
                 int influence, int diplomacy, int intrigue, int psi, int military,
                 String text, String imageUrl) {
+        this(id, name, type, faction, cost, influence, diplomacy, intrigue, psi, military,
+                text, imageUrl, null, 0);
+    }
+
+    public Card(String id, String name, CardType type, FactionId faction, int cost,
+                int influence, int diplomacy, int intrigue, int psi, int military,
+                String text, String imageUrl, ConflictType conflictType, int influenceReward) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -47,6 +66,8 @@ public final class Card {
         this.military = military;
         this.text = text == null ? "" : text;
         this.imageUrl = imageUrl == null ? "" : imageUrl;
+        this.conflictType = conflictType;
+        this.influenceReward = influenceReward;
     }
 
     public String getId() { return id; }
@@ -61,6 +82,12 @@ public final class Card {
     public int getMilitary() { return military; }
     public String getText() { return text; }
     public String getImageUrl() { return imageUrl; }
+
+    /** The conflict discipline for a CONFLICT card, or {@code null} for other types. */
+    public ConflictType getConflictType() { return conflictType; }
+
+    /** Influence the initiator gains when winning this CONFLICT card (0 otherwise). */
+    public int getInfluenceReward() { return influenceReward; }
 
     /**
      * The attribute used as support/opposition for the given conflict type.

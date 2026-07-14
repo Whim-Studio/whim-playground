@@ -54,11 +54,25 @@ final class PlayerPanel extends JPanel {
     }
 
     private String buildHeader(int power) {
+        int hand = count(ZoneType.HAND);
+        int deck = count(ZoneType.DRAW_DECK);
+        int discard = count(ZoneType.DISCARD);
+        String conflictFlag = player.hasInitiatedConflictThisTurn()
+                ? " &nbsp; · &nbsp; <span style='color:#" + hex(UiTheme.DANGER) + "'>conflict used</span>"
+                : "";
         return "<html><span style='color:#" + hex(UiTheme.factionColor(player.getFaction())) + "'>"
                 + (active ? "▶ " : "") + esc(player.getName()) + "</span> &nbsp; "
                 + player.getFaction() + " &nbsp; | &nbsp; Influence "
                 + player.getInfluencePool() + "/" + player.getInfluenceRating()
-                + " &nbsp; | &nbsp; <b>Power " + power + "</b>/20</html>";
+                + " &nbsp; | &nbsp; <b>Power " + power + "</b>/20"
+                + " &nbsp; | &nbsp; <span style='color:#" + hex(UiTheme.INK_DIM) + "'>"
+                + "hand " + hand + " · deck " + deck + " · discard " + discard + "</span>"
+                + conflictFlag + "</html>";
+    }
+
+    private int count(ZoneType zt) {
+        com.whim.babylon5.domain.Zone z = player.zone(zt);
+        return z == null ? 0 : z.getCards().size();
     }
 
     private void fill(JPanel rowPanel, com.whim.babylon5.domain.Zone zone) {

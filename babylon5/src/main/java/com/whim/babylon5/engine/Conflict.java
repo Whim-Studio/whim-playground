@@ -21,13 +21,29 @@ public final class Conflict {
     private final int initiatorIndex;
     private final ConflictType type;
     private final int targetIndex;
+    /**
+     * The card that generated this conflict — a {@link com.whim.babylon5.domain.CardType#CONFLICT}
+     * card played from hand, or the {@link com.whim.babylon5.domain.CardType#AGENDA} used to
+     * initiate it. {@code null} only for synthetic/test conflicts.
+     */
+    private final Card sourceCard;
     private final List<Card> support = new ArrayList<Card>();
     private final List<Card> opposition = new ArrayList<Card>();
 
     public Conflict(int initiatorIndex, ConflictType type, int targetIndex) {
+        this(initiatorIndex, type, targetIndex, null);
+    }
+
+    public Conflict(int initiatorIndex, ConflictType type, int targetIndex, Card sourceCard) {
         this.initiatorIndex = initiatorIndex;
         this.type = type;
         this.targetIndex = targetIndex;
+        this.sourceCard = sourceCard;
+    }
+
+    /** The conflict card or agenda that initiated this conflict (may be {@code null}). */
+    public Card getSourceCard() {
+        return sourceCard;
     }
 
     public int getInitiator() {
