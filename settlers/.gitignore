@@ -1,0 +1,4 @@
+out/
+sources.txt
+*.class
+target/
