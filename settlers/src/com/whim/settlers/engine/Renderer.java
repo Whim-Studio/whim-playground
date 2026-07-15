@@ -5,6 +5,8 @@ import com.whim.settlers.buildings.BuildingState;
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.map.TerrainType;
+import com.whim.settlers.transport.Flag;
+import com.whim.settlers.transport.Road;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
 import com.whim.settlers.ui.Minimap;
@@ -83,12 +85,58 @@ public final class Renderer {
             }
         }
 
+        drawRoadsAndFlags(g, world, input, s);
         drawBuildings(g, world, s);
+        drawCarriers(g, world, s);
         drawGhost(g, world, input, s);
         minimap.render(g, world);
         buildMenu.render(g, input.selectedType(), vh);
         economyPanel.render(g, world.economy(), vw, vh);
-        drawHud(g, world, fps, minX, minY, maxX, maxY);
+        drawHud(g, world, input, fps);
+    }
+
+    /** Roads (paths), flags (posts), and the road-tool start highlight. */
+    private void drawRoadsAndFlags(Graphics2D g, World world, InputHandler input, double s) {
+        Camera cam = world.camera();
+        g.setStroke(new BasicStroke((float) Math.max(2.0, s * 0.18),
+                BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(new Color(0x6B4E2E));
+        for (Road r : world.transport().network().roads()) {
+            List<int[]> path = r.path();
+            for (int i = 0; i + 1 < path.size(); i++) {
+                Point2D.Double a = cam.worldToScreen(path.get(i)[0] + 0.5, path.get(i)[1] + 0.5);
+                Point2D.Double b = cam.worldToScreen(path.get(i + 1)[0] + 0.5, path.get(i + 1)[1] + 0.5);
+                g.drawLine((int) a.x, (int) a.y, (int) b.x, (int) b.y);
+            }
+        }
+        int post = (int) Math.max(3, s * 0.28);
+        for (Flag f : world.transport().network().flags()) {
+            Point2D.Double p = cam.worldToScreen(f.x() + 0.5, f.y() + 0.5);
+            boolean start = f.id() == input.roadStartFlag();
+            g.setColor(start ? new Color(0xFFD84D) : new Color(0xE8E0C0));
+            g.fillOval((int) p.x - post / 2, (int) p.y - post, post, post);
+            g.setColor(new Color(0x5A4A2A));
+            g.drawOval((int) p.x - post / 2, (int) p.y - post, post, post);
+            if (f.hasWaiting()) { // congestion indicator
+                g.setColor(new Color(0xE05050));
+                g.drawString(String.valueOf(f.waiting()), (int) p.x + post, (int) p.y);
+            }
+        }
+    }
+
+    /** Carriers relaying goods, drawn as dots moving along their road. */
+    private void drawCarriers(Graphics2D g, World world, double s) {
+        Camera cam = world.camera();
+        int r = (int) Math.max(3, s * 0.22);
+        for (Road road : world.transport().network().roads()) {
+            double[] pos = road.carrierPos();
+            if (pos == null) continue;
+            Point2D.Double p = cam.worldToScreen(pos[0] + 0.5, pos[1] + 0.5);
+            g.setColor(road.loaded() ? new Color(0xFFF2B0) : new Color(0x9A8C6A));
+            g.fillOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
+        }
     }
 
     private void drawBuildings(Graphics2D g, World world, double s) {
@@ -172,16 +220,22 @@ public final class Renderer {
         g.drawRect((int) p.x, (int) p.y, w, h);
     }
 
-    private void drawHud(Graphics2D g, World world, double fps,
-                         int minX, int minY, int maxX, int maxY) {
+    private void drawHud(Graphics2D g, World world, InputHandler input, double fps) {
         g.setColor(new Color(0, 0, 0, 140));
-        g.fillRect(BuildMenu.WIDTH + 8, 8, 300, 60);
+        g.fillRect(BuildMenu.WIDTH + 8, 8, 340, 60);
         int hx = BuildMenu.WIDTH + 18;
         g.setColor(Color.WHITE);
-        g.drawString("The Settlers — Phase 2 (buildings)", hx, 26);
-        g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d",
-                fps, world.camera().zoom(), world.buildings().count()), hx, 44);
-        g.setColor(new Color(200, 200, 200));
-        g.drawString("Pick a building at left · left-click to place · right-click cancels", hx, 62);
+        String mode;
+        if (input.tool() == InputHandler.Tool.FLAG) mode = "FLAG tool — click land to place a flag";
+        else if (input.tool() == InputHandler.Tool.ROAD) mode = input.roadStartFlag() < 0
+                ? "ROAD tool — click the first flag" : "ROAD tool — click the second flag";
+        else if (input.selectedType() != null) mode = "Placing: " + input.selectedType().displayName();
+        else mode = "F flag · R road · E economy · build menu at left";
+        g.drawString("The Settlers — Phase 4 (transport)", hx, 26);
+        g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d   settlers %d",
+                fps, world.camera().zoom(), world.buildings().count(),
+                world.economy().totalPopulation()), hx, 44);
+        g.setColor(new Color(200, 220, 255));
+        g.drawString(mode, hx, 62);
     }
 }

@@ -116,6 +116,19 @@ supply/demand bottlenecking is the point, not a bug.
 - The original's theoretical 65,536-settler cap is impractical in Swing; a lower
   practical cap will be chosen and documented when the economy scales up.
 
+## 8a. Transport topology decision (Phase 4)
+
+The flag-relay is implemented faithfully: goods move only along roads, hop
+flag-to-flag, each road segment worked by its own carrier with a there-and-back
+duty cycle (so more flags on a route = more parallel carriers = more throughput),
+and a building unreachable by road stalls. **One simplification, made
+deliberately:** goods route producer→Castle→consumer (the Castle stockpile is a
+hub) rather than via arbitrary producer→consumer routing. This keeps the
+inventory accounting central and the routing BFS trivial while preserving every
+observable relay property the design cares about. Revisit in Phase 8 if
+direct producer→consumer routing proves worth the added routing/reservation
+complexity. `// approximate topology — faithful relay, hub routing`
+
 ## 9. Architecture notes
 
 - Packages: `engine` (loop, camera, input, world, render), `map`, `buildings`,

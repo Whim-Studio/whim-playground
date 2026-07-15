@@ -1,6 +1,7 @@
 package com.whim.settlers.engine;
 
 import com.whim.settlers.buildings.BuildingType;
+import com.whim.settlers.transport.Flag;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
 import com.whim.settlers.ui.Minimap;
@@ -41,8 +42,13 @@ public final class InputHandler
     private boolean dragging;
     private int lastDragX, lastDragY;
 
+    /** Transport tools; mutually exclusive with building placement. */
+    public enum Tool { NONE, FLAG, ROAD }
+
     /** Building armed for placement, or null. Read by the renderer for the ghost. */
     private volatile BuildingType selectedType;
+    private volatile Tool tool = Tool.NONE;
+    private volatile int roadStartFlag = -1; // first flag picked in ROAD mode
 
     // Zoom is buffered here and drained by the loop so wheel events never race.
     private volatile int pendingZoomSteps;
@@ -58,6 +64,8 @@ public final class InputHandler
     }
 
     public BuildingType selectedType() { return selectedType; }
+    public Tool tool()                 { return tool; }
+    public int roadStartFlag()         { return roadStartFlag; }
 
     /** Hovered tile under the cursor (may be off-map); for the placement ghost. */
     public Point hoveredTile() {
@@ -91,7 +99,13 @@ public final class InputHandler
     // --- KeyListener ---
     @Override public void keyPressed(KeyEvent e)  {
         keysDown.add(e.getKeyCode());
-        if (e.getKeyCode() == KeyEvent.VK_E) economyPanel.toggle();
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_E: economyPanel.toggle(); break;
+            case KeyEvent.VK_F: tool = Tool.FLAG; selectedType = null; roadStartFlag = -1; break;
+            case KeyEvent.VK_R: tool = Tool.ROAD; selectedType = null; roadStartFlag = -1; break;
+            case KeyEvent.VK_ESCAPE: tool = Tool.NONE; selectedType = null; roadStartFlag = -1; break;
+            default: break;
+        }
     }
     @Override public void keyReleased(KeyEvent e) { keysDown.remove(e.getKeyCode()); }
     @Override public void keyTyped(KeyEvent e)    { }
@@ -121,7 +135,7 @@ public final class InputHandler
             // 1) Build-menu click arms/toggles a placement type.
             if (buildMenu.contains(e.getX(), e.getY(), vh)) {
                 BuildingType t = buildMenu.typeAt(e.getX(), e.getY());
-                if (t != null) selectedType = (t == selectedType) ? null : t;
+                if (t != null) { selectedType = (t == selectedType) ? null : t; tool = Tool.NONE; }
                 return;
             }
             // 2) Minimap click recentres the camera.
@@ -130,18 +144,32 @@ public final class InputHandler
                 camera.centreOn(target.x, target.y);
                 return;
             }
-            // 3) World click places the armed building, if the spot is valid.
-            if (selectedType != null) {
-                Point tile = hoveredTile();
-                boolean placed = world.buildings()
-                        .place(selectedType, tile.x, tile.y, World.PLAYER_ID) != null;
-                // Keep the tool armed on success (rapid placement); Shift is not
-                // required. Right-click clears it.
-                if (!placed) { /* invalid spot: leave armed, no-op */ }
+            // 3) World click: transport tool, else building placement.
+            Point tile = hoveredTile();
+            if (tool == Tool.FLAG) {
+                world.transport().placeFlag(tile.x, tile.y);
+            } else if (tool == Tool.ROAD) {
+                handleRoadClick(tile);
+            } else if (selectedType != null) {
+                world.buildings().place(selectedType, tile.x, tile.y, World.PLAYER_ID);
             }
         } else if (e.getButton() == MouseEvent.BUTTON3) {
-            // Right-click cancels placement mode (in addition to drag-panning).
+            // Right-click cancels the current tool / placement (also drag-pans).
             selectedType = null;
+            tool = Tool.NONE;
+            roadStartFlag = -1;
+        }
+    }
+
+    /** ROAD tool: pick a start flag, then a second flag to lay a road between them. */
+    private void handleRoadClick(Point tile) {
+        Flag f = world.transport().network().flagAt(tile.x, tile.y);
+        if (f == null) return; // must click on a flag
+        if (roadStartFlag < 0) {
+            roadStartFlag = f.id();
+        } else {
+            world.transport().buildRoad(roadStartFlag, f.id());
+            roadStartFlag = -1;
         }
     }
     @Override public void mouseEntered(MouseEvent e) { }

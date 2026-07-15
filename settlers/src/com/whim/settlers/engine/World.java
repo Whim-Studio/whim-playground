@@ -1,9 +1,11 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.buildings.Building;
 import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.economy.Economy;
 import com.whim.settlers.map.TileMap;
+import com.whim.settlers.transport.TransportSystem;
 
 /**
  * Root game-state container. Holds the map, camera, and buildings; settlers,
@@ -18,6 +20,7 @@ public final class World {
     private final TileMap map;
     private final Camera camera;
     private final BuildingManager buildings;
+    private final TransportSystem transport;
     private final Economy economy;
 
     /** Total simulated time in seconds — handy for animation and debugging. */
@@ -27,14 +30,20 @@ public final class World {
         this.map = map;
         this.camera = new Camera(map.width() / 2.0, map.height() / 2.0);
         this.buildings = new BuildingManager(map);
-        this.economy = new Economy(map, buildings);
+        this.transport = new TransportSystem(map, buildings);
+        this.economy = new Economy(map, buildings, transport);
     }
 
     /** Advance the simulation by a fixed timestep. */
     public void update(double dtSeconds) {
         clock += dtSeconds;
-        buildings.update((float) dtSeconds);
-        economy.update((float) dtSeconds);
+        float dt = (float) dtSeconds;
+        buildings.update(dt);
+        // Every building gets a flag next to it as soon as it exists, so the
+        // player can road-connect it.
+        for (Building b : buildings.all()) transport.ensureFlagFor(b);
+        economy.update(dt);   // may enqueue shipments
+        transport.update(dt); // moves carriers / delivers
         camera.clampTo(map.width(), map.height());
     }
 
@@ -52,7 +61,8 @@ public final class World {
                     if (Math.max(Math.abs(dx), Math.abs(dy)) != r) continue;
                     int ax = cx + dx, ay = cy + dy;
                     if (buildings.canPlace(BuildingType.CASTLE, ax, ay)) {
-                        buildings.place(BuildingType.CASTLE, ax, ay, PLAYER_ID);
+                        Building castle = buildings.place(BuildingType.CASTLE, ax, ay, PLAYER_ID);
+                        transport.registerCastle(castle); // Castle flag = stockpile hub
                         camera.centreOn(ax + 1.5, ay + 1.5);
                         return true;
                     }
@@ -65,6 +75,7 @@ public final class World {
     public TileMap map()             { return map; }
     public Camera camera()           { return camera; }
     public BuildingManager buildings(){ return buildings; }
+    public TransportSystem transport(){ return transport; }
     public Economy economy()         { return economy; }
     public double clock()            { return clock; }
 }

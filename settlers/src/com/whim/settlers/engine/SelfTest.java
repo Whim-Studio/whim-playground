@@ -5,6 +5,7 @@ import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.economy.Economy;
 import com.whim.settlers.economy.Good;
+import com.whim.settlers.transport.TransportSystem;
 import com.whim.settlers.io.MapLoader;
 import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
@@ -40,6 +41,7 @@ public final class SelfTest {
         failures += check("woodcutter->sawmill produces planks", woodToPlanks());
         failures += check("forester replants felled trees", foresterReplants());
         failures += check("unstaffed without tool", staffingNeedsTool());
+        failures += check("goods relay only over roads", transportRelay());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -168,50 +170,75 @@ public final class SelfTest {
         return b.isFinished() && near(b.progress(), 1.0);
     }
 
-    /** Tick construction + economy together for {@code seconds} at 60 Hz. */
-    private static void tick(BuildingManager mgr, Economy eco, double seconds) {
+    /** Tick the whole world (construction + economy + transport) at 60 Hz. */
+    private static void tickWorld(World w, double seconds) {
         int steps = (int) Math.round(seconds * 60);
-        for (int i = 0; i < steps; i++) {
-            mgr.update(1f / 60f);
-            eco.update(1f / 60f);
-        }
+        for (int i = 0; i < steps; i++) w.update(1.0 / 60.0);
+    }
+
+    /** Connect a building's auto-flag to the Castle stockpile flag by road. */
+    private static void road(World w, Building b) {
+        TransportSystem tr = w.transport();
+        tr.ensureFlagFor(b);
+        tr.buildRoad(tr.flagFor(b), tr.castleFlagId());
     }
 
     private static boolean woodToPlanks() {
-        TileMap m = new TileMap(24, 24);
-        for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) m.set(x, y, TerrainType.FOREST);
-        BuildingManager mgr = new BuildingManager(m);
-        Economy eco = new Economy(m, mgr);
-        mgr.place(BuildingType.WOODCUTTER, 3, 8, 0); // forest within radius 5
-        mgr.place(BuildingType.SAWMILL, 10, 10, 0);
-        int planks0 = eco.stock().get(Good.PLANK);
-        tick(mgr, eco, 70);
-        // The sawmill should have turned harvested wood into new planks.
-        return eco.stock().get(Good.PLANK) > planks0
-            && eco.stock().get(Good.WOOD) >= 0;
+        TileMap m = new TileMap(36, 36); // all grass
+        for (int y = 13; y < 18; y++) for (int x = 5; x < 10; x++) m.set(x, y, TerrainType.FOREST);
+        World w = new World(m);
+        w.foundSettlement(); // Castle at map centre
+        Building wc = w.buildings().place(BuildingType.WOODCUTTER, 10, 15, 0);
+        Building sm = w.buildings().place(BuildingType.SAWMILL, 22, 15, 0);
+        road(w, wc);
+        road(w, sm);
+        int planks0 = w.economy().stock().get(Good.PLANK);
+        tickWorld(w, 150);
+        // Wood harvested at the woodcutter must relay to the Castle, then to the
+        // sawmill, and come back as new planks — all over roads, no teleport.
+        return w.economy().stock().get(Good.PLANK) > planks0;
     }
 
     private static boolean foresterReplants() {
-        TileMap m = new TileMap(20, 20); // all grass
-        BuildingManager mgr = new BuildingManager(m);
-        Economy eco = new Economy(m, mgr);
-        mgr.place(BuildingType.FORESTER, 10, 10, 0);
+        TileMap m = new TileMap(36, 36); // all grass
+        World w = new World(m);
+        w.foundSettlement();
+        Building fr = w.buildings().place(BuildingType.FORESTER, 10, 18, 0);
+        road(w, fr);
         int forest0 = countTerrain(m, TerrainType.FOREST);
-        tick(mgr, eco, 40);
+        tickWorld(w, 60);
         return countTerrain(m, TerrainType.FOREST) > forest0;
     }
 
     private static boolean staffingNeedsTool() {
-        TileMap m = new TileMap(20, 20);
-        for (int y = 0; y < 6; y++) for (int x = 0; x < 6; x++) m.set(x, y, TerrainType.FOREST);
-        BuildingManager mgr = new BuildingManager(m);
-        Economy eco = new Economy(m, mgr); // seeds exactly one AXE
-        Building a = mgr.place(BuildingType.WOODCUTTER, 2, 8, 0);
-        Building b = mgr.place(BuildingType.WOODCUTTER, 8, 8, 0);
-        tick(mgr, eco, 20);
-        int staffed = (eco.isStaffed(a) ? 1 : 0) + (eco.isStaffed(b) ? 1 : 0);
-        boolean oneWaiting = eco.statusOf(a).contains("axe") || eco.statusOf(b).contains("axe");
+        TileMap m = new TileMap(36, 36); // all grass; seed gives exactly one AXE
+        World w = new World(m);
+        w.foundSettlement();
+        Building a = w.buildings().place(BuildingType.WOODCUTTER, 9, 15, 0);
+        Building b = w.buildings().place(BuildingType.WOODCUTTER, 24, 15, 0);
+        road(w, a);
+        road(w, b);
+        tickWorld(w, 20);
+        int staffed = (w.economy().isStaffed(a) ? 1 : 0) + (w.economy().isStaffed(b) ? 1 : 0);
+        boolean oneWaiting = w.economy().statusOf(a).contains("axe")
+                          || w.economy().statusOf(b).contains("axe");
         return staffed == 1 && oneWaiting;
+    }
+
+    private static boolean transportRelay() {
+        // A woodcutter with no road never delivers; with a road it does.
+        TileMap m = new TileMap(36, 36);
+        for (int y = 13; y < 18; y++) for (int x = 5; x < 10; x++) m.set(x, y, TerrainType.FOREST);
+        World w = new World(m);
+        w.foundSettlement();
+        Building wc = w.buildings().place(BuildingType.WOODCUTTER, 10, 15, 0);
+        w.transport().ensureFlagFor(wc);
+        tickWorld(w, 30);
+        boolean noRoadNoWood = w.economy().stock().get(Good.WOOD) == 0; // unreachable
+        road(w, wc);
+        tickWorld(w, 60);
+        boolean roadDelivers = w.economy().stock().get(Good.WOOD) > 0;
+        return noRoadNoWood && roadDelivers;
     }
 
     private static int countTerrain(TileMap m, TerrainType t) {

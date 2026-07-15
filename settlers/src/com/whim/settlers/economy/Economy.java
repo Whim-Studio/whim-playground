@@ -6,11 +6,13 @@ import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.economy.Recipe.ExtractorNeed;
 import com.whim.settlers.map.TerrainType;
 import com.whim.settlers.map.TileMap;
+import com.whim.settlers.transport.TransportSystem;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,7 @@ public final class Economy {
 
     private final TileMap map;
     private final BuildingManager buildings;
+    private final TransportSystem transport;
     private final Inventory stock = new Inventory();
 
     /** Idle settlers waiting for a job, and the running total (idle + employed). */
@@ -55,12 +58,15 @@ public final class Economy {
     /** Player-ordered tool-production priority for the Tool Maker. */
     private final List<Good> toolOrder = new ArrayList<Good>();
 
-    public Economy(TileMap map, BuildingManager buildings) {
+    public Economy(TileMap map, BuildingManager buildings, TransportSystem transport) {
         this.map = map;
         this.buildings = buildings;
+        this.transport = transport;
         for (Good g : ProductionChains.toolOutputs()) toolOrder.add(g);
         seedStartingStock();
     }
+
+    private int castleFlag() { return transport.castleFlagId(); }
 
     /** Starting supplies and settlers so the first production ring can bootstrap. */
     private void seedStartingStock() {
@@ -101,6 +107,11 @@ public final class Economy {
             if (r == null) continue; // non-productive building
             BState s = stateOf(b);
             if (s.worker != null) continue;
+            // A settler must be able to walk from the Castle to the building.
+            Integer flag = transport.flagFor(b);
+            if (flag == null || !transport.connected(flag, castleFlag())) {
+                s.reason = "no road"; continue;
+            }
             if (idle <= 0) { s.reason = "no worker"; continue; }
             Good tool = r.requiredTool();
             if (tool != null && !stock.has(tool, 1)) {
@@ -133,47 +144,112 @@ public final class Economy {
     }
 
     private void step(Building b, Recipe r, BState s, float dt) {
+        int flag = flagId(b);
+        boolean connected = flag >= 0 && transport.connected(flag, castleFlag());
+
         if (s.progress > 0f) {
-            // Mid-cycle: advance, then complete.
+            // Mid-cycle: advance, then complete (output relays to the Castle).
             s.progress += dt / r.seconds();
             if (s.progress >= 1f) {
                 s.progress = 0f;
-                complete(b, r, s);
+                complete(b, r, s, flag);
             }
             s.reason = "working";
             return;
         }
-        // Idle: try to start a new cycle.
+        // A building with no road to the Castle can neither receive inputs nor
+        // ship output — it stalls. This is the "goods only move on roads" rule.
+        if (!connected) { s.reason = "no road"; return; }
         if (!extractorReady(b, r)) { s.reason = stalledReason(r); return; }
-        Good food = r.consumesFood() ? availableFood() : null;
-        if (r.consumesFood() && food == null) { s.reason = "no food"; return; }
-        Good target = resolveOutput(b, r); // may pick a tool; null if nothing to make
+
+        Good target = resolveOutput(b, r); // Tool Maker picks a tool; null = none wanted
         if (r.output() == null && r.profession() == Profession.TOOLMAKER && target == null) {
             s.reason = "no tool demand"; return;
         }
-        if (!inputsAvailable(r)) { s.reason = missingInput(r); return; }
-        // Consume inputs (+food) and begin.
-        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) stock.take(e.getKey(), e.getValue());
-        if (food != null) stock.take(food, 1);
+        // Pull any missing inputs (and food) from the Castle stockpile over roads.
+        requestInputs(r, s, flag);
+        if (!bufferReady(r, s)) { s.reason = "awaiting goods"; return; }
+
+        // Consume delivered inputs from the building's buffer and begin a cycle.
+        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) s.buffer.take(e.getKey(), e.getValue());
+        if (r.consumesFood()) takeBufferFood(s);
         s.pendingOutput = target;
         s.progress = 0.0001f;
         s.reason = "working";
     }
 
-    private void complete(Building b, Recipe r, BState s) {
+    /** Ship any not-yet-present inputs from the Castle stockpile to the building buffer. */
+    private void requestInputs(Recipe r, final BState s, int flag) {
+        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) {
+            final Good g = e.getKey();
+            final int qty = e.getValue();
+            if (s.buffer.get(g) >= qty || s.inTransit.contains(g)) continue;
+            if (!stock.has(g, qty)) continue;
+            stock.take(g, qty);
+            s.inTransit.add(g);
+            transport.ship(g, castleFlag(), flag, new Runnable() {
+                @Override public void run() { s.buffer.add(g, qty); s.inTransit.remove(g); }
+            });
+        }
+        if (r.consumesFood() && bufferFood(s) == 0 && !s.foodInTransit) {
+            final Good food = availableFood();
+            if (food != null) {
+                stock.take(food, 1);
+                s.foodInTransit = true;
+                transport.ship(food, castleFlag(), flag, new Runnable() {
+                    @Override public void run() { s.buffer.add(food, 1); s.foodInTransit = false; }
+                });
+            }
+        }
+    }
+
+    private boolean bufferReady(Recipe r, BState s) {
+        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) {
+            if (s.buffer.get(e.getKey()) < e.getValue()) return false;
+        }
+        return !r.consumesFood() || bufferFood(s) > 0;
+    }
+
+    private int bufferFood(BState s) {
+        return s.buffer.get(Good.BREAD) + s.buffer.get(Good.FISH) + s.buffer.get(Good.MEAT);
+    }
+
+    private void takeBufferFood(BState s) {
+        if (s.buffer.take(Good.BREAD, 1)) return;
+        if (s.buffer.take(Good.FISH, 1)) return;
+        s.buffer.take(Good.MEAT, 1);
+    }
+
+    private void complete(Building b, Recipe r, BState s, int flag) {
         if (r.profession() == Profession.FORESTER) {
             replantForest(b); // special: no good, plants a tree
             return;
         }
+        final Good out;
+        final int qty;
         if (r.profession() == Profession.BLACKSMITH) {
-            Good weapon = s.blacksmithShield ? Good.SHIELD : Good.SWORD;
+            out = s.blacksmithShield ? Good.SHIELD : Good.SWORD;
             s.blacksmithShield = !s.blacksmithShield;
-            stock.add(weapon, 1);
-            return;
+            qty = 1;
+        } else if (r.output() != null) {
+            out = r.output();
+            qty = r.outputQty();
+        } else {
+            out = s.pendingOutput; // Tool Maker's chosen tool
+            qty = 1;
         }
-        Good out = r.output() != null ? r.output() : s.pendingOutput;
-        if (out != null) stock.add(out, r.output() != null ? r.outputQty() : 1);
         if (r.profession() == Profession.WOODCUTTER) fellTree(b); // deplete forest
+        if (out == null) return;
+        final Good fout = out; final int fqty = qty;
+        // Relay the finished good back to the Castle stockpile over the roads.
+        transport.ship(out, flag, castleFlag(), new Runnable() {
+            @Override public void run() { stock.add(fout, fqty); }
+        });
+    }
+
+    private int flagId(Building b) {
+        Integer f = transport.flagFor(b);
+        return f == null ? -1 : f;
     }
 
     // ------------------------------------------------------- extractor helpers
@@ -236,20 +312,6 @@ public final class Economy {
     }
 
     // ------------------------------------------------------------ input/output
-
-    private boolean inputsAvailable(Recipe r) {
-        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) {
-            if (!stock.has(e.getKey(), e.getValue())) return false;
-        }
-        return true;
-    }
-
-    private String missingInput(Recipe r) {
-        for (Map.Entry<Good, Integer> e : r.inputs().entrySet()) {
-            if (!stock.has(e.getKey(), e.getValue())) return "no " + e.getKey().label().toLowerCase();
-        }
-        return "idle";
-    }
 
     private Good availableFood() {
         if (stock.has(Good.BREAD, 1)) return Good.BREAD;
@@ -346,5 +408,10 @@ public final class Economy {
         Good pendingOutput;      // resolved tool for the Tool Maker
         boolean blacksmithShield;// alternates sword/shield
         String reason = "idle";
+        /** Inputs delivered by the transport relay, awaiting consumption. */
+        final Inventory buffer = new Inventory();
+        /** Input goods currently in transit to this building (avoid double-requesting). */
+        final EnumSet<Good> inTransit = EnumSet.noneOf(Good.class);
+        boolean foodInTransit;
     }
 }

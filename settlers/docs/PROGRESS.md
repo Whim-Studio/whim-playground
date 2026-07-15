@@ -79,7 +79,23 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 15/15 (adds a live woodcutter→sawmill→planks chain, forester replanting, and tool-gated-staffing checks).
 
 ## Phase 4 — Roads & transport — _not started_
-## Phase 4 — Roads & transport — _not started_
+## Phase 4 — Roads & transport ✅ (2026-07-15)
+
+**Implemented & runnable**
+- Flag/road graph (`transport/Flag`, `Road`, `RoadNetwork`): flags are relay hubs with FIFO good queues; roads join two flags along a fixed tile path. BFS routing (`nextHop`, `connected`) over the flag graph.
+- Road routing (`transport/Pathfinder`): 4-directional A* lays a road between two flags over walkable tiles (not water/mountain/buildings).
+- **Flag-relay carriers** (`transport/Road`): one carrier per segment picks up a good at a flag, walks the length to the far flag (time ∝ length), sets it down, then walks back empty before carrying again — a genuine per-segment throughput limit. A good relays flag→flag until it reaches its destination; congestion emerges when carriers are busy (waiting counts shown at flags). **Not teleport.**
+- Transport orchestration (`transport/TransportSystem`): auto-places a flag beside every building, builds roads via A*, and each tick advances carriers then dispatches queued goods onto free segments.
+- **Economy now flows over roads** (`economy/Economy` reworked): producers ship output to the Castle stockpile and consumers request inputs from it, both as physical relayed shipments into per-building input buffers. A building with no road to the Castle can neither be staffed nor produce ("no road"). The Phase-3 recipe/staffing logic is otherwise unchanged.
+- UX: **F** arms the flag tool (click land), **R** arms the road tool (click two flags), **Esc**/right-click cancels. Renderer draws roads, flags (with waiting-count congestion indicator), and carriers as dots moving along their road; HUD shows the active tool.
+
+**Stubbed / placeholder / notes**
+- **Topology simplification (documented):** goods route producer→Castle→consumer (Castle is the hub) rather than arbitrary producer→consumer. The physical relay — flags, per-segment carriers, multi-hop, congestion, road-connectivity requirement — is genuine; only the routing target is simplified. Recorded in `docs/GDD.md`.
+- One carrier per road (no auto-added second carrier / donkeys yet); waterway/ship crossings remain a stretch feature.
+- Staffing consumes a tool from the stockpile without animating its delivery; carrier bodies are visualised per-segment rather than individually pathed between jobs.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 16/16, incl. a **road-gated relay** check (no wood reaches the stockpile without a road; it does once connected) and the full woodcutter→Castle→sawmill→Castle plank chain over roads.
+
 ## Phase 5 — Military & territory — _not started_
 ## Phase 6 — AI opponent(s) — _not started_
 ## Phase 7 — UI/UX polish & meta — _not started_
