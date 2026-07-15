@@ -1,9 +1,12 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.buildings.Building;
 import com.whim.settlers.buildings.BuildingType;
+import com.whim.settlers.military.MilitarySystem;
 import com.whim.settlers.transport.Flag;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.Point;
@@ -36,6 +39,7 @@ public final class InputHandler
     private final Minimap minimap;
     private final BuildMenu buildMenu;
     private final EconomyPanel economyPanel;
+    private final MilitaryPanel militaryPanel;
     private final Set<Integer> keysDown = new HashSet<Integer>();
 
     private volatile int mouseX, mouseY;
@@ -55,12 +59,13 @@ public final class InputHandler
     private volatile int zoomAnchorX, zoomAnchorY;
 
     public InputHandler(World world, Minimap minimap, BuildMenu buildMenu,
-                        EconomyPanel economyPanel) {
+                        EconomyPanel economyPanel, MilitaryPanel militaryPanel) {
         this.world = world;
         this.camera = world.camera();
         this.minimap = minimap;
         this.buildMenu = buildMenu;
         this.economyPanel = economyPanel;
+        this.militaryPanel = militaryPanel;
     }
 
     public BuildingType selectedType() { return selectedType; }
@@ -127,9 +132,13 @@ public final class InputHandler
         int vh = camera.viewportH();
         int vw = camera.viewportW();
         if (e.getButton() == MouseEvent.BUTTON1) {
-            // 0) Economy panel buttons (when open) take precedence.
+            // 0) Panel buttons (when shown) take precedence.
             if (economyPanel.contains(e.getX(), e.getY(), vw, vh)) {
                 economyPanel.handleClick(e.getX(), e.getY());
+                return;
+            }
+            if (militaryPanel.contains(e.getX(), e.getY(), vw, vh)) {
+                militaryPanel.handleClick(e.getX(), e.getY());
                 return;
             }
             // 1) Build-menu click arms/toggles a placement type.
@@ -144,14 +153,18 @@ public final class InputHandler
                 camera.centreOn(target.x, target.y);
                 return;
             }
-            // 3) World click: transport tool, else building placement.
+            // 3) World click: transport tool, building placement, or attack select.
             Point tile = hoveredTile();
             if (tool == Tool.FLAG) {
                 world.transport().placeFlag(tile.x, tile.y);
             } else if (tool == Tool.ROAD) {
                 handleRoadClick(tile);
             } else if (selectedType != null) {
-                world.buildings().place(selectedType, tile.x, tile.y, World.PLAYER_ID);
+                if (world.canPlayerPlace(selectedType, tile.x, tile.y, World.PLAYER_ID)) {
+                    world.buildings().place(selectedType, tile.x, tile.y, World.PLAYER_ID);
+                }
+            } else {
+                selectAttackTarget(tile);
             }
         } else if (e.getButton() == MouseEvent.BUTTON3) {
             // Right-click cancels the current tool / placement (also drag-pans).
@@ -170,6 +183,17 @@ public final class InputHandler
         } else {
             world.transport().buildRoad(roadStartFlag, f.id());
             roadStartFlag = -1;
+        }
+    }
+
+    /** Click an enemy fort to select it as an attack target (opens the attack panel). */
+    private void selectAttackTarget(Point tile) {
+        Building b = world.buildings().at(tile.x, tile.y);
+        if (b != null && MilitarySystem.isFort(b.type())
+                && b.ownerId() != World.PLAYER_ID && b.ownerId() != -1) {
+            militaryPanel.setTarget(b);
+        } else {
+            militaryPanel.setTarget(null);
         }
     }
     @Override public void mouseEntered(MouseEvent e) { }

@@ -5,10 +5,13 @@ import com.whim.settlers.buildings.BuildingState;
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.map.TerrainType;
+import com.whim.settlers.military.MilitarySystem;
+import com.whim.settlers.military.Players;
 import com.whim.settlers.transport.Flag;
 import com.whim.settlers.transport.Road;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.BasicStroke;
@@ -32,11 +35,14 @@ public final class Renderer {
     private final Minimap minimap;
     private final BuildMenu buildMenu;
     private final EconomyPanel economyPanel;
+    private final MilitaryPanel militaryPanel;
 
-    public Renderer(Minimap minimap, BuildMenu buildMenu, EconomyPanel economyPanel) {
+    public Renderer(Minimap minimap, BuildMenu buildMenu, EconomyPanel economyPanel,
+                    MilitaryPanel militaryPanel) {
         this.minimap = minimap;
         this.buildMenu = buildMenu;
         this.economyPanel = economyPanel;
+        this.militaryPanel = militaryPanel;
     }
 
     public void render(Graphics2D g, World world, InputHandler input, double fps) {
@@ -85,6 +91,7 @@ public final class Renderer {
             }
         }
 
+        drawTerritory(g, world, minX, minY, maxX, maxY);
         drawRoadsAndFlags(g, world, input, s);
         drawBuildings(g, world, s);
         drawCarriers(g, world, s);
@@ -92,7 +99,34 @@ public final class Renderer {
         minimap.render(g, world);
         buildMenu.render(g, input.selectedType(), vh);
         economyPanel.render(g, world.economy(), vw, vh);
+        militaryPanel.render(g, world, vw, vh);
         drawHud(g, world, input, fps);
+    }
+
+    /** Territory tint per owner plus border outlines between differing owners. */
+    private void drawTerritory(Graphics2D g, World world, int minX, int minY, int maxX, int maxY) {
+        MilitarySystem mil = world.military();
+        Camera cam = world.camera();
+        double s = cam.scale();
+        int tile = (int) Math.ceil(s) + 1;
+        for (int y = minY; y < maxY; y++) {
+            for (int x = minX; x < maxX; x++) {
+                int owner = mil.ownerAt(x, y);
+                if (owner < 0) continue;
+                Point2D.Double p = cam.worldToScreen(x, y);
+                Color c = Players.color(owner);
+                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 46));
+                g.fillRect((int) Math.floor(p.x), (int) Math.floor(p.y), tile, tile);
+                // Border where the owner differs from the right/bottom neighbour.
+                boolean edge = mil.ownerAt(x + 1, y) != owner || mil.ownerAt(x, y + 1) != owner
+                            || mil.ownerAt(x - 1, y) != owner || mil.ownerAt(x, y - 1) != owner;
+                if (edge) {
+                    g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 200));
+                    g.drawRect((int) Math.floor(p.x), (int) Math.floor(p.y),
+                               (int) Math.ceil(s), (int) Math.ceil(s));
+                }
+            }
+        }
     }
 
     /** Roads (paths), flags (posts), and the road-tool start highlight. */
@@ -147,9 +181,32 @@ public final class Renderer {
                          b.state() == BuildingState.FINISHED ? 255 : 150);
             if (b.state() == BuildingState.UNDER_CONSTRUCTION) {
                 drawProgress(g, world, b, s);
+            } else if (MilitarySystem.isFort(b.type())) {
+                drawGarrison(g, world, b, s);
             } else if (s >= 18) {
                 drawStatus(g, world, b, s);
             }
+        }
+    }
+
+    /** Owner-tinted border + "knights/cap" label on forts. */
+    private void drawGarrison(Graphics2D g, World world, Building b, double s) {
+        Point2D.Double p = world.camera().worldToScreen(b.x(), b.y());
+        int w = (int) Math.ceil(b.type().footprintW() * s);
+        int h = (int) Math.ceil(b.type().footprintH() * s);
+        Color oc = b.ownerId() < 0 ? new Color(150, 150, 150) : Players.color(b.ownerId());
+        g.setColor(oc);
+        g.setStroke(new java.awt.BasicStroke(2f));
+        g.drawRect((int) p.x + 1, (int) p.y + 1, w - 2, h - 2);
+        if (s >= 14) {
+            String label = world.military().garrisonSize(b) + "/"
+                    + MilitarySystem.capacity(b.type());
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
+            int tx = (int) p.x + 2, ty = (int) p.y + h + 11;
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRect(tx - 1, ty - 9, g.getFontMetrics().stringWidth(label) + 4, 12);
+            g.setColor(Color.WHITE);
+            g.drawString(label, tx + 1, ty);
         }
     }
 
@@ -209,7 +266,7 @@ public final class Renderer {
                 || economyPanel.contains(input.mouseX(), input.mouseY(), vw, vh)) {
             return; // don't ghost while the cursor is over a panel
         }
-        boolean ok = world.buildings().canPlace(type, tile.x, tile.y);
+        boolean ok = world.canPlayerPlace(type, tile.x, tile.y, World.PLAYER_ID);
         Point2D.Double p = world.camera().worldToScreen(tile.x, tile.y);
         int w = (int) Math.ceil(type.footprintW() * s);
         int h = (int) Math.ceil(type.footprintH() * s);
@@ -231,7 +288,7 @@ public final class Renderer {
                 ? "ROAD tool — click the first flag" : "ROAD tool — click the second flag";
         else if (input.selectedType() != null) mode = "Placing: " + input.selectedType().displayName();
         else mode = "F flag · R road · E economy · build menu at left";
-        g.drawString("The Settlers — Phase 4 (transport)", hx, 26);
+        g.drawString("The Settlers — Phase 5 (military)", hx, 26);
         g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d   settlers %d",
                 fps, world.camera().zoom(), world.buildings().count(),
                 world.economy().totalPopulation()), hx, 44);

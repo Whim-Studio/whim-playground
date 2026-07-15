@@ -96,7 +96,26 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 16/16, incl. a **road-gated relay** check (no wood reaches the stockpile without a road; it does once connected) and the full woodcutter→Castle→sawmill→Castle plank chain over roads.
 
-## Phase 5 — Military & territory — _not started_
+## Phase 5 — Military & territory ✅ (2026-07-15)
+
+**Implemented & runnable**
+- Players (`military/Players`): human (0) and a static enemy (1) with colours; `World.spawnEnemy()` places an enemy Castle + Guard Hut with seeded garrisons.
+- Knights & ranks (`military/Knight`): five ranks, experience-based promotion (faster in the Castle), strength scales with rank.
+- Military system (`military/MilitarySystem`):
+  - **Territory** = union of radii around every finished, garrisoned fort (Castle/Guard Hut/Tower/Garrison, ascending radii); each tile owned by the nearest claiming fort's player. Recomputed every 0.5 s.
+  - **Knight production** — settlers + a sword + a shield become knights (human), filling fort garrisons up to per-tier capacity; player sets the knight target and default rank.
+  - **Morale** — gold coins delivered to a fort raise its morale (a combat multiplier).
+  - **Attack/defend** — send N knights from your nearest forts at an enemy fort; strength (Σ rank × morale) resolves after a march delay. Win ⇒ capture (owner flips, survivors garrison it), territory recomputes, and the loser's buildings left outside their remaining borders go neutral. Defence is automatic.
+- **Territory-gated building** (`World.canPlayerPlace`): ordinary buildings must sit inside your borders; military buildings may sit on/just beyond them to expand — the only way to grow territory. The Castle is exempt (it founds the first territory).
+- Economy is now correctly scoped to the human player (enemy buildings are skipped).
+- UI: territory tint + borders per player, owner-tinted fort outlines with `knights/cap` labels, and a bottom **Military bar** (knight target, default rank, and — when you click an enemy fort — an attack panel with a send-count selector and Attack button).
+
+**Stubbed / placeholder / notes**
+- The enemy is static this phase (no economy or AI); **Phase 6** gives it a brain.
+- Combat resolves by aggregate strength with a fixed march time `// approximate`; no per-knight battle animation. Captured non-fort buildings become inert-neutral rather than being physically removed (no building-removal path yet).
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 19/19 (adds territory-claim, attack-captures-weaker-fort, and attack-fails-vs-stronger-fort checks).
+
 ## Phase 6 — AI opponent(s) — _not started_
 ## Phase 7 — UI/UX polish & meta — _not started_
 ## Phase 8 — Hardening — _not started_

@@ -5,6 +5,8 @@ import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.economy.Economy;
 import com.whim.settlers.economy.Good;
+import com.whim.settlers.military.MilitarySystem;
+import com.whim.settlers.military.Players;
 import com.whim.settlers.transport.TransportSystem;
 import com.whim.settlers.io.MapLoader;
 import com.whim.settlers.map.MapGenerator;
@@ -42,6 +44,9 @@ public final class SelfTest {
         failures += check("forester replants felled trees", foresterReplants());
         failures += check("unstaffed without tool", staffingNeedsTool());
         failures += check("goods relay only over roads", transportRelay());
+        failures += check("garrisoned fort claims territory", territoryClaim());
+        failures += check("attack captures weaker fort", attackCaptures());
+        failures += check("attack fails vs stronger fort", attackFails());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -239,6 +244,49 @@ public final class SelfTest {
         tickWorld(w, 60);
         boolean roadDelivers = w.economy().stock().get(Good.WOOD) > 0;
         return noRoadNoWood && roadDelivers;
+    }
+
+    private static Building humanCastle(World w) {
+        for (Building b : w.buildings().all()) {
+            if (b.ownerId() == Players.HUMAN && b.type() == BuildingType.CASTLE) return b;
+        }
+        return null;
+    }
+
+    private static boolean territoryClaim() {
+        TileMap m = new TileMap(40, 40);
+        World w = new World(m);
+        w.foundSettlement(); // human Castle seeded with a knight
+        tickWorld(w, 1);     // let territory recompute
+        int cx = 40 / 2, cy = 40 / 2;
+        return w.military().ownerAt(cx, cy) == Players.HUMAN
+            && w.military().ownerAt(0, 0) == -1; // far corner unclaimed
+    }
+
+    private static boolean attackCaptures() {
+        TileMap m = new TileMap(44, 44);
+        World w = new World(m);
+        w.foundSettlement();
+        Building enemy = w.buildings().place(BuildingType.GUARD_HUT, 32, 32, Players.ENEMY);
+        tickWorld(w, 8); // finish the enemy hut's construction
+        w.military().seedGarrison(enemy, 1, 1);            // weak defender
+        w.military().seedGarrison(humanCastle(w), 5, 3);   // strong attacker pool
+        boolean wasEnemy = enemy.ownerId() == Players.ENEMY;
+        w.military().launchAttack(enemy, 5);
+        tickWorld(w, 6); // march + resolve
+        return wasEnemy && enemy.ownerId() == Players.HUMAN;
+    }
+
+    private static boolean attackFails() {
+        TileMap m = new TileMap(44, 44);
+        World w = new World(m);
+        w.foundSettlement(); // human Castle keeps only its single starting knight
+        Building enemy = w.buildings().place(BuildingType.GUARD_TOWER, 32, 32, Players.ENEMY);
+        tickWorld(w, 10);
+        w.military().seedGarrison(enemy, 4, 5); // strong defenders
+        w.military().launchAttack(enemy, 5);    // human can only muster 1 knight
+        tickWorld(w, 6);
+        return enemy.ownerId() == Players.ENEMY; // assault repelled
     }
 
     private static int countTerrain(TileMap m, TerrainType t) {

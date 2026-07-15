@@ -11,16 +11,17 @@ road/flag/transport relay, and military/territory systems.
 
 ## Status
 
-Phases 0–4 complete: fixed-timestep game loop with active `BufferStrategy`
+Phases 0–5 complete: fixed-timestep game loop with active `BufferStrategy`
 rendering, a pan/zoom camera, terrain + seeded map generator + minimap, the full
 building roster with placement/validity and construction, the **economy
 simulation** (settler roles, production chains, warehouse/inventory, renewable
-wood, tool-gated staffing, distribution/tool-priority UI — press **E**), and the
-**flag-relay transport**: place flags (**F**), lay roads (**R**), and goods move
-only along roads, hop flag-to-flag via per-segment carriers with real congestion —
-buildings must be road-connected to the Castle to work. See `docs/PROGRESS.md`
-for the phase log and `docs/GDD.md` for the design spec (incl. the transport
-topology decision).
+wood, tool-gated staffing, distribution/tool-priority UI — press **E**), the
+**flag-relay transport** (place flags **F**, lay roads **R**; goods move only
+along roads via per-segment carriers with real congestion), and **military &
+territory** — knights with five ranks and morale, Guard Hut→Tower→Garrison,
+territory borders, and the click-an-enemy-fort attack/defend flow. A static enemy
+settlement is present (AI arrives in Phase 6). See `docs/PROGRESS.md` for the
+phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements
 
@@ -62,5 +63,6 @@ java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
 | `F` | Flag tool — click land to place a flag |
 | `R` | Road tool — click a first flag, then a second, to lay a road |
 | `Esc` | Cancel the current tool / placement |
+| Left-click enemy fort | Open the attack panel (choose knights, Attack) |
 
 More controls arrive with each phase; this table is kept current.

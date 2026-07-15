@@ -99,10 +99,18 @@ public final class Economy {
         }
     }
 
+    /** Draw one idle settler for military conscription; false if none free. */
+    public boolean takeSettler() {
+        if (idle <= 0) return false;
+        idle--;
+        return true;
+    }
+
     /** Assign idle settlers to unstaffed finished buildings that have their tool. */
     private void staffBuildings() {
         for (Building b : buildings.all()) {
             if (!b.isFinished()) continue;
+            if (b.ownerId() != com.whim.settlers.engine.World.PLAYER_ID) continue;
             Recipe r = ProductionChains.of(b.type());
             if (r == null) continue; // non-productive building
             BState s = stateOf(b);
@@ -135,6 +143,7 @@ public final class Economy {
         });
         for (Building b : order) {
             if (!b.isFinished()) continue;
+            if (b.ownerId() != com.whim.settlers.engine.World.PLAYER_ID) continue;
             Recipe r = ProductionChains.of(b.type());
             if (r == null) continue;
             BState s = stateOf(b);

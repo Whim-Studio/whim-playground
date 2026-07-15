@@ -8,6 +8,7 @@ import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
 import javax.swing.JFrame;
@@ -65,11 +66,13 @@ public final class Main {
 
     private static void launch(TileMap map) {
         World world = new World(map);
-        world.foundSettlement(); // place the Castle to start the game
+        world.foundSettlement(); // place the human Castle to start the game
+        world.spawnEnemy();      // place a static enemy settlement (AI arrives in Phase 6)
         Minimap minimap = new Minimap();
         BuildMenu buildMenu = new BuildMenu();
         EconomyPanel economyPanel = new EconomyPanel();
-        InputHandler input = new InputHandler(world, minimap, buildMenu, economyPanel);
+        MilitaryPanel militaryPanel = new MilitaryPanel();
+        InputHandler input = new InputHandler(world, minimap, buildMenu, economyPanel, militaryPanel);
 
         Canvas canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(1024, 720));
@@ -88,7 +91,8 @@ public final class Main {
         frame.setVisible(true);
         canvas.requestFocus();
 
-        GameLoop loop = new GameLoop(canvas, world, input, minimap, buildMenu, economyPanel);
+        GameLoop loop = new GameLoop(canvas, world, input, minimap, buildMenu,
+                economyPanel, militaryPanel);
         loop.start();
     }
 

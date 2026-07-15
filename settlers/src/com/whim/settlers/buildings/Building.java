@@ -13,7 +13,7 @@ public final class Building {
 
     private final BuildingType type;
     private final int x, y;
-    private final int ownerId;
+    private int ownerId; // mutable: military capture flips ownership
 
     private BuildingState state;
     private float progress; // 0..1 while under construction
@@ -54,6 +54,7 @@ public final class Building {
     public int x()               { return x; }
     public int y()               { return y; }
     public int ownerId()         { return ownerId; }
+    public void setOwner(int id) { this.ownerId = id; }
     public BuildingState state() { return state; }
     public float progress()      { return progress; }
     public boolean isFinished()  { return state == BuildingState.FINISHED; }

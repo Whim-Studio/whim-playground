@@ -2,6 +2,7 @@ package com.whim.settlers.engine;
 
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.Canvas;
@@ -34,12 +35,12 @@ public final class GameLoop implements Runnable {
     private Thread thread;
     private double fps;
 
-    public GameLoop(Canvas canvas, World world, InputHandler input,
-                    Minimap minimap, BuildMenu buildMenu, EconomyPanel economyPanel) {
+    public GameLoop(Canvas canvas, World world, InputHandler input, Minimap minimap,
+                    BuildMenu buildMenu, EconomyPanel economyPanel, MilitaryPanel militaryPanel) {
         this.canvas = canvas;
         this.world = world;
         this.input = input;
-        this.renderer = new Renderer(minimap, buildMenu, economyPanel);
+        this.renderer = new Renderer(minimap, buildMenu, economyPanel, militaryPanel);
     }
 
     public synchronized void start() {
