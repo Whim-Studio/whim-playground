@@ -1,5 +1,6 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.ai.AiController;
 import com.whim.settlers.buildings.Building;
 import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
@@ -8,6 +9,11 @@ import com.whim.settlers.map.TileMap;
 import com.whim.settlers.military.MilitarySystem;
 import com.whim.settlers.military.Players;
 import com.whim.settlers.transport.TransportSystem;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Root game-state container. Holds the map, camera, and buildings; settlers,
@@ -23,8 +29,10 @@ public final class World {
     private final Camera camera;
     private final BuildingManager buildings;
     private final TransportSystem transport;
-    private final Economy economy;
+    /** One economy per player id. */
+    private final Map<Integer, Economy> economies = new LinkedHashMap<Integer, Economy>();
     private final MilitarySystem military;
+    private final List<AiController> ais = new ArrayList<AiController>();
 
     /** Total simulated time in seconds — handy for animation and debugging. */
     private double clock;
@@ -34,8 +42,7 @@ public final class World {
         this.camera = new Camera(map.width() / 2.0, map.height() / 2.0);
         this.buildings = new BuildingManager(map);
         this.transport = new TransportSystem(map, buildings);
-        this.economy = new Economy(map, buildings, transport);
-        this.military = new MilitarySystem(map, buildings, economy);
+        this.military = new MilitarySystem(map, buildings, economies);
     }
 
     /** Advance the simulation by a fixed timestep. */
@@ -43,12 +50,13 @@ public final class World {
         clock += dtSeconds;
         float dt = (float) dtSeconds;
         buildings.update(dt);
-        // Every building gets a flag next to it as soon as it exists, so the
-        // player can road-connect it.
+        // Every building gets a flag next to it as soon as it exists, so it can be
+        // road-connected.
         for (Building b : buildings.all()) transport.ensureFlagFor(b);
-        economy.update(dt);   // may enqueue shipments
-        transport.update(dt); // moves carriers / delivers
-        military.update(dt);  // knights, territory, combat
+        for (Economy e : economies.values()) e.update(dt); // may enqueue shipments
+        transport.update(dt);  // moves carriers / delivers
+        military.update(dt);   // knights, territory, combat
+        for (AiController ai : ais) ai.update(dt);
         camera.clampTo(map.width(), map.height());
     }
 
@@ -68,6 +76,7 @@ public final class World {
                     if (buildings.canPlace(BuildingType.CASTLE, ax, ay)) {
                         Building castle = buildings.place(BuildingType.CASTLE, ax, ay, PLAYER_ID);
                         transport.registerCastle(castle); // Castle flag = stockpile hub
+                        economies.put(PLAYER_ID, new Economy(map, buildings, transport, PLAYER_ID));
                         military.seedGarrison(castle, 1, 1); // HQ starts with a knight
                         camera.centreOn(ax + 1.5, ay + 1.5);
                         return true;
@@ -87,10 +96,13 @@ public final class World {
         int ecx = map.width() * 3 / 4, ecy = map.height() * 3 / 4;
         Building castle = placeNearest(BuildingType.CASTLE, ecx, ecy, Players.ENEMY);
         if (castle == null) return false;
-        military.seedGarrison(castle, 4, 2);
-        // A forward guard hut, if a valid spot exists nearby.
-        Building hut = placeNearest(BuildingType.GUARD_HUT, castle.x() - 3, castle.y(), Players.ENEMY);
-        if (hut != null) military.seedGarrison(hut, 2, 1);
+        transport.registerCastle(castle);
+        economies.put(Players.ENEMY, new Economy(map, buildings, transport, Players.ENEMY));
+        military.seedGarrison(castle, 2, 2);
+        military.setKnightTarget(Players.ENEMY, 8);
+        // The AI opponent plays by the same rules (build economy, road, garrison,
+        // attack) — see AiController.
+        ais.add(new AiController(this, Players.ENEMY));
         return true;
     }
 
@@ -128,7 +140,10 @@ public final class World {
     public Camera camera()           { return camera; }
     public BuildingManager buildings(){ return buildings; }
     public TransportSystem transport(){ return transport; }
-    public Economy economy()         { return economy; }
     public MilitarySystem military() { return military; }
     public double clock()            { return clock; }
+
+    /** The human player's economy (convenience). */
+    public Economy economy()          { return economies.get(PLAYER_ID); }
+    public Economy economyOf(int p)   { return economies.get(p); }
 }

@@ -27,8 +27,8 @@ public final class TransportSystem {
     private final BuildingManager buildings;
     private final RoadNetwork net = new RoadNetwork();
     private final Map<Building, Integer> buildingFlag = new HashMap<Building, Integer>();
-
-    private int castleFlagId = -1;
+    /** Each player's Castle flag id — the stockpile hub for that player. */
+    private final Map<Integer, Integer> castleFlag = new HashMap<Integer, Integer>();
 
     public TransportSystem(TileMap map, BuildingManager buildings) {
         this.map = map;
@@ -36,7 +36,12 @@ public final class TransportSystem {
     }
 
     public RoadNetwork network() { return net; }
-    public int castleFlagId()    { return castleFlagId; }
+
+    /** The stockpile-hub flag for a player, or -1 if that player has no Castle. */
+    public int castleFlagId(int player) {
+        Integer f = castleFlag.get(player);
+        return f == null ? -1 : f;
+    }
 
     /** True for tiles a road may cross (not water, mountain, or a building). */
     public boolean walkable(int x, int y) {
@@ -58,9 +63,9 @@ public final class TransportSystem {
 
     public Integer flagFor(Building b) { return buildingFlag.get(b); }
 
-    /** Register the Castle and remember its flag as the stockpile hub. */
+    /** Register a player's Castle and remember its flag as that player's hub. */
     public void registerCastle(Building castle) {
-        castleFlagId = ensureFlagFor(castle);
+        castleFlag.put(castle.ownerId(), ensureFlagFor(castle));
     }
 
     private int[] adjacentWalkable(Building b) {

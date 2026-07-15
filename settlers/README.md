@@ -19,8 +19,9 @@ wood, tool-gated staffing, distribution/tool-priority UI — press **E**), the
 **flag-relay transport** (place flags **F**, lay roads **R**; goods move only
 along roads via per-segment carriers with real congestion), and **military &
 territory** — knights with five ranks and morale, Guard Hut→Tower→Garrison,
-territory borders, and the click-an-enemy-fort attack/defend flow. A static enemy
-settlement is present (AI arrives in Phase 6). See `docs/PROGRESS.md` for the
+territory borders, and the click-an-enemy-fort attack/defend flow, plus an **AI
+opponent** that builds its own economy over roads, expands its territory, and
+attacks/defends under the same rules as the human. See `docs/PROGRESS.md` for the
 phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements

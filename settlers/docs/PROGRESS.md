@@ -116,6 +116,18 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 19/19 (adds territory-claim, attack-captures-weaker-fort, and attack-fails-vs-stronger-fort checks).
 
-## Phase 6 — AI opponent(s) — _not started_
+## Phase 6 — AI opponent(s) ✅ (2026-07-15)
+
+**Implemented & runnable**
+- **Per-player economy**: `Economy` is now scoped to a player id and only touches that player's buildings, over a shared road network with per-player Castle stockpile hubs (`TransportSystem` tracks a Castle flag per player). The human and AI run the *identical* production/staffing/transport rules.
+- **Multi-player military** (`MilitarySystem`): knight production, morale, and knobs are per-player; `launchAttack(attacker, target, count)` works for any player. Territory already supported multiple owners.
+- **AI opponent** (`ai/AiController`): a computer player that, using only the same public systems the UI drives (no shortcuts): places economy buildings inside its territory in dependency order with greedy resource-aware site search, **connects each to its Castle with a road** (goods relay exactly like the human's), expands its border with Guard Huts toward the enemy, and launches threshold-based attacks once it has a striking force. The enemy settlement spawned in Phase 5 is now driven by this AI.
+
+**Stubbed / placeholder / notes**
+- One AI personality (fixed build order + greedy siting + threshold attacks) — competent, not an optimiser; the peaceful↔aggressive personality slider and multiple AIs are Phase 7/meta polish.
+- AI roads are one-per-building stars to its Castle (functional, not optimised); it doesn't yet re-plan when a site is lost.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 20/20 (adds a full two-player run asserting the AI raises ≥3 buildings and lays roads to connect them). Existing single-player checks still pass under the per-player refactor.
+
 ## Phase 7 — UI/UX polish & meta — _not started_
 ## Phase 8 — Hardening — _not started_

@@ -18,14 +18,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The production simulation: settler pool, staffing, the production chains, the
- * central stockpile, and the two player-facing priority systems (goods
- * distribution and tool priority).
+ * The production simulation for one player: settler pool, staffing, the
+ * production chains, that player's central {@link #stock} stockpile, and the two
+ * priority systems (goods distribution and tool priority). One {@code Economy}
+ * exists per player and only touches buildings that player owns, so the human and
+ * the AI run the identical rules over the shared road network.
  *
- * <p><b>Transport is stubbed instant this phase</b> — inputs are pulled from and
- * outputs pushed to one central {@link #stock} stockpile, as if every building
- * were directly connected. Phase 4 replaces that with the flag-relay carrier
- * system; the recipe/staffing logic here is unchanged by that swap.
+ * <p>Inputs are pulled from, and outputs pushed to, this player's Castle
+ * stockpile via the flag-relay {@link TransportSystem} (Phase 4): a building with
+ * no road to the Castle stalls.
  *
  * <p>Distribution priority is realised as a per-building-type integer: when a
  * scarce input is contested, buildings are serviced highest-priority-first each
@@ -41,6 +42,7 @@ public final class Economy {
     private final TileMap map;
     private final BuildingManager buildings;
     private final TransportSystem transport;
+    private final int playerId;
     private final Inventory stock = new Inventory();
 
     /** Idle settlers waiting for a job, and the running total (idle + employed). */
@@ -58,15 +60,18 @@ public final class Economy {
     /** Player-ordered tool-production priority for the Tool Maker. */
     private final List<Good> toolOrder = new ArrayList<Good>();
 
-    public Economy(TileMap map, BuildingManager buildings, TransportSystem transport) {
+    public Economy(TileMap map, BuildingManager buildings, TransportSystem transport, int playerId) {
         this.map = map;
         this.buildings = buildings;
         this.transport = transport;
+        this.playerId = playerId;
         for (Good g : ProductionChains.toolOutputs()) toolOrder.add(g);
         seedStartingStock();
     }
 
-    private int castleFlag() { return transport.castleFlagId(); }
+    public int playerId() { return playerId; }
+
+    private int castleFlag() { return transport.castleFlagId(playerId); }
 
     /** Starting supplies and settlers so the first production ring can bootstrap. */
     private void seedStartingStock() {
@@ -110,7 +115,7 @@ public final class Economy {
     private void staffBuildings() {
         for (Building b : buildings.all()) {
             if (!b.isFinished()) continue;
-            if (b.ownerId() != com.whim.settlers.engine.World.PLAYER_ID) continue;
+            if (b.ownerId() != playerId) continue;
             Recipe r = ProductionChains.of(b.type());
             if (r == null) continue; // non-productive building
             BState s = stateOf(b);
@@ -143,7 +148,7 @@ public final class Economy {
         });
         for (Building b : order) {
             if (!b.isFinished()) continue;
-            if (b.ownerId() != com.whim.settlers.engine.World.PLAYER_ID) continue;
+            if (b.ownerId() != playerId) continue;
             Recipe r = ProductionChains.of(b.type());
             if (r == null) continue;
             BState s = stateOf(b);

@@ -288,7 +288,7 @@ public final class Renderer {
                 ? "ROAD tool — click the first flag" : "ROAD tool — click the second flag";
         else if (input.selectedType() != null) mode = "Placing: " + input.selectedType().displayName();
         else mode = "F flag · R road · E economy · build menu at left";
-        g.drawString("The Settlers — Phase 5 (military)", hx, 26);
+        g.drawString("The Settlers — Phase 6 (AI opponent)", hx, 26);
         g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d   settlers %d",
                 fps, world.camera().zoom(), world.buildings().count(),
                 world.economy().totalPopulation()), hx, 44);

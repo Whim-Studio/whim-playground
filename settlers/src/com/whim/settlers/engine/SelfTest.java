@@ -47,6 +47,7 @@ public final class SelfTest {
         failures += check("garrisoned fort claims territory", territoryClaim());
         failures += check("attack captures weaker fort", attackCaptures());
         failures += check("attack fails vs stronger fort", attackFails());
+        failures += check("AI builds an economy over roads", aiBuildsEconomy());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -185,7 +186,7 @@ public final class SelfTest {
     private static void road(World w, Building b) {
         TransportSystem tr = w.transport();
         tr.ensureFlagFor(b);
-        tr.buildRoad(tr.flagFor(b), tr.castleFlagId());
+        tr.buildRoad(tr.flagFor(b), tr.castleFlagId(b.ownerId()));
     }
 
     private static boolean woodToPlanks() {
@@ -287,6 +288,21 @@ public final class SelfTest {
         w.military().launchAttack(enemy, 5);    // human can only muster 1 knight
         tickWorld(w, 6);
         return enemy.ownerId() == Players.ENEMY; // assault repelled
+    }
+
+    private static boolean aiBuildsEconomy() {
+        World w = new World(MapGenerator.generate(60, 60, 2026L));
+        w.foundSettlement();
+        boolean enemy = w.spawnEnemy();
+        tickWorld(w, 150);
+        int enemyBuildings = 0, enemyRoads = 0;
+        for (Building b : w.buildings().all()) {
+            if (b.ownerId() == Players.ENEMY) enemyBuildings++;
+        }
+        enemyRoads = w.transport().network().roads().size();
+        // The AI should have raised several buildings beyond its Castle and laid
+        // roads to connect them — i.e. it plays the economy, not just sits there.
+        return enemy && enemyBuildings >= 3 && enemyRoads >= 1;
     }
 
     private static int countTerrain(TileMap m, TerrainType t) {

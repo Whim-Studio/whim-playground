@@ -28,7 +28,8 @@ public final class MilitarySystem {
 
     private final TileMap map;
     private final BuildingManager buildings;
-    private final Economy economy;
+    /** One economy per player (its stockpile supplies swords/shields/gold). */
+    private final Map<Integer, Economy> economies;
 
     private final Map<Building, Garrison> garrisons = new HashMap<Building, Garrison>();
     private final List<Attack> attacks = new ArrayList<Attack>();
@@ -36,16 +37,16 @@ public final class MilitarySystem {
     /** Per-tile owner (player id) or -1 for neutral. */
     private int[] territory;
 
-    // Player-tunable knobs (human).
-    private int knightTarget = 6;
-    private int defaultRank = 1;
+    // Per-player knobs (the human tunes theirs via the UI; the AI sets its own).
+    private final Map<Integer, Integer> knightTarget = new HashMap<Integer, Integer>();
+    private final Map<Integer, Integer> defaultRank = new HashMap<Integer, Integer>();
 
     private float territoryTimer, knightTimer, moraleTimer;
 
-    public MilitarySystem(TileMap map, BuildingManager buildings, Economy economy) {
+    public MilitarySystem(TileMap map, BuildingManager buildings, Map<Integer, Economy> economies) {
         this.map = map;
         this.buildings = buildings;
-        this.economy = economy;
+        this.economies = economies;
         this.territory = new int[map.width() * map.height()];
         java.util.Arrays.fill(territory, -1);
     }
@@ -89,15 +90,21 @@ public final class MilitarySystem {
         if (territoryTimer >= 0.5f) { territoryTimer = 0f; recomputeTerritory(); }
     }
 
-    /** Convert settlers (+ a sword and shield) into knights for the human player. */
+    /** Convert settlers (+ a sword and shield) into knights, for every player. */
     private void produceKnights(float dt) {
         knightTimer += dt;
         if (knightTimer < 1.5f) return;
         knightTimer = 0f;
-        if (knightCount(Players.HUMAN) >= knightTarget) return;
+        for (Map.Entry<Integer, Economy> e : economies.entrySet()) {
+            produceKnightsFor(e.getKey(), e.getValue());
+        }
+    }
+
+    private void produceKnightsFor(int player, Economy economy) {
+        if (knightCount(player) >= knightTarget(player)) return;
         Building dest = null;
         for (Building b : buildings.all()) {
-            if (b.ownerId() == Players.HUMAN && b.isFinished() && isFort(b.type())
+            if (b.ownerId() == player && b.isFinished() && isFort(b.type())
                     && garrisonOf(b).knights.size() < capacity(b.type())) {
                 dest = b; break;
             }
@@ -107,7 +114,7 @@ public final class MilitarySystem {
                 && economy.takeSettler()) {
             economy.stock().take(Good.SWORD, 1);
             economy.stock().take(Good.SHIELD, 1);
-            garrisonOf(dest).knights.add(new Knight(defaultRank));
+            garrisonOf(dest).knights.add(new Knight(defaultRank(player)));
         }
     }
 
@@ -118,13 +125,15 @@ public final class MilitarySystem {
         }
     }
 
-    /** Deliver gold coins to raise a human fort's morale (combat multiplier). */
+    /** Deliver gold coins to raise forts' morale (combat multiplier), per player. */
     private void raiseMorale(float dt) {
         moraleTimer += dt;
         if (moraleTimer < 2f) return;
         moraleTimer = 0f;
         for (Building b : buildings.all()) {
-            if (b.ownerId() != Players.HUMAN || !isFort(b.type()) || !b.isFinished()) continue;
+            if (!isFort(b.type()) || !b.isFinished()) continue;
+            Economy economy = economies.get(b.ownerId());
+            if (economy == null) continue;
             Garrison g = garrisonOf(b);
             if (g.morale < 2.0f && economy.stock().take(Good.GOLD, 1)) {
                 g.morale = Math.min(2.0f, g.morale + 0.15f);
@@ -187,12 +196,17 @@ public final class MilitarySystem {
 
     // ------------------------------------------------------------------ combat
 
-    /** Send up to {@code count} knights from the human's forts against a target. */
+    /** Human convenience: attack a target with the human's knights. */
     public boolean launchAttack(Building target, int count) {
-        if (target == null || !isFort(target.type()) || target.ownerId() == Players.HUMAN) return false;
+        return launchAttack(Players.HUMAN, target, count);
+    }
+
+    /** Send up to {@code count} knights from {@code attacker}'s forts against a target. */
+    public boolean launchAttack(final int attacker, Building target, int count) {
+        if (target == null || !isFort(target.type()) || target.ownerId() == attacker) return false;
         List<Building> srcs = new ArrayList<Building>();
         for (Building b : buildings.all()) {
-            if (b.ownerId() == Players.HUMAN && isFort(b.type()) && !garrisonOf(b).knights.isEmpty()) {
+            if (b.ownerId() == attacker && isFort(b.type()) && !garrisonOf(b).knights.isEmpty()) {
                 srcs.add(b);
             }
         }
@@ -205,11 +219,12 @@ public final class MilitarySystem {
         List<Knight> force = new ArrayList<Knight>();
         for (Building src : srcs) {
             List<Knight> g = garrisonOf(src).knights;
-            while (!g.isEmpty() && force.size() < count) force.add(g.remove(g.size() - 1));
+            // Keep one knight home to hold the source fort's territory.
+            while (g.size() > 1 && force.size() < count) force.add(g.remove(g.size() - 1));
             if (force.size() >= count) break;
         }
         if (force.isEmpty()) return false;
-        attacks.add(new Attack(target, Players.HUMAN, force, 4.0f)); // // approximate march time
+        attacks.add(new Attack(target, attacker, force, 4.0f)); // // approximate march time
         return true;
     }
 
@@ -297,11 +312,28 @@ public final class MilitarySystem {
 
     public int garrisonSize(Building b) { return garrisonOf(b).knights.size(); }
     public float morale(Building b)     { return garrisonOf(b).morale; }
-    public int knightTarget()           { return knightTarget; }
-    public void bumpKnightTarget(int d) { knightTarget = Math.max(0, Math.min(30, knightTarget + d)); }
-    public int defaultRank()            { return defaultRank; }
-    public void bumpDefaultRank(int d)  { defaultRank = Math.max(1, Math.min(Knight.MAX_RANK, defaultRank + d)); }
     public int activeAttacks()          { return attacks.size(); }
+
+    public int knightTarget(int player) {
+        Integer v = knightTarget.get(player);
+        return v == null ? 6 : v;
+    }
+    public void setKnightTarget(int player, int v) {
+        knightTarget.put(player, Math.max(0, Math.min(40, v)));
+    }
+    public int defaultRank(int player) {
+        Integer v = defaultRank.get(player);
+        return v == null ? 1 : v;
+    }
+    public void setDefaultRank(int player, int v) {
+        defaultRank.put(player, Math.max(1, Math.min(Knight.MAX_RANK, v)));
+    }
+
+    // Human-facing knobs used by the UI.
+    public int knightTarget()           { return knightTarget(Players.HUMAN); }
+    public void bumpKnightTarget(int d) { setKnightTarget(Players.HUMAN, knightTarget(Players.HUMAN) + d); }
+    public int defaultRank()            { return defaultRank(Players.HUMAN); }
+    public void bumpDefaultRank(int d)  { setDefaultRank(Players.HUMAN, defaultRank(Players.HUMAN) + d); }
 
     /** Garrison of a fort: its knights and morale. */
     public static final class Garrison {
