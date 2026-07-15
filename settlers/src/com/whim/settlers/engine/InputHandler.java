@@ -1,8 +1,11 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.buildings.BuildingType;
+import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.Point;
+import java.awt.geom.Point2D;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
@@ -29,20 +32,33 @@ public final class InputHandler
     private final Camera camera;
     private final World world;
     private final Minimap minimap;
+    private final BuildMenu buildMenu;
     private final Set<Integer> keysDown = new HashSet<Integer>();
 
     private volatile int mouseX, mouseY;
     private boolean dragging;
     private int lastDragX, lastDragY;
 
+    /** Building armed for placement, or null. Read by the renderer for the ghost. */
+    private volatile BuildingType selectedType;
+
     // Zoom is buffered here and drained by the loop so wheel events never race.
     private volatile int pendingZoomSteps;
     private volatile int zoomAnchorX, zoomAnchorY;
 
-    public InputHandler(World world, Minimap minimap) {
+    public InputHandler(World world, Minimap minimap, BuildMenu buildMenu) {
         this.world = world;
         this.camera = world.camera();
         this.minimap = minimap;
+        this.buildMenu = buildMenu;
+    }
+
+    public BuildingType selectedType() { return selectedType; }
+
+    /** Hovered tile under the cursor (may be off-map); for the placement ghost. */
+    public Point hoveredTile() {
+        Point2D.Double w = camera.screenToWorld(mouseX, mouseY);
+        return new Point((int) Math.floor(w.x), (int) Math.floor(w.y));
     }
 
     /** Apply continuous (held-key) panning; call once per update tick. */
@@ -65,6 +81,8 @@ public final class InputHandler
     private boolean down(int keyCode) { return keysDown.contains(keyCode); }
 
     public Point mouse() { return new Point(mouseX, mouseY); }
+    public int mouseX()  { return mouseX; }
+    public int mouseY()  { return mouseY; }
 
     // --- KeyListener ---
     @Override public void keyPressed(KeyEvent e)  { keysDown.add(e.getKeyCode()); }
@@ -85,11 +103,32 @@ public final class InputHandler
         }
     }
     @Override public void mouseClicked(MouseEvent e) {
+        int vh = camera.viewportH();
         if (e.getButton() == MouseEvent.BUTTON1) {
-            // Left-click on the minimap recentres the camera there.
-            java.awt.geom.Point2D.Double target =
-                    minimap.worldAt(e.getX(), e.getY(), world);
-            if (target != null) camera.centreOn(target.x, target.y);
+            // 1) Build-menu click arms/toggles a placement type.
+            if (buildMenu.contains(e.getX(), e.getY(), vh)) {
+                BuildingType t = buildMenu.typeAt(e.getX(), e.getY());
+                if (t != null) selectedType = (t == selectedType) ? null : t;
+                return;
+            }
+            // 2) Minimap click recentres the camera.
+            Point2D.Double target = minimap.worldAt(e.getX(), e.getY(), world);
+            if (target != null) {
+                camera.centreOn(target.x, target.y);
+                return;
+            }
+            // 3) World click places the armed building, if the spot is valid.
+            if (selectedType != null) {
+                Point tile = hoveredTile();
+                boolean placed = world.buildings()
+                        .place(selectedType, tile.x, tile.y, World.PLAYER_ID) != null;
+                // Keep the tool armed on success (rapid placement); Shift is not
+                // required. Right-click clears it.
+                if (!placed) { /* invalid spot: leave armed, no-op */ }
+            }
+        } else if (e.getButton() == MouseEvent.BUTTON3) {
+            // Right-click cancels placement mode (in addition to drag-panning).
+            selectedType = null;
         }
     }
     @Override public void mouseEntered(MouseEvent e) { }

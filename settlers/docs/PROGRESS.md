@@ -41,8 +41,25 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 8/8 (adds generator-determinism, terrain-variety, and loader-parsing checks); `maps/tutorial-valley.map` loads to 26×20 with all terrain types present.
 
-## Phase 2 — Buildings & construction — _not started_
-## Phase 2 — Buildings & construction — _not started_
+## Phase 2 — Buildings & construction ✅ (2026-07-15)
+
+**Implemented & runnable**
+- Full building roster (`buildings/BuildingType`, 25 types) grouped by category (HQ, Wood, Stone, Food, Mines, Metal, Tools, Military, Shipping), each with footprint size, placement rule, build time, glyph/colour, and (for Phase 3) planks/stone costs `// approximate`.
+- Placement rules & validity (`buildings/BuildingManager`, `PlacementRule`): LAND (buildable land), MOUNTAIN (mines — with per-mine resource match, e.g. Coal Mine only on a coal mountain), COAST (fisherman/shipyard, adjacent to water). Footprint-aware bounds/overlap checks via an occupancy grid.
+- Construction lifecycle (`buildings/Building`, `BuildingState`): non-Castle buildings start `UNDER_CONSTRUCTION` at progress 0 and advance to `FINISHED` over their build time (drawing from a stubbed unlimited resource pool this phase); the Castle is founded finished.
+- Founding: `World.foundSettlement()` places the Castle on the nearest buildable spot to map centre and centres the camera there.
+- Build UI (`ui/BuildMenu`): left-edge palette with category headers and one clickable row per building; click arms placement, the armed type is highlighted. Renderer draws placed buildings (footprint block + glyph + construction progress bar) and a **green/red placement ghost** that follows the cursor and reflects validity. Input routes clicks menu → minimap → world placement; right-click cancels.
+
+**Stubbed / placeholder**
+- Construction is time-only; no planks/stone are consumed yet (Phase 3 wires real costs and a warehouse inventory).
+- No settlers, production, or building function beyond placement/construction.
+
+**Deferred / notes**
+- Interactive Castle-founding (click to place the HQ at game start) is deferred to Phase 7's new-game flow; for now the Castle is auto-placed at centre.
+- Multi-tile footprints are axis-aligned blocks; the original's irregular building shapes are cosmetic and deferred to art polish.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 12/12 (adds placement-rules, footprint-overlap, construction-completion, and found-settlement checks).
+
 ## Phase 3 — Economy simulation — _not started_
 ## Phase 4 — Roads & transport — _not started_
 ## Phase 5 — Military & territory — _not started_

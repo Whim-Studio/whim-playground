@@ -1,5 +1,8 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.buildings.Building;
+import com.whim.settlers.buildings.BuildingManager;
+import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.io.MapLoader;
 import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
@@ -28,6 +31,10 @@ public final class SelfTest {
         failures += check("generator is deterministic", generatorDeterministic());
         failures += check("generator produces varied terrain", generatorVaried());
         failures += check("map loader parses codes", loaderParses());
+        failures += check("placement rules", placementRules());
+        failures += check("footprint overlap rejected", overlapRejected());
+        failures += check("construction completes", constructionCompletes());
+        failures += check("found settlement places castle", foundSettlement());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -115,6 +122,53 @@ public final class SelfTest {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /** A small all-grass map with one coal mountain and one water tile for rules tests. */
+    private static TileMap testMap() {
+        TileMap m = new TileMap(10, 10);
+        m.set(5, 5, TerrainType.MOUNTAIN_COAL);
+        m.set(0, 0, TerrainType.WATER);
+        return m;
+    }
+
+    private static boolean placementRules() {
+        BuildingManager mgr = new BuildingManager(testMap());
+        // Woodcutter on grass: ok. On water: no. On mountain: no.
+        boolean grassOk   = mgr.canPlace(BuildingType.WOODCUTTER, 2, 2);
+        boolean waterBad  = !mgr.canPlace(BuildingType.WOODCUTTER, 0, 0);
+        boolean mtnBad    = !mgr.canPlace(BuildingType.WOODCUTTER, 5, 5);
+        // Coal mine needs a coal mountain: ok on (5,5), not on grass.
+        boolean mineOk    = mgr.canPlace(BuildingType.COAL_MINE, 5, 5);
+        boolean mineBad   = !mgr.canPlace(BuildingType.COAL_MINE, 2, 2);
+        // Iron mine on a coal mountain must be rejected (resource mismatch).
+        boolean mismatch  = !mgr.canPlace(BuildingType.IRON_MINE, 5, 5);
+        return grassOk && waterBad && mtnBad && mineOk && mineBad && mismatch;
+    }
+
+    private static boolean overlapRejected() {
+        BuildingManager mgr = new BuildingManager(testMap());
+        Building a = mgr.place(BuildingType.FARM, 2, 2, 0); // 2x2 footprint
+        boolean placed = a != null;
+        boolean overlap = !mgr.canPlace(BuildingType.WOODCUTTER, 3, 3); // inside the farm
+        boolean adjacentOk = mgr.canPlace(BuildingType.WOODCUTTER, 4, 4); // just outside
+        return placed && overlap && adjacentOk;
+    }
+
+    private static boolean constructionCompletes() {
+        BuildingManager mgr = new BuildingManager(testMap());
+        Building b = mgr.place(BuildingType.WOODCUTTER, 2, 2, 0);
+        if (b == null || b.isFinished()) return false; // starts under construction
+        for (int i = 0; i < 600; i++) mgr.update(1f / 60f); // 10s, > 4s build time
+        return b.isFinished() && near(b.progress(), 1.0);
+    }
+
+    private static boolean foundSettlement() {
+        World w = new World(MapGenerator.generate(40, 40, 5L));
+        boolean ok = w.foundSettlement();
+        return ok && w.buildings().count() == 1
+            && w.buildings().all().get(0).type() == BuildingType.CASTLE
+            && w.buildings().all().get(0).isFinished();
     }
 
     private static boolean near(double a, double b) {

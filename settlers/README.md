@@ -11,10 +11,12 @@ road/flag/transport relay, and military/territory systems.
 
 ## Status
 
-Phases 0–1 complete: fixed-timestep game loop with active `BufferStrategy`
+Phases 0–2 complete: fixed-timestep game loop with active `BufferStrategy`
 rendering, a pan/zoom camera, eight terrain types, a seeded procedural map
-generator, hand-built text-map loading, and a click-to-recentre minimap. See
-`docs/PROGRESS.md` for the phase-by-phase log and `docs/GDD.md` for the design spec.
+generator, hand-built text-map loading, a click-to-recentre minimap, and the
+full building roster with a left-edge build menu, placement/validity rules, a
+green/red placement ghost, and the construction lifecycle. See `docs/PROGRESS.md`
+for the phase-by-phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements
 
@@ -49,5 +51,8 @@ java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
 | Mouse wheel | Zoom to cursor |
 | Right-drag (or middle-drag) | Pan the camera |
 | Left-click minimap | Recentre the camera there |
+| Left-click build menu (left edge) | Arm a building for placement |
+| Left-click map | Place the armed building (green ghost = valid) |
+| Right-click | Cancel placement mode |
 
 More controls arrive with each phase; this table is kept current.
