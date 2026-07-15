@@ -1,5 +1,7 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.ui.Minimap;
+
 import java.awt.Canvas;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -24,16 +26,17 @@ public final class GameLoop implements Runnable {
     private final Canvas canvas;
     private final World world;
     private final InputHandler input;
-    private final Renderer renderer = new Renderer();
+    private final Renderer renderer;
 
     private volatile boolean running;
     private Thread thread;
     private double fps;
 
-    public GameLoop(Canvas canvas, World world, InputHandler input) {
+    public GameLoop(Canvas canvas, World world, InputHandler input, Minimap minimap) {
         this.canvas = canvas;
         this.world = world;
         this.input = input;
+        this.renderer = new Renderer(minimap);
     }
 
     public synchronized void start() {

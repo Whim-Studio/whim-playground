@@ -11,8 +11,9 @@ road/flag/transport relay, and military/territory systems.
 
 ## Status
 
-Phase 0 (scaffold) is complete: fixed-timestep game loop with active
-`BufferStrategy` rendering, an empty tile map, and a pan/zoom camera. See
+Phases 0–1 complete: fixed-timestep game loop with active `BufferStrategy`
+rendering, a pan/zoom camera, eight terrain types, a seeded procedural map
+generator, hand-built text-map loading, and a click-to-recentre minimap. See
 `docs/PROGRESS.md` for the phase-by-phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements
@@ -32,7 +33,9 @@ find src -name '*.java' > sources.txt
 javac --release 8 -d out @sources.txt
 
 # Desktop UI (needs a display):
-java -cp out com.whim.settlers.app.Main
+java -cp out com.whim.settlers.app.Main                     # generated map, default seed
+java -cp out com.whim.settlers.app.Main --seed 2026         # generated map, chosen seed
+java -cp out com.whim.settlers.app.Main --map maps/tutorial-valley.map  # hand-built map
 
 # On a headless machine, Main runs an engine self-test instead of opening a window:
 java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
@@ -45,5 +48,6 @@ java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
 | `W` `A` `S` `D` / arrow keys | Pan the camera |
 | Mouse wheel | Zoom to cursor |
 | Right-drag (or middle-drag) | Pan the camera |
+| Left-click minimap | Recentre the camera there |
 
 More controls arrive with each phase; this table is kept current.

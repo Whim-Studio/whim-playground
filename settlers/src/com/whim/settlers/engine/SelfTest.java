@@ -1,8 +1,12 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.io.MapLoader;
+import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.map.TerrainType;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.awt.geom.Point2D;
 
 /**
@@ -21,6 +25,9 @@ public final class SelfTest {
         failures += check("camera round-trip", cameraRoundTrip());
         failures += check("zoom-to-cursor keeps anchor", zoomKeepsAnchor());
         failures += check("world clock advances", worldClock());
+        failures += check("generator is deterministic", generatorDeterministic());
+        failures += check("generator produces varied terrain", generatorVaried());
+        failures += check("map loader parses codes", loaderParses());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -62,6 +69,52 @@ public final class SelfTest {
         World w = new World(new TileMap(20, 20));
         for (int i = 0; i < 60; i++) w.update(1.0 / 60.0);
         return near(w.clock(), 1.0);
+    }
+
+    private static boolean generatorDeterministic() {
+        TileMap a = MapGenerator.generate(48, 48, 42L);
+        TileMap b = MapGenerator.generate(48, 48, 42L);
+        for (int y = 0; y < 48; y++) {
+            for (int x = 0; x < 48; x++) {
+                if (a.get(x, y) != b.get(x, y)) return false;
+            }
+        }
+        // A different seed should differ somewhere.
+        TileMap c = MapGenerator.generate(48, 48, 7L);
+        for (int y = 0; y < 48; y++) {
+            for (int x = 0; x < 48; x++) {
+                if (a.get(x, y) != c.get(x, y)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean generatorVaried() {
+        TileMap m = MapGenerator.generate(64, 64, 1993L);
+        boolean water = false, land = false, mountain = false;
+        for (int y = 0; y < 64; y++) {
+            for (int x = 0; x < 64; x++) {
+                TerrainType t = m.get(x, y);
+                if (t.isWater()) water = true;
+                else if (t.isMountain()) mountain = true;
+                else land = true;
+            }
+        }
+        return water && land && mountain;
+    }
+
+    private static boolean loaderParses() {
+        String src = "# comment\n.f.\nwci\n";
+        try {
+            TileMap m = MapLoader.parse(new BufferedReader(new StringReader(src)));
+            return m.width() == 3 && m.height() == 2
+                && m.get(1, 0) == TerrainType.FOREST
+                && m.get(0, 1) == TerrainType.WATER
+                && m.get(1, 1) == TerrainType.MOUNTAIN_COAL
+                && m.get(2, 1) == TerrainType.MOUNTAIN_IRON;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean near(double a, double b) {

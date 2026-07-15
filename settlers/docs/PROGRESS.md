@@ -23,7 +23,25 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 5/5 checks pass.
 
-## Phase 1 — Terrain & map — _not started_
+## Phase 1 — Terrain & map ✅ (2026-07-15)
+
+**Implemented & runnable**
+- Terrain model extended (`map/TerrainType`): grass, forest, desert, water, and four mountain-by-resource variants (coal/iron/gold/stone), each with a placeholder colour, a `buildable` flag, `isMountain()`/`isWater()`, and a stable single-char `code()`/`fromCode()` for the text map format.
+- Seeded procedural generator (`map/MapGenerator`): dependency-free fractal (fBm) value noise with elevation + moisture + mineral fields and a radial edge falloff (land-centred maps). Elevation is renormalised so water/land/mountain always appear. Same seed ⇒ identical map.
+- Hand-built map loading (`io/MapLoader`): human-editable text format (`#` comments + one char per tile); loads from file or classpath resource. Sample scenario at `maps/tutorial-valley.map`.
+- CLI map selection in `Main`: `--seed <n>` (generated) or `--map <file>` (hand-built), default generated seed 1993.
+- Minimap (`ui/Minimap`): cached scaled overview in the bottom-right with the live camera viewport outlined; **left-click to recentre** the camera. Wired through `Renderer`/`InputHandler`; added `Camera.centreOn`.
+
+**Stubbed / placeholder**
+- No rivers, biome smoothing, or resource-density gradients within a mountain — mineral is per-tile. Fine for gameplay; can be refined in Phase 8.
+
+**Deferred / notes**
+- Still top-down square tiles (isometric deferred, as in Phase 0).
+- `TileMap.flat()` retained as a simple filler helper; `Main` now uses `MapGenerator`.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 8/8 (adds generator-determinism, terrain-variety, and loader-parsing checks); `maps/tutorial-valley.map` loads to 26×20 with all terrain types present.
+
+## Phase 2 — Buildings & construction — _not started_
 ## Phase 2 — Buildings & construction — _not started_
 ## Phase 3 — Economy simulation — _not started_
 ## Phase 4 — Roads & transport — _not started_

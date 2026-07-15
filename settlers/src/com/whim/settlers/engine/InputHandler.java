@@ -1,5 +1,7 @@
 package com.whim.settlers.engine;
 
+import com.whim.settlers.ui.Minimap;
+
 import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -25,6 +27,8 @@ public final class InputHandler
         implements KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 
     private final Camera camera;
+    private final World world;
+    private final Minimap minimap;
     private final Set<Integer> keysDown = new HashSet<Integer>();
 
     private volatile int mouseX, mouseY;
@@ -35,8 +39,10 @@ public final class InputHandler
     private volatile int pendingZoomSteps;
     private volatile int zoomAnchorX, zoomAnchorY;
 
-    public InputHandler(Camera camera) {
-        this.camera = camera;
+    public InputHandler(World world, Minimap minimap) {
+        this.world = world;
+        this.camera = world.camera();
+        this.minimap = minimap;
     }
 
     /** Apply continuous (held-key) panning; call once per update tick. */
@@ -78,7 +84,14 @@ public final class InputHandler
             dragging = false;
         }
     }
-    @Override public void mouseClicked(MouseEvent e) { }
+    @Override public void mouseClicked(MouseEvent e) {
+        if (e.getButton() == MouseEvent.BUTTON1) {
+            // Left-click on the minimap recentres the camera there.
+            java.awt.geom.Point2D.Double target =
+                    minimap.worldAt(e.getX(), e.getY(), world);
+            if (target != null) camera.centreOn(target.x, target.y);
+        }
+    }
     @Override public void mouseEntered(MouseEvent e) { }
     @Override public void mouseExited(MouseEvent e)  { }
 

@@ -2,6 +2,7 @@ package com.whim.settlers.engine;
 
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.map.TerrainType;
+import com.whim.settlers.ui.Minimap;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -17,6 +18,12 @@ public final class Renderer {
 
     private static final Color GRID = new Color(0, 0, 0, 40);
     private static final Color BG   = new Color(0x101418);
+
+    private final Minimap minimap;
+
+    public Renderer(Minimap minimap) {
+        this.minimap = minimap;
+    }
 
     public void render(Graphics2D g, World world, InputHandler input, double fps) {
         Camera cam = world.camera();
@@ -64,6 +71,7 @@ public final class Renderer {
             }
         }
 
+        minimap.render(g, world);
         drawHud(g, world, fps, minX, minY, maxX, maxY);
     }
 

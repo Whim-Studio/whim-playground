@@ -84,6 +84,12 @@ public final class Camera {
         return new Point2D.Double(wx, wy);
     }
 
+    /** Snap the camera centre to a world (tile) coordinate. */
+    public void centreOn(double worldX, double worldY) {
+        this.centreX = worldX;
+        this.centreY = worldY;
+    }
+
     /** Clamp the camera centre so it cannot drift far off a map of the given size. */
     public void clampTo(int mapWidth, int mapHeight) {
         centreX = clamp(centreX, -2, mapWidth + 2);

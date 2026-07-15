@@ -34,4 +34,38 @@ public enum TerrainType {
 
     /** Whether ordinary (non-mine) buildings may be placed on this terrain. */
     public boolean buildable() { return buildable; }
+
+    /** True for the four mineable mountain terrains. */
+    public boolean isMountain() {
+        return this == MOUNTAIN_COAL || this == MOUNTAIN_IRON
+            || this == MOUNTAIN_GOLD || this == MOUNTAIN_STONE;
+    }
+
+    public boolean isWater() { return this == WATER; }
+
+    /**
+     * Single-character code used by the hand-built map text format and
+     * {@code io/MapLoader}. Stable identifiers so maps stay human-editable.
+     */
+    public char code() {
+        switch (this) {
+            case GRASS:          return '.';
+            case FOREST:         return 'f';
+            case DESERT:         return 'd';
+            case WATER:          return 'w';
+            case MOUNTAIN_COAL:  return 'c';
+            case MOUNTAIN_IRON:  return 'i';
+            case MOUNTAIN_GOLD:  return 'g';
+            case MOUNTAIN_STONE: return 's';
+            default:             return '?';
+        }
+    }
+
+    /** Inverse of {@link #code()}; returns GRASS for unknown characters. */
+    public static TerrainType fromCode(char c) {
+        for (TerrainType t : values()) {
+            if (t.code() == c) return t;
+        }
+        return GRASS;
+    }
 }
