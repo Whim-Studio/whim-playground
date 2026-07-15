@@ -6,6 +6,7 @@ import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.map.TerrainType;
 import com.whim.settlers.ui.BuildMenu;
+import com.whim.settlers.ui.EconomyPanel;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.BasicStroke;
@@ -28,10 +29,12 @@ public final class Renderer {
 
     private final Minimap minimap;
     private final BuildMenu buildMenu;
+    private final EconomyPanel economyPanel;
 
-    public Renderer(Minimap minimap, BuildMenu buildMenu) {
+    public Renderer(Minimap minimap, BuildMenu buildMenu, EconomyPanel economyPanel) {
         this.minimap = minimap;
         this.buildMenu = buildMenu;
+        this.economyPanel = economyPanel;
     }
 
     public void render(Graphics2D g, World world, InputHandler input, double fps) {
@@ -84,6 +87,7 @@ public final class Renderer {
         drawGhost(g, world, input, s);
         minimap.render(g, world);
         buildMenu.render(g, input.selectedType(), vh);
+        economyPanel.render(g, world.economy(), vw, vh);
         drawHud(g, world, fps, minX, minY, maxX, maxY);
     }
 
@@ -95,8 +99,25 @@ public final class Renderer {
                          b.state() == BuildingState.FINISHED ? 255 : 150);
             if (b.state() == BuildingState.UNDER_CONSTRUCTION) {
                 drawProgress(g, world, b, s);
+            } else if (s >= 18) {
+                drawStatus(g, world, b, s);
             }
         }
+    }
+
+    /** Small status caption under a finished building (staffed / stall reason). */
+    private void drawStatus(Graphics2D g, World world, Building b, double s) {
+        String status = world.economy().statusOf(b);
+        if (status == null || status.isEmpty()) return;
+        Point2D.Double p = world.camera().worldToScreen(b.x(), b.y());
+        int h = (int) Math.ceil(b.type().footprintH() * s);
+        boolean ok = world.economy().isStaffed(b) && "working".equals(status);
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+        int tx = (int) p.x + 2, ty = (int) p.y + h + 11;
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRect(tx - 1, ty - 9, g.getFontMetrics().stringWidth(status) + 4, 12);
+        g.setColor(ok ? new Color(150, 230, 150) : new Color(240, 200, 120));
+        g.drawString(status, tx + 1, ty);
     }
 
     /** Draw one building's footprint block plus its glyph. */
@@ -135,8 +156,10 @@ public final class Renderer {
         BuildingType type = input.selectedType();
         if (type == null) return;
         Point tile = input.hoveredTile();
-        if (buildMenu.contains(input.mouseX(), input.mouseY(), world.camera().viewportH())) {
-            return; // don't ghost while the cursor is over the menu
+        int vw = world.camera().viewportW(), vh = world.camera().viewportH();
+        if (buildMenu.contains(input.mouseX(), input.mouseY(), vh)
+                || economyPanel.contains(input.mouseX(), input.mouseY(), vw, vh)) {
+            return; // don't ghost while the cursor is over a panel
         }
         boolean ok = world.buildings().canPlace(type, tile.x, tile.y);
         Point2D.Double p = world.camera().worldToScreen(tile.x, tile.y);

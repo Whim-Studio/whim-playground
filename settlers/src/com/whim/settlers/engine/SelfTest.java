@@ -3,6 +3,8 @@ package com.whim.settlers.engine;
 import com.whim.settlers.buildings.Building;
 import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
+import com.whim.settlers.economy.Economy;
+import com.whim.settlers.economy.Good;
 import com.whim.settlers.io.MapLoader;
 import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
@@ -35,6 +37,9 @@ public final class SelfTest {
         failures += check("footprint overlap rejected", overlapRejected());
         failures += check("construction completes", constructionCompletes());
         failures += check("found settlement places castle", foundSettlement());
+        failures += check("woodcutter->sawmill produces planks", woodToPlanks());
+        failures += check("forester replants felled trees", foresterReplants());
+        failures += check("unstaffed without tool", staffingNeedsTool());
 
         if (failures == 0) {
             System.out.println("[settlers] Self-test passed.");
@@ -161,6 +166,60 @@ public final class SelfTest {
         if (b == null || b.isFinished()) return false; // starts under construction
         for (int i = 0; i < 600; i++) mgr.update(1f / 60f); // 10s, > 4s build time
         return b.isFinished() && near(b.progress(), 1.0);
+    }
+
+    /** Tick construction + economy together for {@code seconds} at 60 Hz. */
+    private static void tick(BuildingManager mgr, Economy eco, double seconds) {
+        int steps = (int) Math.round(seconds * 60);
+        for (int i = 0; i < steps; i++) {
+            mgr.update(1f / 60f);
+            eco.update(1f / 60f);
+        }
+    }
+
+    private static boolean woodToPlanks() {
+        TileMap m = new TileMap(24, 24);
+        for (int y = 0; y < 7; y++) for (int x = 0; x < 7; x++) m.set(x, y, TerrainType.FOREST);
+        BuildingManager mgr = new BuildingManager(m);
+        Economy eco = new Economy(m, mgr);
+        mgr.place(BuildingType.WOODCUTTER, 3, 8, 0); // forest within radius 5
+        mgr.place(BuildingType.SAWMILL, 10, 10, 0);
+        int planks0 = eco.stock().get(Good.PLANK);
+        tick(mgr, eco, 70);
+        // The sawmill should have turned harvested wood into new planks.
+        return eco.stock().get(Good.PLANK) > planks0
+            && eco.stock().get(Good.WOOD) >= 0;
+    }
+
+    private static boolean foresterReplants() {
+        TileMap m = new TileMap(20, 20); // all grass
+        BuildingManager mgr = new BuildingManager(m);
+        Economy eco = new Economy(m, mgr);
+        mgr.place(BuildingType.FORESTER, 10, 10, 0);
+        int forest0 = countTerrain(m, TerrainType.FOREST);
+        tick(mgr, eco, 40);
+        return countTerrain(m, TerrainType.FOREST) > forest0;
+    }
+
+    private static boolean staffingNeedsTool() {
+        TileMap m = new TileMap(20, 20);
+        for (int y = 0; y < 6; y++) for (int x = 0; x < 6; x++) m.set(x, y, TerrainType.FOREST);
+        BuildingManager mgr = new BuildingManager(m);
+        Economy eco = new Economy(m, mgr); // seeds exactly one AXE
+        Building a = mgr.place(BuildingType.WOODCUTTER, 2, 8, 0);
+        Building b = mgr.place(BuildingType.WOODCUTTER, 8, 8, 0);
+        tick(mgr, eco, 20);
+        int staffed = (eco.isStaffed(a) ? 1 : 0) + (eco.isStaffed(b) ? 1 : 0);
+        boolean oneWaiting = eco.statusOf(a).contains("axe") || eco.statusOf(b).contains("axe");
+        return staffed == 1 && oneWaiting;
+    }
+
+    private static int countTerrain(TileMap m, TerrainType t) {
+        int n = 0;
+        for (int y = 0; y < m.height(); y++)
+            for (int x = 0; x < m.width(); x++)
+                if (m.get(x, y) == t) n++;
+        return n;
     }
 
     private static boolean foundSettlement() {

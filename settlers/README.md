@@ -11,12 +11,13 @@ road/flag/transport relay, and military/territory systems.
 
 ## Status
 
-Phases 0–2 complete: fixed-timestep game loop with active `BufferStrategy`
-rendering, a pan/zoom camera, eight terrain types, a seeded procedural map
-generator, hand-built text-map loading, a click-to-recentre minimap, and the
-full building roster with a left-edge build menu, placement/validity rules, a
-green/red placement ghost, and the construction lifecycle. See `docs/PROGRESS.md`
-for the phase-by-phase log and `docs/GDD.md` for the design spec.
+Phases 0–3 complete: fixed-timestep game loop with active `BufferStrategy`
+rendering, a pan/zoom camera, terrain + seeded map generator + minimap, the full
+building roster with placement/validity and construction, and the **economy
+simulation** — settler roles, the production chains, warehouse/inventory, renewable
+wood (woodcutter/forester), tool-gated staffing, and the distribution- and
+tool-priority UI (press **E**). Transport is stubbed instant until Phase 4. See
+`docs/PROGRESS.md` for the phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements
 
@@ -54,5 +55,6 @@ java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
 | Left-click build menu (left edge) | Arm a building for placement |
 | Left-click map | Place the armed building (green ghost = valid) |
 | Right-click | Cancel placement mode |
+| `E` | Toggle the economy panel (stockpile, tool & supply priority) |
 
 More controls arrive with each phase; this table is kept current.

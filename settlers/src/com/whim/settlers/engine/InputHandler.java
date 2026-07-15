@@ -2,6 +2,7 @@ package com.whim.settlers.engine;
 
 import com.whim.settlers.buildings.BuildingType;
 import com.whim.settlers.ui.BuildMenu;
+import com.whim.settlers.ui.EconomyPanel;
 import com.whim.settlers.ui.Minimap;
 
 import java.awt.Point;
@@ -33,6 +34,7 @@ public final class InputHandler
     private final World world;
     private final Minimap minimap;
     private final BuildMenu buildMenu;
+    private final EconomyPanel economyPanel;
     private final Set<Integer> keysDown = new HashSet<Integer>();
 
     private volatile int mouseX, mouseY;
@@ -46,11 +48,13 @@ public final class InputHandler
     private volatile int pendingZoomSteps;
     private volatile int zoomAnchorX, zoomAnchorY;
 
-    public InputHandler(World world, Minimap minimap, BuildMenu buildMenu) {
+    public InputHandler(World world, Minimap minimap, BuildMenu buildMenu,
+                        EconomyPanel economyPanel) {
         this.world = world;
         this.camera = world.camera();
         this.minimap = minimap;
         this.buildMenu = buildMenu;
+        this.economyPanel = economyPanel;
     }
 
     public BuildingType selectedType() { return selectedType; }
@@ -85,7 +89,10 @@ public final class InputHandler
     public int mouseY()  { return mouseY; }
 
     // --- KeyListener ---
-    @Override public void keyPressed(KeyEvent e)  { keysDown.add(e.getKeyCode()); }
+    @Override public void keyPressed(KeyEvent e)  {
+        keysDown.add(e.getKeyCode());
+        if (e.getKeyCode() == KeyEvent.VK_E) economyPanel.toggle();
+    }
     @Override public void keyReleased(KeyEvent e) { keysDown.remove(e.getKeyCode()); }
     @Override public void keyTyped(KeyEvent e)    { }
 
@@ -104,7 +111,13 @@ public final class InputHandler
     }
     @Override public void mouseClicked(MouseEvent e) {
         int vh = camera.viewportH();
+        int vw = camera.viewportW();
         if (e.getButton() == MouseEvent.BUTTON1) {
+            // 0) Economy panel buttons (when open) take precedence.
+            if (economyPanel.contains(e.getX(), e.getY(), vw, vh)) {
+                economyPanel.handleClick(e.getX(), e.getY());
+                return;
+            }
             // 1) Build-menu click arms/toggles a placement type.
             if (buildMenu.contains(e.getX(), e.getY(), vh)) {
                 BuildingType t = buildMenu.typeAt(e.getX(), e.getY());

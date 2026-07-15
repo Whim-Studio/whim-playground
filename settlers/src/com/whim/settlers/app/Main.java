@@ -7,6 +7,7 @@ import com.whim.settlers.io.MapLoader;
 import com.whim.settlers.map.MapGenerator;
 import com.whim.settlers.map.TileMap;
 import com.whim.settlers.ui.BuildMenu;
+import com.whim.settlers.ui.EconomyPanel;
 import com.whim.settlers.ui.Minimap;
 
 import javax.swing.JFrame;
@@ -67,7 +68,8 @@ public final class Main {
         world.foundSettlement(); // place the Castle to start the game
         Minimap minimap = new Minimap();
         BuildMenu buildMenu = new BuildMenu();
-        InputHandler input = new InputHandler(world, minimap, buildMenu);
+        EconomyPanel economyPanel = new EconomyPanel();
+        InputHandler input = new InputHandler(world, minimap, buildMenu, economyPanel);
 
         Canvas canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(1024, 720));
@@ -86,7 +88,7 @@ public final class Main {
         frame.setVisible(true);
         canvas.requestFocus();
 
-        GameLoop loop = new GameLoop(canvas, world, input, minimap, buildMenu);
+        GameLoop loop = new GameLoop(canvas, world, input, minimap, buildMenu, economyPanel);
         loop.start();
     }
 

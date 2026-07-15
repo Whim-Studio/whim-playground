@@ -2,6 +2,7 @@ package com.whim.settlers.engine;
 
 import com.whim.settlers.buildings.BuildingManager;
 import com.whim.settlers.buildings.BuildingType;
+import com.whim.settlers.economy.Economy;
 import com.whim.settlers.map.TileMap;
 
 /**
@@ -17,6 +18,7 @@ public final class World {
     private final TileMap map;
     private final Camera camera;
     private final BuildingManager buildings;
+    private final Economy economy;
 
     /** Total simulated time in seconds — handy for animation and debugging. */
     private double clock;
@@ -25,12 +27,14 @@ public final class World {
         this.map = map;
         this.camera = new Camera(map.width() / 2.0, map.height() / 2.0);
         this.buildings = new BuildingManager(map);
+        this.economy = new Economy(map, buildings);
     }
 
     /** Advance the simulation by a fixed timestep. */
     public void update(double dtSeconds) {
         clock += dtSeconds;
         buildings.update((float) dtSeconds);
+        economy.update((float) dtSeconds);
         camera.clampTo(map.width(), map.height());
     }
 
@@ -61,5 +65,6 @@ public final class World {
     public TileMap map()             { return map; }
     public Camera camera()           { return camera; }
     public BuildingManager buildings(){ return buildings; }
+    public Economy economy()         { return economy; }
     public double clock()            { return clock; }
 }

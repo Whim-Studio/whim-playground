@@ -60,7 +60,25 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 12/12 (adds placement-rules, footprint-overlap, construction-completion, and found-settlement checks).
 
-## Phase 3 — Economy simulation — _not started_
+## Phase 3 — Economy simulation ✅ (2026-07-15)
+
+**Implemented & runnable**
+- Goods & inventory (`economy/Good`, `GoodCategory`, `Inventory`): 25 goods across raw/material/food/tool/weapon/coin; `Inventory` is the stockpile and per-building buffer primitive.
+- Settler roles (`economy/Profession`, `Settler`): ~20 professions plus IDLE/BUILDER/CARRIER, modelled per-settler (role + state) so Phase 4 can attach carrier movement.
+- Production chains (`economy/Recipe`, `ProductionChains`): a `Recipe` per productive building — inputs → output, build time, required-tool gate, food-consuming mines, and extractor terrain needs (forest/rock/water/farmland/mountain). Realises the full dependency graph: Wood→Planks, Grain→Flour(+Water)→Bread, Pig→Meat, Fish, ores→Iron/Gold, Iron+Planks→tools, Iron+Coal→sword/shield.
+- Simulation (`economy/Economy`): settler spawning from the Castle (cap raised by warehouses), tool-gated staffing (a building is only staffed once its specific tool exists — the deliberate bottleneck), and per-building production stepping. **Renewable wood**: woodcutters fell nearby forest (FOREST→GRASS); foresters replant (GRASS→FOREST) — running out of trees is a real stall state. Mines consume one food per cycle. Transport is **stubbed instant** via one central stockpile (Phase 4 swaps in the flag relay).
+- Distribution priority: per-building-type priority (1–9); scarce inputs are serviced highest-priority-first each tick, so raising a consumer's priority genuinely lets it win contested goods.
+- Tool priority: player-ordered list controls which tool the Tool Maker builds next among those in demand.
+- **UI** (`ui/EconomyPanel`, toggle **E**): live stockpile, population, reorderable tool-priority list, and +/- supply-priority controls for the contested consumers. Buildings show a live status caption (working / needs-tool / no-input / no-trees / no-food) and construction progress.
+
+**Stubbed / placeholder**
+- Transport is instant (central stockpile) — replaced in Phase 4.
+- Quarry/mines don't deplete their rock/ore yet (only forests deplete, to exercise the forester loop); finite ore is a Phase 8 tuning item.
+- Settlers are staff counts + per-building worker objects; carriers get real positions in Phase 4.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 15/15 (adds a live woodcutter→sawmill→planks chain, forester replanting, and tool-gated-staffing checks).
+
+## Phase 4 — Roads & transport — _not started_
 ## Phase 4 — Roads & transport — _not started_
 ## Phase 5 — Military & territory — _not started_
 ## Phase 6 — AI opponent(s) — _not started_
