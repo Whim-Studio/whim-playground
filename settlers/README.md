@@ -11,18 +11,25 @@ road/flag/transport relay, and military/territory systems.
 
 ## Status
 
-Phases 0–5 complete: fixed-timestep game loop with active `BufferStrategy`
-rendering, a pan/zoom camera, terrain + seeded map generator + minimap, the full
-building roster with placement/validity and construction, the **economy
-simulation** (settler roles, production chains, warehouse/inventory, renewable
-wood, tool-gated staffing, distribution/tool-priority UI — press **E**), the
+**Phases 0–8 complete — a full, winnable game.** Fixed-timestep game loop with
+active `BufferStrategy` rendering, a pan/zoom camera, terrain + seeded map
+generator (with light rivers) + minimap, the full building roster with
+placement/validity and construction, the **economy simulation** (settler roles,
+production chains, warehouse/inventory, renewable wood, **finite mineral
+deposits**, tool-gated staffing, distribution/tool-priority UI — press **E**), the
 **flag-relay transport** (place flags **F**, lay roads **R**; goods move only
-along roads via per-segment carriers with real congestion), and **military &
-territory** — knights with five ranks and morale, Guard Hut→Tower→Garrison,
-territory borders, and the click-an-enemy-fort attack/defend flow, plus an **AI
-opponent** that builds its own economy over roads, expands its territory, and
-attacks/defends under the same rules as the human. See `docs/PROGRESS.md` for the
-phase log and `docs/GDD.md` for the design spec.
+along roads via per-segment carriers with real congestion, and busy roads gain a
+**second carrier/donkey**), and **military & territory** — knights with five ranks
+and morale, Guard Hut→Tower→Garrison, territory borders, and the click-an-enemy-
+fort attack/defend flow.
+
+The game runs a full **meta layer**: a main menu, a **new-game / free-play setup**
+screen (pick a generated seed or the tutorial valley, **2–4 players**, and each
+**AI's peaceful↔aggressive personality**), **interactive Castle founding** (click a
+valid spot to start), **N AI opponents** that play by the same public rules as the
+human, a pause overlay, a building-info tooltip, a help overlay (**H**), event
+notifications, and **victory/defeat** detection (control the whole map to win).
+See `docs/PROGRESS.md` for the phase log and `docs/GDD.md` for the design spec.
 
 ## Requirements
 
@@ -49,21 +56,33 @@ java -cp out com.whim.settlers.app.Main --map maps/tutorial-valley.map  # hand-b
 java -Djava.awt.headless=true -cp out com.whim.settlers.app.Main
 ```
 
-## Controls (Phase 0)
+## Controls
+
+The game opens on the **main menu**. Choose **New Game** to pick a map (generated
+seed or the tutorial valley), the player count (2–4), and each AI's personality,
+then **Start Game**; or **Quick Start** for a default match. Every game begins by
+**clicking a valid green tile to found your Castle**. Win by eliminating every
+rival.
 
 | Input | Action |
 |-------|--------|
+| Menu / setup / end screens | Left-click the on-screen buttons |
+| **Founding:** left-click map | Place your Castle on a green (valid) tile |
 | `W` `A` `S` `D` / arrow keys | Pan the camera |
 | Mouse wheel | Zoom to cursor |
 | Right-drag (or middle-drag) | Pan the camera |
 | Left-click minimap | Recentre the camera there |
 | Left-click build menu (left edge) | Arm a building for placement |
 | Left-click map | Place the armed building (green ghost = valid) |
+| Hover a building | Info tooltip (status, staffing, garrison, deposit left) |
 | Right-click | Cancel placement mode |
 | `E` | Toggle the economy panel (stockpile, tool & supply priority) |
 | `F` | Flag tool — click land to place a flag |
 | `R` | Road tool — click a first flag, then a second, to lay a road |
-| `Esc` | Cancel the current tool / placement |
 | Left-click enemy fort | Open the attack panel (choose knights, Attack) |
+| `H` or `?` | Toggle the controls/help overlay |
+| `P` | Pause / resume |
+| `Esc` | Cancel the current tool / placement, else pause (or leave founding) |
+| `M` | (while paused) Return to the main menu |
 
-More controls arrive with each phase; this table is kept current.
+This table is kept current with the build.

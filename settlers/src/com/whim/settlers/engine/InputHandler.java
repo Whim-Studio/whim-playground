@@ -6,6 +6,7 @@ import com.whim.settlers.military.MilitarySystem;
 import com.whim.settlers.transport.Flag;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MetaScreen;
 import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
@@ -22,20 +23,17 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Collects raw AWT input for the camera and (later) gameplay. Drives the
- * {@link Camera}: WASD / arrow keys pan, the mouse wheel zooms to the cursor,
- * and dragging with the right mouse button pans directly.
- *
- * <p>All AWT callbacks run on the Event Dispatch Thread; the game loop reads the
- * accumulated state from its own thread. State is limited to primitives and a
- * small key-set, which is safe enough for this read/write pattern; anything
- * richer would need explicit synchronisation.
+ * Collects raw AWT input and routes it by {@link Game.State}. In the menu / setup
+ * / end screens clicks go to the {@link MetaScreen}; during founding a click
+ * places the Castle; in play it drives the camera, build menu, transport tools,
+ * panels, and attack selection. Only primitives and a small key-set are shared
+ * with the game-loop thread, which is safe enough for this read/write pattern.
  */
 public final class InputHandler
         implements KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 
-    private final Camera camera;
-    private final World world;
+    private final Game game;
+    private final MetaScreen meta;
     private final Minimap minimap;
     private final BuildMenu buildMenu;
     private final EconomyPanel economyPanel;
@@ -58,10 +56,10 @@ public final class InputHandler
     private volatile int pendingZoomSteps;
     private volatile int zoomAnchorX, zoomAnchorY;
 
-    public InputHandler(World world, Minimap minimap, BuildMenu buildMenu,
+    public InputHandler(Game game, MetaScreen meta, Minimap minimap, BuildMenu buildMenu,
                         EconomyPanel economyPanel, MilitaryPanel militaryPanel) {
-        this.world = world;
-        this.camera = world.camera();
+        this.game = game;
+        this.meta = meta;
         this.minimap = minimap;
         this.buildMenu = buildMenu;
         this.economyPanel = economyPanel;
@@ -72,14 +70,21 @@ public final class InputHandler
     public Tool tool()                 { return tool; }
     public int roadStartFlag()         { return roadStartFlag; }
 
+    private World world()   { return game.world(); }
+    private Camera camera() { World w = world(); return w == null ? null : w.camera(); }
+
     /** Hovered tile under the cursor (may be off-map); for the placement ghost. */
     public Point hoveredTile() {
-        Point2D.Double w = camera.screenToWorld(mouseX, mouseY);
+        Camera c = camera();
+        if (c == null) return new Point(-1, -1);
+        Point2D.Double w = c.screenToWorld(mouseX, mouseY);
         return new Point((int) Math.floor(w.x), (int) Math.floor(w.y));
     }
 
     /** Apply continuous (held-key) panning; call once per update tick. */
     public void applyContinuous(double dtSeconds) {
+        Camera camera = camera();
+        if (camera == null || !game.inPlay()) return;
         double speed = 12.0 * Camera.TILE_SIZE * dtSeconds; // pixels/sec at zoom 1
         double dx = 0, dy = 0;
         if (down(KeyEvent.VK_A) || down(KeyEvent.VK_LEFT))  dx += speed;
@@ -104,11 +109,39 @@ public final class InputHandler
     // --- KeyListener ---
     @Override public void keyPressed(KeyEvent e)  {
         keysDown.add(e.getKeyCode());
-        switch (e.getKeyCode()) {
+        Game.State st = game.state();
+        int code = e.getKeyCode();
+        if (st == Game.State.PLACING_CASTLE) {
+            if (code == KeyEvent.VK_ESCAPE) game.openMenu();
+            return;
+        }
+        if (st == Game.State.PAUSED) {
+            if (code == KeyEvent.VK_ESCAPE || code == KeyEvent.VK_P) game.togglePause();
+            else if (code == KeyEvent.VK_M) game.openMenu();
+            else if (code == KeyEvent.VK_H) game.toggleHelp();
+            return;
+        }
+        if (st != Game.State.PLAYING) {
+            if (code == KeyEvent.VK_ESCAPE && st == Game.State.SETUP) game.openMenu();
+            return;
+        }
+        // --- in play ---
+        switch (code) {
             case KeyEvent.VK_E: economyPanel.toggle(); break;
             case KeyEvent.VK_F: tool = Tool.FLAG; selectedType = null; roadStartFlag = -1; break;
             case KeyEvent.VK_R: tool = Tool.ROAD; selectedType = null; roadStartFlag = -1; break;
-            case KeyEvent.VK_ESCAPE: tool = Tool.NONE; selectedType = null; roadStartFlag = -1; break;
+            case KeyEvent.VK_H: game.toggleHelp(); break;
+            case KeyEvent.VK_SLASH: game.toggleHelp(); break;
+            case KeyEvent.VK_P: game.togglePause(); break;
+            case KeyEvent.VK_M: game.openMenu(); break;
+            case KeyEvent.VK_ESCAPE:
+                // Cancel an armed tool/placement first; otherwise pause.
+                if (tool != Tool.NONE || selectedType != null) {
+                    tool = Tool.NONE; selectedType = null; roadStartFlag = -1;
+                } else {
+                    game.togglePause();
+                }
+                break;
             default: break;
         }
     }
@@ -129,6 +162,24 @@ public final class InputHandler
         }
     }
     @Override public void mouseClicked(MouseEvent e) {
+        Game.State st = game.state();
+        // Meta screens (menu / setup / end) own the whole surface.
+        if (st == Game.State.MENU || st == Game.State.SETUP
+                || st == Game.State.VICTORY || st == Game.State.DEFEAT) {
+            if (e.getButton() == MouseEvent.BUTTON1) meta.handleClick(e.getX(), e.getY());
+            return;
+        }
+        if (st == Game.State.PLACING_CASTLE) {
+            if (e.getButton() == MouseEvent.BUTTON1) {
+                Point tile = hoveredTile();
+                game.tryFoundCastle(tile.x, tile.y);
+            }
+            return;
+        }
+        if (st != Game.State.PLAYING) return; // paused: ignore world clicks
+
+        World world = world();
+        Camera camera = camera();
         int vh = camera.viewportH();
         int vw = camera.viewportW();
         if (e.getButton() == MouseEvent.BUTTON1) {
@@ -176,19 +227,19 @@ public final class InputHandler
 
     /** ROAD tool: pick a start flag, then a second flag to lay a road between them. */
     private void handleRoadClick(Point tile) {
-        Flag f = world.transport().network().flagAt(tile.x, tile.y);
+        Flag f = world().transport().network().flagAt(tile.x, tile.y);
         if (f == null) return; // must click on a flag
         if (roadStartFlag < 0) {
             roadStartFlag = f.id();
         } else {
-            world.transport().buildRoad(roadStartFlag, f.id());
+            world().transport().buildRoad(roadStartFlag, f.id());
             roadStartFlag = -1;
         }
     }
 
     /** Click an enemy fort to select it as an attack target (opens the attack panel). */
     private void selectAttackTarget(Point tile) {
-        Building b = world.buildings().at(tile.x, tile.y);
+        Building b = world().buildings().at(tile.x, tile.y);
         if (b != null && MilitarySystem.isFort(b.type())
                 && b.ownerId() != World.PLAYER_ID && b.ownerId() != -1) {
             militaryPanel.setTarget(b);
@@ -203,7 +254,8 @@ public final class InputHandler
     @Override public void mouseDragged(MouseEvent e) {
         mouseX = e.getX();
         mouseY = e.getY();
-        if (dragging) {
+        Camera camera = camera();
+        if (dragging && camera != null && game.inPlay()) {
             camera.panPixels(e.getX() - lastDragX, e.getY() - lastDragY);
             lastDragX = e.getX();
             lastDragY = e.getY();

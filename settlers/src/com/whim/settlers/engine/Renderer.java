@@ -9,8 +9,12 @@ import com.whim.settlers.military.MilitarySystem;
 import com.whim.settlers.military.Players;
 import com.whim.settlers.transport.Flag;
 import com.whim.settlers.transport.Road;
+import com.whim.settlers.economy.Economy;
+import com.whim.settlers.economy.ProductionChains;
+import com.whim.settlers.economy.Recipe;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MetaScreen;
 import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
@@ -36,16 +40,34 @@ public final class Renderer {
     private final BuildMenu buildMenu;
     private final EconomyPanel economyPanel;
     private final MilitaryPanel militaryPanel;
+    private final MetaScreen meta;
 
-    public Renderer(Minimap minimap, BuildMenu buildMenu, EconomyPanel economyPanel,
-                    MilitaryPanel militaryPanel) {
+    public Renderer(MetaScreen meta, Minimap minimap, BuildMenu buildMenu,
+                    EconomyPanel economyPanel, MilitaryPanel militaryPanel) {
+        this.meta = meta;
         this.minimap = minimap;
         this.buildMenu = buildMenu;
         this.economyPanel = economyPanel;
         this.militaryPanel = militaryPanel;
     }
 
-    public void render(Graphics2D g, World world, InputHandler input, double fps) {
+    /** Top-level render, dispatched by {@link Game.State}. */
+    public void render(Graphics2D g, Game game, InputHandler input, double fps, int vw, int vh) {
+        Game.State st = game.state();
+        if (st == Game.State.MENU || st == Game.State.SETUP) {
+            meta.render(g, game, vw, vh);
+            return;
+        }
+        // All remaining states have a live world board.
+        renderWorld(g, game, input, fps, st);
+        if (st == Game.State.VICTORY || st == Game.State.DEFEAT) {
+            meta.render(g, game, vw, vh);
+        }
+    }
+
+    /** Draw the play board plus the in-game HUD/overlays for the given state. */
+    private void renderWorld(Graphics2D g, Game game, InputHandler input, double fps, Game.State st) {
+        World world = game.world();
         Camera cam = world.camera();
         TileMap map = world.map();
         int vw = cam.viewportW();
@@ -95,12 +117,56 @@ public final class Renderer {
         drawRoadsAndFlags(g, world, input, s);
         drawBuildings(g, world, s);
         drawCarriers(g, world, s);
-        drawGhost(g, world, input, s);
-        minimap.render(g, world);
-        buildMenu.render(g, input.selectedType(), vh);
-        economyPanel.render(g, world.economy(), vw, vh);
-        militaryPanel.render(g, world, vw, vh);
-        drawHud(g, world, input, fps);
+
+        boolean playing = st == Game.State.PLAYING;
+        if (playing) drawGhost(g, world, input, s);
+        if (st == Game.State.PLACING_CASTLE) drawFoundingGhost(g, world, input, s);
+
+        // HUD panels only while actively playing or paused.
+        if (playing || st == Game.State.PAUSED) {
+            minimap.render(g, world);
+            buildMenu.render(g, input.selectedType(), vh);
+            economyPanel.render(g, world.economy(), vw, vh);
+            militaryPanel.render(g, world, vw, vh);
+            drawHud(g, world, input, fps);
+        }
+
+        if (playing) drawTooltip(g, world, input, s);
+
+        // Founding banner.
+        if (st == Game.State.PLACING_CASTLE) {
+            banner(g, vw, "Left-click a green tile to found your Castle   ·   Esc to menu");
+        }
+
+        game.notifications().render(g, vw / 2, 12);
+        if (game.helpVisible()) drawHelp(g, vw, vh);
+        if (st == Game.State.PAUSED) drawPauseOverlay(g, vw, vh);
+    }
+
+    /** Founding ghost: the Castle footprint tinted by validity at the cursor. */
+    private void drawFoundingGhost(Graphics2D g, World world, InputHandler input, double s) {
+        Point tile = input.hoveredTile();
+        boolean ok = world.canFoundAt(tile.x, tile.y);
+        Point2D.Double p = world.camera().worldToScreen(tile.x, tile.y);
+        int w = (int) Math.ceil(BuildingType.CASTLE.footprintW() * s);
+        int h = (int) Math.ceil(BuildingType.CASTLE.footprintH() * s);
+        g.setColor(ok ? new Color(80, 220, 100, 120) : new Color(220, 70, 70, 120));
+        g.fillRect((int) p.x, (int) p.y, w, h);
+        g.setColor(ok ? new Color(120, 255, 140) : new Color(255, 120, 120));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRect((int) p.x, (int) p.y, w, h);
+    }
+
+    private void banner(Graphics2D g, int vw, String text) {
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        int w = g.getFontMetrics().stringWidth(text) + 28;
+        int x = vw / 2 - w / 2, y = 44;
+        g.setColor(new Color(0, 0, 0, 170));
+        g.fillRoundRect(x, y, w, 28, 10, 10);
+        g.setColor(new Color(120, 230, 140));
+        g.drawRoundRect(x, y, w, 28, 10, 10);
+        g.setColor(Color.WHITE);
+        g.drawString(text, x + 14, y + 19);
     }
 
     /** Territory tint per owner plus border outlines between differing owners. */
@@ -163,13 +229,14 @@ public final class Renderer {
         Camera cam = world.camera();
         int r = (int) Math.max(3, s * 0.22);
         for (Road road : world.transport().network().roads()) {
-            double[] pos = road.carrierPos();
-            if (pos == null) continue;
-            Point2D.Double p = cam.worldToScreen(pos[0] + 0.5, pos[1] + 0.5);
-            g.setColor(road.loaded() ? new Color(0xFFF2B0) : new Color(0x9A8C6A));
-            g.fillOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
-            g.setColor(new Color(0, 0, 0, 150));
-            g.drawOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
+            for (double[] pos : road.carrierPositions()) {
+                Point2D.Double p = cam.worldToScreen(pos[0] + 0.5, pos[1] + 0.5);
+                boolean loaded = pos[2] > 0.5;
+                g.setColor(loaded ? new Color(0xFFF2B0) : new Color(0x9A8C6A));
+                g.fillOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
+                g.setColor(new Color(0, 0, 0, 150));
+                g.drawOval((int) p.x - r / 2, (int) p.y - r / 2, r, r);
+            }
         }
     }
 
@@ -287,12 +354,107 @@ public final class Renderer {
         else if (input.tool() == InputHandler.Tool.ROAD) mode = input.roadStartFlag() < 0
                 ? "ROAD tool — click the first flag" : "ROAD tool — click the second flag";
         else if (input.selectedType() != null) mode = "Placing: " + input.selectedType().displayName();
-        else mode = "F flag · R road · E economy · build menu at left";
-        g.drawString("The Settlers — Phase 6 (AI opponent)", hx, 26);
-        g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d   settlers %d",
+        else mode = "F flag · R road · E economy · H help · P pause";
+        g.drawString("The Settlers — Phase 8", hx, 26);
+        g.drawString(String.format("FPS %.0f   zoom %.2f   buildings %d   settlers %d   knights %d",
                 fps, world.camera().zoom(), world.buildings().count(),
-                world.economy().totalPopulation()), hx, 44);
+                world.economy().totalPopulation(), world.military().knightCount(World.PLAYER_ID)), hx, 44);
         g.setColor(new Color(200, 220, 255));
         g.drawString(mode, hx, 62);
+    }
+
+    /** Building info tooltip near the cursor: name, owner, status, staffing, buffers, yield. */
+    private void drawTooltip(Graphics2D g, World world, InputHandler input, double s) {
+        int mx = input.mouseX(), my = input.mouseY();
+        int vw = world.camera().viewportW(), vh = world.camera().viewportH();
+        if (buildMenu.contains(mx, my, vh) || economyPanel.contains(mx, my, vw, vh)
+                || militaryPanel.contains(mx, my, vw, vh)) return;
+        if (input.selectedType() != null || input.tool() != InputHandler.Tool.NONE) return;
+        Point tile = input.hoveredTile();
+        Building b = world.buildings().at(tile.x, tile.y);
+        if (b == null) return;
+
+        java.util.List<String> lines = new java.util.ArrayList<String>();
+        lines.add(b.type().displayName());
+        lines.add("Owner: " + com.whim.settlers.military.Players.name(b.ownerId()));
+        if (!b.isFinished()) {
+            lines.add(String.format("Under construction  %.0f%%", b.progress() * 100));
+        } else if (MilitarySystem.isFort(b.type())) {
+            lines.add("Garrison: " + world.military().garrisonSize(b) + "/"
+                    + MilitarySystem.capacity(b.type()));
+            lines.add(String.format("Morale: %.2f", world.military().morale(b)));
+        }
+        Economy eco = world.economyOf(b.ownerId());
+        Recipe r = ProductionChains.of(b.type());
+        if (eco != null && r != null && b.isFinished()) {
+            lines.add("Status: " + eco.statusOf(b));
+            lines.add(eco.isStaffed(b) ? "Staffed" : "Unstaffed");
+            int yield = eco.remainingYield(b);
+            if (yield >= 0) lines.add("Deposit left: " + yield);
+        }
+
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        int w = 0;
+        for (int i = 0; i < lines.size(); i++) w = Math.max(w, g.getFontMetrics().stringWidth(lines.get(i)));
+        w += 16;
+        int h = 6 + lines.size() * 16 + 4;
+        int tx = Math.min(mx + 16, vw - w - 6);
+        int ty = Math.min(my + 12, vh - h - 6);
+        g.setColor(new Color(0, 0, 0, 205));
+        g.fillRoundRect(tx, ty, w, h, 8, 8);
+        g.setColor(new Color(255, 255, 255, 50));
+        g.drawRoundRect(tx, ty, w, h, 8, 8);
+        int yy = ty + 18;
+        for (int i = 0; i < lines.size(); i++) {
+            g.setColor(i == 0 ? new Color(255, 230, 160) : new Color(220, 225, 230));
+            g.drawString(lines.get(i), tx + 8, yy);
+            yy += 16;
+        }
+    }
+
+    private void drawPauseOverlay(Graphics2D g, int vw, int vh) {
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRect(0, 0, vw, vh);
+        g.setColor(Color.WHITE);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 40));
+        String t = "PAUSED";
+        g.drawString(t, vw / 2 - g.getFontMetrics().stringWidth(t) / 2, vh / 2 - 20);
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
+        String h = "Esc / P resume   ·   M main menu   ·   H help";
+        g.setColor(new Color(210, 220, 230));
+        g.drawString(h, vw / 2 - g.getFontMetrics().stringWidth(h) / 2, vh / 2 + 14);
+    }
+
+    private static final String[] HELP_LINES = {
+        "CONTROLS",
+        "WASD / arrows / right-drag — pan     Mouse wheel — zoom",
+        "Left-click build menu, then map — place a building (green ghost = valid)",
+        "F — flag tool     R — road tool (click two flags)     Right-click — cancel",
+        "E — economy panel     Hover a building — info tooltip",
+        "Click an enemy fort — attack panel (choose knights, Attack)",
+        "P / Esc — pause     M — main menu     H or ? — toggle this help",
+        "",
+        "Goal: eliminate every rival to control the whole map.",
+    };
+
+    private void drawHelp(Graphics2D g, int vw, int vh) {
+        int w = 560, h = 40 + HELP_LINES.length * 22;
+        int x = vw / 2 - w / 2, y = vh / 2 - h / 2;
+        g.setColor(new Color(0x14, 0x1c, 0x24, 245));
+        g.fillRoundRect(x, y, w, h, 14, 14);
+        g.setColor(new Color(0x6F, 0xB0, 0xE0));
+        g.drawRoundRect(x, y, w, h, 14, 14);
+        int yy = y + 30;
+        for (int i = 0; i < HELP_LINES.length; i++) {
+            if (i == 0) {
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+                g.setColor(Color.WHITE);
+            } else {
+                g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+                g.setColor(new Color(210, 218, 226));
+            }
+            g.drawString(HELP_LINES[i], x + 20, yy);
+            yy += i == 0 ? 28 : 22;
+        }
     }
 }

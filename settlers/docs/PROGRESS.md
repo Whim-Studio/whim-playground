@@ -129,5 +129,91 @@ runnable, what is stubbed, what was deferred, and any assumptions made.
 
 **Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test — 20/20 (adds a full two-player run asserting the AI raises ≥3 buildings and lays roads to connect them). Existing single-player checks still pass under the per-player refactor.
 
-## Phase 7 — UI/UX polish & meta — _not started_
-## Phase 8 — Hardening — _not started_
+## Phase 7 — UI/UX polish & meta ✅ (2026-07-16)
+
+**Implemented & runnable**
+- **App/game state machine** (`engine/Game`): MAIN MENU → NEW-GAME SETUP →
+  interactive Castle **founding** → IN-GAME → VICTORY / DEFEAT, with an in-game
+  **pause** overlay. `Game` owns the per-run `World` and setup config and drives
+  everything above the simulation; `GameLoop`/`InputHandler`/`Renderer` now route
+  by `Game.State` (the loop advances the world only while PLAYING). `Main` opens
+  on the menu instead of dropping into a running game.
+- **Interactive Castle founding**: a new game enters `PLACING_CASTLE`; the human
+  clicks a valid buildable spot (green/red Castle ghost + banner) to found the
+  settlement (`World.foundSettlementAt`), replacing the old auto-placement. Only
+  then are the AI opponents spawned (well away from the human).
+- **New-game / free-play setup screen** (`ui/MetaScreen` + `engine/SetupConfig`):
+  choose the map (a generated **seed**, ±steppers, or the hand-built
+  `maps/tutorial-valley.map`), the **player count** (2–4), and a **peaceful↔
+  aggressive personality slider per AI**. Wired into `World` setup.
+- **Multiple AI opponents with personality** (`World.spawnAiPlayers`, generalised
+  `AiController`): N AIs (player ids 1..n) seated around the map rim, each with its
+  own economy over the shared road network. Personality visibly changes play:
+  aggressive AIs attack with as few as 4 knights, expand Guard Huts toward the
+  enemy, and hold a large standing army (knight target up to 15); peaceful AIs
+  keep a modest guard, expand defensively around their own Castle, and strike only
+  with a large force (threshold up to 12). AIs still call only the same public
+  systems the human UI drives — no shortcuts.
+- **Win/lose** (`World.checkOutcome`): **victory** when every rival has lost its
+  Castle (GDD: control the whole map — all rivals eliminated/absorbed), **defeat**
+  when the human Castle is lost; a VICTORY / DEFEAT screen (drawn over the final
+  board) offers *Play Again* / *Main Menu*.
+- **UI polish**: a **building-info tooltip** on hover (name, owner, construction %
+  or garrison/morale, status, staffing, and remaining deposit), a **controls/help
+  overlay** (`H` or `?`), and lightweight **event notifications**
+  (`ui/Notifications`: "Building finished", "Under attack!", "Out of trees",
+  founding/victory/defeat) derived by diffing world state each tick.
+
+**Stubbed / placeholder / notes**
+- The GDD's campaign mode is out of Phase-7 scope; free-play (2–4, human + AI mix
+  via personalities) is implemented. Human-vs-human hotseat is not offered.
+- Notifications are polled from state diffs (no engine callbacks) — intentionally
+  coarse but decoupled.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test —
+27 checks (adds interactive founding, multi-AI setup + personality, and
+victory/defeat detection). The Swing window itself is not opened (headless
+container).
+
+## Phase 8 — Hardening ✅ (2026-07-16)
+
+**Implemented & runnable**
+- **Finite mineral depletion** (`map/TileMap` reserves + `economy/Economy`): every
+  mountain/rock tile carries a deterministic starting reserve (granite 40, coal 34,
+  iron 30, gold 20). A mine depletes the tile it sits on each cycle; a quarry
+  depletes the nearest rock tile with yield left. An exhausted deposit stalls the
+  building with a clear **"depleted"** / **"no rock"** status, and the remaining
+  yield is surfaced in the hover tooltip. Forests still deplete/replant as before.
+- **Second carrier / donkeys on busy roads** (`transport/Road`,
+  `transport/TransportSystem`): a road segment now supports up to two carriers. A
+  segment that stays congested (a shipment waiting on a busy carrier) for ~6 s
+  gains a **second carrier (donkey)**, doubling throughput. The flag-relay model is
+  unchanged — the donkey still walks the whole leg, never teleports — and the
+  upgrade is deterministic under the fixed timestep.
+- **Balance pass** (documented): sized the new deposit reserves so a normal
+  generated map yields enough ore to complete the tool/weapon chain and field an
+  army before exhaustion, while making mine siting a real choice; the donkey
+  congestion threshold (6 s) and the personality-driven AI thresholds (attack at
+  4–12 knights, knight target 6–15, expand cadence 6–15 s) were tuned across the
+  peaceful↔aggressive range. Other `// approximate` numbers (build times, recipe
+  rates, march time) were reviewed and left as-is — they already give a playable
+  start-to-victory arc.
+- **Map depth**: light, deterministic, mountain-preserving **rivers**
+  (`map/MapGenerator.carveRivers`) meander from the map interior to the sea on
+  larger generated maps, adding inland water and coastal build spots. Terrain
+  variety and same-seed determinism are preserved (self-test still green).
+- **Robustness**: setup guards a map with **no valid Castle site** (returns to the
+  setup screen with a message); founding a second Castle is rejected; player count
+  is clamped to 2–4; victory/defeat are re-evaluated every tick, including capture
+  mid-attack. `SelfTest` expanded to cover victory/defeat, multi-AI setup + AI
+  personality, finite/deterministic mineral depletion (map-level and in-play stall),
+  and the donkey second-carrier throughput upgrade.
+
+**Stubbed / placeholder / notes**
+- Depleted mountains keep their terrain colour (no visual "mined-out" recolour);
+  the stall status and tooltip yield convey exhaustion.
+- A segment caps at two carriers; longer routes still gain throughput the original
+  way — by splitting them with more flags.
+
+**Verification:** `javac --release 8 -Xlint:all` — clean; headless self-test —
+**27/27** checks pass (7 new since Phase 6).

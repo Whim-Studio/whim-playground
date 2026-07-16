@@ -2,6 +2,7 @@ package com.whim.settlers.engine;
 
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MetaScreen;
 import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
@@ -27,7 +28,7 @@ public final class GameLoop implements Runnable {
     private static final long   TARGET_FRAME_NS = 1_000_000_000L / 120; // cap render rate
 
     private final Canvas canvas;
-    private final World world;
+    private final Game game;
     private final InputHandler input;
     private final Renderer renderer;
 
@@ -35,12 +36,12 @@ public final class GameLoop implements Runnable {
     private Thread thread;
     private double fps;
 
-    public GameLoop(Canvas canvas, World world, InputHandler input, Minimap minimap,
+    public GameLoop(Canvas canvas, Game game, InputHandler input, MetaScreen meta, Minimap minimap,
                     BuildMenu buildMenu, EconomyPanel economyPanel, MilitaryPanel militaryPanel) {
         this.canvas = canvas;
-        this.world = world;
+        this.game = game;
         this.input = input;
-        this.renderer = new Renderer(minimap, buildMenu, economyPanel, militaryPanel);
+        this.renderer = new Renderer(meta, minimap, buildMenu, economyPanel, militaryPanel);
     }
 
     public synchronized void start() {
@@ -83,7 +84,7 @@ public final class GameLoop implements Runnable {
             while (accumulatorMs >= TICK_MS) {
                 double dt = TICK_MS / 1000.0;
                 input.applyContinuous(dt);
-                world.update(dt);
+                game.update(dt);
                 accumulatorMs -= TICK_MS;
             }
 
@@ -104,12 +105,13 @@ public final class GameLoop implements Runnable {
 
     private void renderFrame(BufferStrategy bs) {
         Dimension size = canvas.getSize();
-        world.camera().setViewport(size.width, size.height);
+        World world = game.world();
+        if (world != null) world.camera().setViewport(size.width, size.height);
         do {
             do {
                 Graphics2D g = (Graphics2D) bs.getDrawGraphics();
                 try {
-                    renderer.render(g, world, input, fps);
+                    renderer.render(g, game, input, fps, size.width, size.height);
                 } finally {
                     g.dispose();
                 }

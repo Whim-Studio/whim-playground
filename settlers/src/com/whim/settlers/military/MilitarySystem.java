@@ -314,6 +314,15 @@ public final class MilitarySystem {
     public float morale(Building b)     { return garrisonOf(b).morale; }
     public int activeAttacks()          { return attacks.size(); }
 
+    /** In-flight assaults whose target belongs to {@code player} (i.e. they are being attacked). */
+    public int incomingAttacksOn(int player) {
+        int n = 0;
+        for (Attack a : attacks) {
+            if (a.target.ownerId() == player && a.attacker != player) n++;
+        }
+        return n;
+    }
+
     public int knightTarget(int player) {
         Integer v = knightTarget.get(player);
         return v == null ? 6 : v;

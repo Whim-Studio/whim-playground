@@ -37,21 +37,51 @@ public final class AiController {
     private final World world;
     private final int player;
 
+    /**
+     * Personality on a peaceful (0.0) ↔ aggressive (1.0) axis. It drives, in a
+     * visible way: how large a striking force the AI insists on before attacking,
+     * how often it attacks and expands its border toward the enemy, and its
+     * standing knight target. Peaceful AIs favour economy and defence; aggressive
+     * AIs push military and strike early.
+     */
+    private final float aggression;
+    private final int   attackKnightThreshold;
+    private final float expandInterval;
+    private final float attackInterval;
+
     private float buildTimer, expandTimer, attackTimer;
 
+    /** Backwards-compatible: a middle-of-the-road opponent. */
     public AiController(World world, int player) {
+        this(world, player, 0.5f);
+    }
+
+    public AiController(World world, int player, float aggression) {
         this.world = world;
         this.player = player;
+        this.aggression = clamp01(aggression);
+        // Aggressive: attack with as few as 4 knights, strike/expand often, hold a
+        // big standing army. Peaceful: wait for 12, act rarely, keep a modest guard.
+        this.attackKnightThreshold = Math.round(lerp(12f, 4f, this.aggression));
+        this.expandInterval        = lerp(15f, 6f, this.aggression);
+        this.attackInterval        = lerp(16f, 6f, this.aggression);
+        world.military().setKnightTarget(player, Math.round(lerp(6f, 15f, this.aggression)));
     }
+
+    public int player()       { return player; }
+    public float aggression() { return aggression; }
 
     public void update(float dt) {
         buildTimer += dt;
         expandTimer += dt;
         attackTimer += dt;
-        if (buildTimer >= 3f)  { buildTimer = 0f;  buildNextEconomyBuilding(); }
-        if (expandTimer >= 9f) { expandTimer = 0f; expandTerritory(); }
-        if (attackTimer >= 10f){ attackTimer = 0f; maybeAttack(); }
+        if (buildTimer >= 3f)               { buildTimer = 0f;  buildNextEconomyBuilding(); }
+        if (expandTimer >= expandInterval)  { expandTimer = 0f; expandTerritory(); }
+        if (attackTimer >= attackInterval)  { attackTimer = 0f; maybeAttack(); }
     }
+
+    private static float clamp01(float v) { return v < 0f ? 0f : (v > 1f ? 1f : v); }
+    private static float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
     // -------------------------------------------------------------- economy
 
@@ -66,11 +96,23 @@ public final class AiController {
 
     // -------------------------------------------------------------- military
 
-    /** Push the border toward the enemy by placing a Guard Hut just beyond it. */
+    /**
+     * Place a Guard Hut to expand the border. Aggressive AIs push it toward the
+     * nearest enemy fort (claiming ground for an assault); peaceful AIs expand
+     * around their own Castle (consolidating and defending their economy).
+     */
     private void expandTerritory() {
-        Building enemyHq = nearestEnemyFort(world.military());
-        int tx = enemyHq != null ? enemyHq.x() : world.map().width() / 2;
-        int ty = enemyHq != null ? enemyHq.y() : world.map().height() / 2;
+        int tx, ty;
+        Building ownHq = ownCastle();
+        if (aggression >= 0.4f) {
+            Building enemyHq = nearestEnemyFort(world.military());
+            tx = enemyHq != null ? enemyHq.x() : world.map().width() / 2;
+            ty = enemyHq != null ? enemyHq.y() : world.map().height() / 2;
+        } else {
+            // Defensive: hug our own Castle.
+            tx = ownHq != null ? ownHq.x() : world.map().width() / 2;
+            ty = ownHq != null ? ownHq.y() : world.map().height() / 2;
+        }
         int[] best = null;
         int bestDist = Integer.MAX_VALUE;
         TileMap map = world.map();
@@ -87,7 +129,7 @@ public final class AiController {
     private void maybeAttack() {
         MilitarySystem mil = world.military();
         int knights = mil.knightCount(player);
-        if (knights < 6) return; // build up a striking force first
+        if (knights < attackKnightThreshold) return; // build up a striking force first
         Building target = nearestEnemyFort(mil);
         if (target == null) return;
         mil.launchAttack(player, target, Math.max(2, knights / 2));
