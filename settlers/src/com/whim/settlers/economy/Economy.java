@@ -253,6 +253,7 @@ public final class Economy {
             qty = 1;
         }
         if (r.profession() == Profession.WOODCUTTER) fellTree(b); // deplete forest
+        depleteDeposit(b, r);                                     // deplete rock/ore
         if (out == null) return;
         final Good fout = out; final int fqty = qty;
         // Relay the finished good back to the Castle stockpile over the roads.
@@ -271,10 +272,12 @@ public final class Economy {
     private boolean extractorReady(Building b, Recipe r) {
         switch (r.extractorNeed()) {
             case NONE:      return true;
-            case MOUNTAIN:  return true; // guaranteed by placement (mine sits on it)
+            // Mines deplete the mountain tile they sit on; stall once it is exhausted.
+            case MOUNTAIN:  return map.resourceAt(b.x(), b.y()) > 0;
             case FOREST:    return hasTerrainNear(b, TerrainType.FOREST);
             case WATER:     return hasWaterNear(b);
-            case STONE_ROCK:return hasTerrainNear(b, TerrainType.MOUNTAIN_STONE);
+            // Quarries need a nearby rock tile that still has yield left.
+            case STONE_ROCK:return findRockTile(b) != null;
             case FARMLAND:  return hasTerrainNear(b, TerrainType.GRASS);
             default:        return false;
         }
@@ -282,12 +285,57 @@ public final class Economy {
 
     private String stalledReason(Recipe r) {
         switch (r.extractorNeed()) {
+            case MOUNTAIN:   return "depleted";
             case FOREST:     return "no trees";
             case STONE_ROCK: return "no rock";
             case WATER:      return "no water";
             case FARMLAND:   return "no land";
             default:         return "blocked";
         }
+    }
+
+    /** Nearest MOUNTAIN_STONE tile within reach that still has yield, or null. */
+    private int[] findRockTile(Building b) {
+        int cx = b.x() + b.type().footprintW() / 2;
+        int cy = b.y() + b.type().footprintH() / 2;
+        for (int dy = -EXTRACT_RADIUS; dy <= EXTRACT_RADIUS; dy++) {
+            for (int dx = -EXTRACT_RADIUS; dx <= EXTRACT_RADIUS; dx++) {
+                int tx = cx + dx, ty = cy + dy;
+                if (map.inBounds(tx, ty) && map.get(tx, ty) == TerrainType.MOUNTAIN_STONE
+                        && map.resourceAt(tx, ty) > 0) {
+                    return new int[] { tx, ty };
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Remaining deposit for an extractor building, for the info tooltip: the tile
+     * under a mine, or the summed nearby rock for a quarry; -1 for buildings whose
+     * output is not a finite deposit.
+     */
+    public int remainingYield(Building b) {
+        Recipe r = ProductionChains.of(b.type());
+        if (r == null) return -1;
+        if (r.extractorNeed() == ExtractorNeed.MOUNTAIN) {
+            return map.resourceAt(b.x(), b.y());
+        }
+        if (r.extractorNeed() == ExtractorNeed.STONE_ROCK) {
+            int cx = b.x() + b.type().footprintW() / 2;
+            int cy = b.y() + b.type().footprintH() / 2;
+            int sum = 0;
+            for (int dy = -EXTRACT_RADIUS; dy <= EXTRACT_RADIUS; dy++) {
+                for (int dx = -EXTRACT_RADIUS; dx <= EXTRACT_RADIUS; dx++) {
+                    int tx = cx + dx, ty = cy + dy;
+                    if (map.inBounds(tx, ty) && map.get(tx, ty) == TerrainType.MOUNTAIN_STONE) {
+                        sum += map.resourceAt(tx, ty);
+                    }
+                }
+            }
+            return sum;
+        }
+        return -1;
     }
 
     private boolean hasTerrainNear(Building b, TerrainType want) {
@@ -323,6 +371,16 @@ public final class Economy {
     private void replantForest(Building b) {
         int[] t = findTile(b, TerrainType.GRASS);
         if (t != null) map.set(t[0], t[1], TerrainType.FOREST);
+    }
+
+    /** Take one unit from a finite deposit: the mine's own tile, or a quarry's rock. */
+    private void depleteDeposit(Building b, Recipe r) {
+        if (r.extractorNeed() == ExtractorNeed.MOUNTAIN) {
+            map.deplete(b.x(), b.y());
+        } else if (r.extractorNeed() == ExtractorNeed.STONE_ROCK) {
+            int[] t = findRockTile(b);
+            if (t != null) map.deplete(t[0], t[1]);
+        }
     }
 
     // ------------------------------------------------------------ input/output

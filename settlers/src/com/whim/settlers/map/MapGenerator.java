@@ -61,7 +61,41 @@ public final class MapGenerator {
                 map.set(x, y, t);
             }
         }
+        carveRivers(map, seed);
         return map;
+    }
+
+    /**
+     * Carve one or more thin, meandering rivers from near the map centre out to an
+     * edge, adding inland water (and with it coastal build spots for fishermen and
+     * shipyards). Fully deterministic (seeded) and mountain-preserving — rivers
+     * flow around mountains rather than through them — so the terrain-variety and
+     * determinism invariants the self-test checks still hold.
+     */
+    private static void carveRivers(TileMap map, long seed) {
+        int w = map.width(), h = map.height();
+        if (Math.min(w, h) < 24) return; // too small to bother
+        Random rng = new Random(seed ^ 0x52_1F_E7L);
+        int rivers = Math.max(1, Math.min(3, Math.max(w, h) / 40));
+        for (int r = 0; r < rivers; r++) {
+            double x = w * (0.35 + 0.30 * rng.nextDouble());
+            double y = h * (0.35 + 0.30 * rng.nextDouble());
+            // Head toward a random map edge (where the falloff has put the sea).
+            double angle = rng.nextDouble() * Math.PI * 2;
+            double dx = Math.cos(angle), dy = Math.sin(angle);
+            int steps = (w + h);
+            for (int s = 0; s < steps; s++) {
+                int ix = (int) Math.round(x), iy = (int) Math.round(y);
+                if (!map.inBounds(ix, iy)) break;
+                TerrainType t = map.get(ix, iy);
+                if (t.isWater()) break;              // reached the sea — done
+                if (!t.isMountain()) map.set(ix, iy, TerrainType.WATER);
+                // Meander: bias to the chosen heading with a little wander.
+                angle += (rng.nextDouble() - 0.5) * 0.6;
+                dx = Math.cos(angle); dy = Math.sin(angle);
+                x += dx; y += dy;
+            }
+        }
     }
 
     /** Assign a mountain resource from the mineral field, weighted toward stone/coal. */

@@ -35,6 +35,14 @@ embed original assets; never depend on the original's data files.
 - Every game begins by placing a **Castle** (HQ) on a shown patch of buildable
   land to found the settlement.
 - **Win/lose:** control the entire map — every rival eliminated or absorbed.
+  _Phase 7 concrete criterion (implementation decision):_ a player is
+  **eliminated when it holds no Castle** (its HQ captured). **Victory** = no rival
+  retains a Castle; **defeat** = the human's Castle is lost. Capturing the enemy
+  Castle already flips ownership and orphans that player's outlying buildings, so
+  "no Castle" is the practical proxy for "map controlled / rival absorbed" without
+  requiring literal ownership of every tile. Free-play modes (2–4 players, per-AI
+  peaceful↔aggressive personality) and interactive Castle founding are implemented
+  as specified; the campaign mode remains a later addition.
 
 ## 4. Settlers
 

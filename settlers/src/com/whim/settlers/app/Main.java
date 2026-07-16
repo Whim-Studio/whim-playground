@@ -1,13 +1,11 @@
 package com.whim.settlers.app;
 
+import com.whim.settlers.engine.Game;
 import com.whim.settlers.engine.GameLoop;
 import com.whim.settlers.engine.InputHandler;
-import com.whim.settlers.engine.World;
-import com.whim.settlers.io.MapLoader;
-import com.whim.settlers.map.MapGenerator;
-import com.whim.settlers.map.TileMap;
 import com.whim.settlers.ui.BuildMenu;
 import com.whim.settlers.ui.EconomyPanel;
+import com.whim.settlers.ui.MetaScreen;
 import com.whim.settlers.ui.MilitaryPanel;
 import com.whim.settlers.ui.Minimap;
 
@@ -16,7 +14,6 @@ import javax.swing.SwingUtilities;
 import java.awt.Canvas;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
-import java.nio.file.Paths;
 
 /**
  * Entry point. Opens the desktop window and starts the game loop. On a headless
@@ -25,54 +22,48 @@ import java.nio.file.Paths;
  */
 public final class Main {
 
-    private static final int MAP_W = 80;
-    private static final int MAP_H = 80;
-    private static final long DEFAULT_SEED = 1993L;
-
     public static void main(String[] args) {
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("[settlers] Headless environment — running self-test.");
             com.whim.settlers.engine.SelfTest.run();
             return;
         }
-        final TileMap map = buildMap(args);
-        SwingUtilities.invokeLater(() -> launch(map));
+        final Game game = new Game();
+        applyArgs(game, args); // pre-seed the setup screen from the command line
+        SwingUtilities.invokeLater(() -> launch(game));
     }
 
     /**
-     * Choose the starting map from the command line:
+     * Optional command-line pre-configuration of the new-game setup:
      * <ul>
-     *   <li>{@code --map <file>} loads a hand-built text map,</li>
-     *   <li>{@code --seed <n>} generates a map from that seed,</li>
-     *   <li>otherwise a generated map from the default seed.</li>
+     *   <li>{@code --map} selects the hand-built tutorial valley,</li>
+     *   <li>{@code --seed <n>} selects a generated map from that seed.</li>
      * </ul>
+     * The game still opens on the main menu; these just prime the setup screen.
      */
-    private static TileMap buildMap(String[] args) {
+    private static void applyArgs(Game game, String[] args) {
         try {
-            for (int i = 0; i < args.length - 1; i++) {
+            for (int i = 0; i < args.length; i++) {
                 if ("--map".equals(args[i])) {
-                    return MapLoader.fromFile(Paths.get(args[i + 1]));
-                }
-                if ("--seed".equals(args[i])) {
-                    return MapGenerator.generate(MAP_W, MAP_H, Long.parseLong(args[i + 1]));
+                    game.config().setTutorialMap(true);
+                } else if ("--seed".equals(args[i]) && i + 1 < args.length) {
+                    long seed = Long.parseLong(args[i + 1]);
+                    game.config().setTutorialMap(false);
+                    game.config().bumpSeed((int) (seed - game.config().seed()));
                 }
             }
         } catch (Exception e) {
-            System.err.println("[settlers] map load failed (" + e.getMessage()
-                    + "); using generated map.");
+            System.err.println("[settlers] ignoring bad args (" + e.getMessage() + ").");
         }
-        return MapGenerator.generate(MAP_W, MAP_H, DEFAULT_SEED);
     }
 
-    private static void launch(TileMap map) {
-        World world = new World(map);
-        world.foundSettlement(); // place the human Castle to start the game
-        world.spawnEnemy();      // place a static enemy settlement (AI arrives in Phase 6)
+    private static void launch(Game game) {
+        MetaScreen meta = new MetaScreen();
         Minimap minimap = new Minimap();
         BuildMenu buildMenu = new BuildMenu();
         EconomyPanel economyPanel = new EconomyPanel();
         MilitaryPanel militaryPanel = new MilitaryPanel();
-        InputHandler input = new InputHandler(world, minimap, buildMenu, economyPanel, militaryPanel);
+        InputHandler input = new InputHandler(game, meta, minimap, buildMenu, economyPanel, militaryPanel);
 
         Canvas canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(1024, 720));
@@ -91,7 +82,7 @@ public final class Main {
         frame.setVisible(true);
         canvas.requestFocus();
 
-        GameLoop loop = new GameLoop(canvas, world, input, minimap, buildMenu,
+        GameLoop loop = new GameLoop(canvas, game, input, meta, minimap, buildMenu,
                 economyPanel, militaryPanel);
         loop.start();
     }

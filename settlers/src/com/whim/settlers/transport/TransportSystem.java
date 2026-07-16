@@ -6,8 +6,10 @@ import com.whim.settlers.economy.Good;
 import com.whim.settlers.map.TileMap;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Drives the flag-relay transport: places building flags, builds roads (routed
@@ -29,6 +31,11 @@ public final class TransportSystem {
     private final Map<Building, Integer> buildingFlag = new HashMap<Building, Integer>();
     /** Each player's Castle flag id — the stockpile hub for that player. */
     private final Map<Integer, Integer> castleFlag = new HashMap<Integer, Integer>();
+    /** Per-road sustained-congestion accumulator (seconds); drives donkey upgrades. */
+    private final Map<Road, Float> congestion = new HashMap<Road, Float>();
+
+    /** Seconds a segment must stay congested before it gains a second carrier. */
+    private static final float DONKEY_AFTER_SECONDS = 6f;
 
     public TransportSystem(TileMap map, BuildingManager buildings) {
         this.map = map;
@@ -124,34 +131,49 @@ public final class TransportSystem {
 
     public void update(float dt) {
         advanceCarriers(dt);
-        dispatch();
+        dispatch(dt);
     }
 
     private void advanceCarriers(float dt) {
         for (Road r : net.roads()) {
-            Road.Arrival a = r.update(dt);
-            if (a == null) continue;
-            if (a.flagId == a.shipment.destFlagId()) {
-                a.shipment.deliver();               // reached destination
-            } else {
-                net.flag(a.flagId).enqueue(a.shipment); // relay onward
+            for (Road.Arrival a : r.update(dt)) {
+                if (a.flagId == a.shipment.destFlagId()) {
+                    a.shipment.deliver();               // reached destination
+                } else {
+                    net.flag(a.flagId).enqueue(a.shipment); // relay onward
+                }
             }
         }
     }
 
-    private void dispatch() {
+    private void dispatch(float dt) {
+        Set<Road> blockedByDemand = new HashSet<Road>();
         for (Flag f : net.flags()) {
             // FIFO: keep loading the head shipment while a free next-hop exists.
             while (f.hasWaiting()) {
                 Shipment s = f.peek();
                 Road r = net.nextHop(f.id(), s.destFlagId());
-                if (r != null && r.free()) {
+                if (r == null) break;              // no route yet
+                if (r.free()) {
                     f.poll();
                     r.load(s, f.id());
                 } else {
-                    break; // blocked (no route yet, or carrier busy) — congestion
+                    blockedByDemand.add(r);        // a shipment wants it, but it's busy
+                    break;                         // congestion
                 }
             }
+        }
+        // Roads with pending demand they can't serve accrue congestion and, once it
+        // stays high, gain a donkey (second carrier). Idle/served roads relax.
+        for (Road r : net.roads()) {
+            float c = congestion.containsKey(r) ? congestion.get(r) : 0f;
+            if (blockedByDemand.contains(r) && !r.upgraded()) {
+                c += dt;
+                if (c >= DONKEY_AFTER_SECONDS) { r.addCarrier(); c = 0f; }
+            } else {
+                c = Math.max(0f, c - dt * 0.5f);
+            }
+            congestion.put(r, c);
         }
     }
 }
