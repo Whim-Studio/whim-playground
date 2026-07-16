@@ -27,6 +27,9 @@ import java.util.Random;
  */
 public final class DefaultGameEngine implements GameEngine {
 
+    /** AI keeps investing in cash-flow developments until its cashFlow reaches this. */
+    private static final int AI_CASHFLOW_RAMP_TARGET = 8;
+
     private final GameState state;
     private final Random rng;
 
@@ -229,6 +232,17 @@ public final class DefaultGameEngine implements GameEngine {
             int[] g = findBestGreenDev(p);
             if (g != null) {
                 buyDevelopment(p, g[0], g[1]);
+                return true;
+            }
+        }
+
+        // 2b. Ramp cash flow early so the city can actually afford to grow. Industrial
+        //     developments give the strongest cash flow but emit CO2 -> this is what
+        //     drives the global-CO2 feedback loop into the danger zone over time.
+        if (board.getCashFlow() < AI_CASHFLOW_RAMP_TARGET) {
+            int[] eco = findBestEconomyDev(p, preferGreen);
+            if (eco != null) {
+                buyDevelopment(p, eco[0], eco[1]);
                 return true;
             }
         }
