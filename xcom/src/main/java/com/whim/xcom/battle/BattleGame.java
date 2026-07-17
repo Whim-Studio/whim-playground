@@ -49,6 +49,8 @@ public final class BattleGame {
     private int turn = 1;
     private Side winner;
     private int aliensKilled;
+    private String brainDefId = "alien_brain"; // the Cydonia objective; killing it flags brainKilled
+    private boolean brainKilled;
 
     private Listener listener = new Listener() {
         @Override public void onEvent(String message) { }
@@ -96,7 +98,7 @@ public final class BattleGame {
     public List<BattleUnit> living(Side side) {
         List<BattleUnit> out = new ArrayList<BattleUnit>();
         for (BattleUnit u : units) {
-            if (u.alive() && u.side() == side) {
+            if (u.conscious() && u.side() == side) {
                 out.add(u);
             }
         }
@@ -106,7 +108,7 @@ public final class BattleGame {
     // ---- visibility / line of sight ----------------------------------------
 
     public boolean canSee(BattleUnit from, BattleUnit to) {
-        if (from == null || to == null || !from.alive() || !to.alive()) {
+        if (from == null || to == null || !from.conscious() || !to.conscious()) {
             return false;
         }
         return BattleMap.distance(from.x(), from.y(), to.x(), to.y()) <= sightRange()
@@ -122,7 +124,7 @@ public final class BattleGame {
         }
         int range = sightRange();
         for (BattleUnit u : units) {
-            if (!u.alive() || u.side() != Side.XCOM) {
+            if (!u.conscious() || u.side() != Side.XCOM) {
                 continue;
             }
             int minX = Math.max(0, u.x() - range);
@@ -143,7 +145,7 @@ public final class BattleGame {
 
     /** An enemy the player may click on: an alive alien on a currently-visible tile. */
     public boolean isEnemyVisible(BattleUnit alien) {
-        return alien != null && alien.alive() && alien.alien() && visible(alien.x(), alien.y());
+        return alien != null && alien.conscious() && alien.alien() && visible(alien.x(), alien.y());
     }
 
     // ---- geometry -----------------------------------------------------------
@@ -311,7 +313,7 @@ public final class BattleGame {
      * true if the shot was taken.
      */
     public boolean fire(BattleUnit shooter, BattleUnit target, FireMode mode) {
-        if (shooter == null || target == null || !shooter.alive() || !target.alive()) {
+        if (shooter == null || target == null || !shooter.conscious() || !target.conscious()) {
             return false;
         }
         WeaponDef w = shooter.weapon();
@@ -329,7 +331,8 @@ public final class BattleGame {
         shooter.setFacing(directionTo(target.x() - shooter.x(), target.y() - shooter.y()));
         int shots = Math.max(1, w.shots(mode));
         int hits = 0;
-        for (int i = 0; i < shots && target.alive(); i++) {
+        boolean stunWeapon = w.damageType() == DamageType.STUN;
+        for (int i = 0; i < shots && target.conscious(); i++) {
             if (!shooter.consumeAmmo()) {
                 break;
             }
@@ -339,11 +342,20 @@ public final class BattleGame {
                 DamageModel.Facing facing = facingHit(target, shooter);
                 int dmg = ruleset.damage().rollDamage(rng, w.power(), w.damageType(),
                         target.armor(), facing);
-                boolean dead = target.applyDamage(dmg);
-                listener.onEvent(shooter.name() + " hits " + target.name() + " for " + dmg
-                        + (dead ? " — KILLED!" : ""));
-                if (dead) {
-                    onDeath(target);
+                if (stunWeapon) {
+                    boolean out = target.applyStun(dmg);
+                    listener.onEvent(shooter.name() + " stuns " + target.name() + " for " + dmg
+                            + (out ? " — KNOCKED OUT!" : ""));
+                    if (out) {
+                        onKnockOut(target);
+                    }
+                } else {
+                    boolean dead = target.applyDamage(dmg);
+                    listener.onEvent(shooter.name() + " hits " + target.name() + " for " + dmg
+                            + (dead ? " — KILLED!" : ""));
+                    if (dead) {
+                        onDeath(target);
+                    }
                 }
             } else {
                 listener.onEvent(shooter.name() + " misses " + target.name());
@@ -458,12 +470,26 @@ public final class BattleGame {
         listener.onEvent(u.name() + " is down.");
         if (u.alien()) {
             aliensKilled++;
+            if (u.alienDefId() != null && u.alienDefId().equals(brainDefId)) {
+                brainKilled = true;
+            }
         }
         // Morale hit to the fallen unit's side.
         for (BattleUnit m : living(u.side())) {
             m.changeMorale(-10);
         }
         recomputeVisibility();
+        checkVictory();
+    }
+
+    /** An alien knocked unconscious by stun damage — out of the fight, capturable alive. */
+    private void onKnockOut(BattleUnit u) {
+        listener.onEvent(u.name() + " collapses, unconscious.");
+        for (BattleUnit m : living(u.side())) {
+            m.changeMorale(-10);
+        }
+        recomputeVisibility();
+        checkVictory();
     }
 
     // ---- turn flow + AI -----------------------------------------------------
@@ -552,6 +578,18 @@ public final class BattleGame {
 
     /** One small alien action: psi-attack, shoot a visible soldier, else advance. */
     private boolean aiActOnce(BattleUnit a) {
+        if (a.immobile()) {
+            // Immobile units (e.g. the Alien Brain) may still fire but never move.
+            BattleUnit t = nearestVisibleFoe(a);
+            WeaponDef iw = a.weapon();
+            if (t != null && iw != null) {
+                FireMode m = chooseAlienMode(a, t);
+                if (m != null && a.hasTU(fireCost(a, m))) {
+                    return fire(a, t, m);
+                }
+            }
+            return false;
+        }
         BattleUnit target = nearestVisibleFoe(a);
         // Psi-capable leaders prefer to break the squad's will.
         if (target != null && a.psiStrength() >= PSI_MIN_STRENGTH && !target.panicked()
@@ -683,12 +721,17 @@ public final class BattleGame {
     public BattleOutcome outcome() {
         List<String> alive = new ArrayList<String>();
         List<String> fallen = new ArrayList<String>();
+        List<String> captures = new ArrayList<String>();
         for (BattleUnit u : units) {
             if (u.side() == Side.XCOM) {
                 (u.alive() ? alive : fallen).add(u.name());
+            } else if (u.alien() && u.alive() && u.unconscious()
+                    && winner == Side.XCOM && u.alienDefId() != null) {
+                // An alien left unconscious on a field X-COM controls is captured alive.
+                captures.add(u.alienDefId());
             }
         }
-        return new BattleOutcome(winner, turn, alive, fallen, aliensKilled);
+        return new BattleOutcome(winner, turn, alive, fallen, aliensKilled, captures, brainKilled);
     }
 
     /** Run the whole battle to completion with only the AI acting (headless helper). */

@@ -36,6 +36,9 @@ public final class SaveGame {
         public long clockSeconds;
         public int scientists;
         public int engineers;
+        public int consecutiveBadMonths;
+        public boolean gameWon;
+        public boolean gameLost;
         public List<String> completedResearch = new ArrayList<String>();
         public List<ResearchSnap> research = new ArrayList<ResearchSnap>();
         public List<ManufactureSnap> manufacture = new ArrayList<ManufactureSnap>();
@@ -78,10 +81,18 @@ public final class SaveGame {
     // ---- capture ------------------------------------------------------------
 
     public static Snapshot capture(Campaign c, long funds, int score, long clockSeconds) {
+        return capture(c, funds, score, clockSeconds, 0, false, false);
+    }
+
+    public static Snapshot capture(Campaign c, long funds, int score, long clockSeconds,
+                                   int consecutiveBadMonths, boolean gameWon, boolean gameLost) {
         Snapshot s = new Snapshot();
         s.funds = funds;
         s.score = score;
         s.clockSeconds = clockSeconds;
+        s.consecutiveBadMonths = consecutiveBadMonths;
+        s.gameWon = gameWon;
+        s.gameLost = gameLost;
         s.scientists = c.scientists();
         s.engineers = c.engineers();
         s.completedResearch.addAll(c.completedResearch());

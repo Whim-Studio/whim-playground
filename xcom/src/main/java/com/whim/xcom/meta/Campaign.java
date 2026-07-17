@@ -64,11 +64,22 @@ public final class Campaign {
                     break;
                 }
             }
-            if (ready) {
+            if (ready && hasRequiredItems(n)) {
                 out.add(n);
             }
         }
         return out;
+    }
+
+    /** True if every store item this project consumes (e.g. a live captive) is on hand. */
+    public boolean hasRequiredItems(ResearchNode n) {
+        for (String item : n.requiredItems()) {
+            Integer have = stores.get(item);
+            if (have == null || have <= 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isQueued(String id) {
@@ -81,9 +92,27 @@ public final class Campaign {
     }
 
     public ResearchProject startResearch(ResearchNode node, int scientistsAssigned) {
+        // Interrogations and item-gated projects consume their captive/artifact.
+        for (String item : node.requiredItems()) {
+            consumeFromStores(item, 1);
+        }
         ResearchProject p = new ResearchProject(node, scientistsAssigned);
         research.add(p);
         return p;
+    }
+
+    /** Remove up to {@code qty} of an item from stores (clamped at zero, entry dropped at zero). */
+    public void consumeFromStores(String itemId, int qty) {
+        Integer cur = stores.get(itemId);
+        if (cur == null) {
+            return;
+        }
+        int left = cur - qty;
+        if (left > 0) {
+            stores.put(itemId, left);
+        } else {
+            stores.remove(itemId);
+        }
     }
 
     public boolean researchUnlocksManufacture(ManufactureNode node) {
@@ -144,7 +173,7 @@ public final class Campaign {
 
     /** Basic-issue weapons available to every soldier without manufacturing. */
     private static final Set<String> BASIC_WEAPONS = new LinkedHashSet<String>(
-            java.util.Arrays.asList("pistol", "rifle", "heavy_cannon", "auto_cannon"));
+            java.util.Arrays.asList("pistol", "rifle", "heavy_cannon", "auto_cannon", "stun_rod"));
 
     /**
      * Weapons a soldier may equip: the basic issue plus anything of that kind

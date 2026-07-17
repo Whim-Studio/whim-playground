@@ -5,6 +5,20 @@ MicroProse / Mythos Games, 1994). It contains **Phase 0: the foundation** — a 
 layered, data-driven, ruleset-pluggable architecture — and **Phase 1: the
 Battlescape** — a playable turn-based tactical mission rendered in an isometric
 Swing view. The Geoscape and meta layers are built in later phases on top of this.
+It is now a **complete, winnable-and-loseable campaign** (Phases 0–8).
+
+## How to play / how to win (the short version)
+
+**New Game** starts the Geoscape. Compress time until a **red UFO** is detected,
+**click it** to scramble an interceptor, and win the crash-site Battlescape.
+Respond fast to **magenta TERROR MISSIONS** (ignoring one is a heavy score hit).
+Carry the **Stun Rod** and **capture a Sectoid Soldier and a Sectoid Leader alive**
+(keep an Alien Containment with room). In **Base**, interrogate both, then research
+*Alien Origins → The Martian Solution → Cydonia or Bust!* and press the red
+**Cydonia or Bust!** button; win the two-stage final assault and **kill the Alien
+Brain** to win the game. Let performance stay net-negative for **two straight
+months** and the Council terminates X-COM — you lose. In-game **How to win** and
+**UFOpaedia** buttons on the Geoscape explain the rest.
 
 ## Playing the Battlescape (Phase 1)
 
@@ -107,6 +121,91 @@ armour you assigned (verified end-to-end — a soldier equipped with a laser rif
 and personal armour deploys with them). `Ruleset` gained `hasWeapon`/`hasArmor`
 safe-lookup predicates so stale or unknown ids fall back to defaults instead of
 throwing.
+
+## The endgame — win & lose (Phase 7)
+
+The campaign is now **winnable and loseable end to end**, per DESIGN §3.5.
+
+**Live capture & Alien Containment.** Soldiers carry a **Stun Rod** (a `STUN`-type
+melee weapon — basic issue, equipable from the Base screen). Stun damage accrues
+into a unit's stun pool; when it reaches the unit's health the alien falls
+**unconscious** (alive, out of the fight) instead of dying. An alien left
+unconscious on a field X-COM wins is **captured alive** — provided the base has an
+**Alien Containment** facility with free capacity (the default base ships one;
+without it the captive is lost). Live aliens are stored as `live_<race>` items and
+shown as "Live aliens" in the Geoscape sidebar.
+
+**Research path to Cydonia.** Interrogating a live captive is a data-driven
+research project gated on the captive in stores (consumed when the project starts):
+
+```
+Interrogate Sectoid Soldier ─┐
+                             ├─► Alien Origins ─┐
+Interrogate Sectoid Leader ──┴─────────────────┴─► The Martian Solution ─► Cydonia or Bust!
+```
+
+All of it lives in `data/rules1994.json` (new `requiredItems` field on a research
+node) — no engine change. Completing **"Cydonia or Bust!"** reveals the red
+**Cydonia or Bust!** button on the Geoscape.
+
+**How to WIN.** Shoot down UFOs, stun-capture a **Sectoid Soldier** and a **Sectoid
+Leader** (both appear in crash-site crews), interrogate both, research *Alien
+Origins → The Martian Solution → Cydonia or Bust!*, then press **Cydonia or Bust!**.
+That runs the **two-stage Cydonia assault** — the Martian surface, then the alien
+base — which holds the immobile **Alien Brain**. **Kill the Brain** and a victory
+screen ends the campaign.
+
+**How to LOSE.** The monthly **Council report** now tracks performance: a month with
+net-negative score (or a funding collapse into the red) is a *poor month*, and
+**two poor months in a row** trigger **Council termination** and a defeat screen.
+
+Save/load round-trips all of it (containment, live aliens, the bad-month counter and
+the win/lose flags). New headless tests cover capture eligibility, containment
+gating, the research chain, and the win/lose triggers (`CaptureTest`,
+`ResearchGatingTest`, `EndgameTest`) — **57 tests green** (`cd xcom && mvn -q test`).
+
+## Terror missions, the UFOpaedia & the polish pass (Phase 8)
+
+Phase 8 completes the missing feature and hardens the game into a finished slice.
+
+**Terror missions.** A distinct Geoscape alien-mission type: a landed force
+attacking a **city** (`TerrorSite`), drawn as a pulsing **magenta marker** with a
+countdown. Unlike a UFO it does not fly and is always visible. It **must** be
+answered — leaving it until it expires lets the aliens finish and costs a heavy
+**−150 score** (and the funding fallout that follows), so terror sites drive the
+Council loss condition. Clicking one launches a Battlescape assault against a
+**larger, night-time crew** (a psi leader plus a race mix that escalates with
+difficulty); winning defends the city for a big score and salvage, and live
+captures still flow into containment. Terror frequency and crew size **scale with
+difficulty** (Beginner ≈ one every ~14 game-days, Superhuman ≈ every ~6). The seam
+reuses `MissionLauncher`/`AssaultHandler` exactly as the Phase 7 note anticipated:
+`GeoGame.buildTerrorAssault` / `resolveTerror` and `AssaultHandler.assaultTerror`.
+
+**UFOpaedia (in-game encyclopedia).** A new Swing screen (**UFOpaedia** button on
+the Geoscape and Base) lists the entries you have unlocked — weapons, armour,
+aliens, UFOs and facilities — each with a description **generated from the data
+pack** and a small procedurally-drawn glyph. Gating lives in the pure, testable
+`com.whim.xcom.meta.Ufopaedia`: basic gear and your own facilities are always
+readable; **new research and captures open new entries** (laser tech after *Laser
+Weapons*, sectoid dossiers after an autopsy/interrogation, the general races after
+*Alien Origins*, the Brain after *The Martian Solution*).
+
+**Balance, hardening & polish.**
+- UFO spawns now genuinely **bias toward smaller craft** (the lower of two rolls),
+  so the early game faces killable scouts rather than random unkillable capital
+  ships; higher difficulty shifts the mix upward.
+- Missions **never launch an empty squad**: an all-wounded or empty roster falls
+  back to a scratch squad instead of crashing/auto-losing.
+- **End-of-campaign summary** (months survived, score, research, roster) on the
+  win/lose screen, and an in-app **How to win** briefing.
+- The pure engine and `Ufopaedia` catalog stay **headless-safe**; a new
+  `CampaignSmokeTest` runs the whole Geoscape loop (auto-resolving every crash
+  site and terror mission) across **all five difficulties** and round-trips the
+  save, proving the campaign never dead-ends.
+
+New headless tests cover terror penalties/rewards/spawn, UFOpaedia gating, the
+empty-roster guard and the full-loop smoke (`TerrorMissionTest`, `UfopaediaTest`,
+`HardeningTest`, `CampaignSmokeTest`) — **69 tests green** (`cd xcom && mvn -q test`).
 
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see

@@ -14,6 +14,7 @@ public final class DataResearchNode implements ResearchNode {
     private int researchCost;
     private List<String> prerequisites = new ArrayList<String>();
     private List<String> unlocks = new ArrayList<String>();
+    private List<String> requiredItems = new ArrayList<String>();
     private boolean needsCaptiveOrItem;
 
     public DataResearchNode(String id, String name, int researchCost,
@@ -43,5 +44,10 @@ public final class DataResearchNode implements ResearchNode {
     @Override
     public List<String> unlocks() {
         return Collections.unmodifiableList(unlocks == null ? new ArrayList<String>() : unlocks);
+    }
+
+    @Override
+    public List<String> requiredItems() {
+        return Collections.unmodifiableList(requiredItems == null ? new ArrayList<String>() : requiredItems);
     }
 }

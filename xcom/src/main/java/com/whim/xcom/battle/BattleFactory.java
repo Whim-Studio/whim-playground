@@ -62,6 +62,11 @@ public final class BattleFactory {
             BattleUnit u = new BattleUnit("A" + aIndex, name, Side.ALIEN,
                     tu, hp, acc, rea, str, weapon, armor);
             u.setPsiStrength(def != null ? def.psiStrength() : 0);
+            u.setAlienDefId(spec.alienId);
+            // The Alien Brain is a stationary objective, not a mobile combatant.
+            if ("alien_brain".equals(spec.alienId)) {
+                u.setImmobile(true);
+            }
             u.setPos(pos[0], pos[1]);
             u.setFacing(4); // face south, toward the squad
             game.addUnit(u);

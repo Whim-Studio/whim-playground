@@ -170,9 +170,25 @@ public final class BaseScreen extends JPanel {
         load.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { load(); }
         });
+        JButton pedia = button("UFOpaedia");
+        pedia.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { openUfopaedia(); }
+        });
         bar.add(save);
         bar.add(load);
+        bar.add(pedia);
         return bar;
+    }
+
+    /** Open the UFOpaedia as a modal dialog over the base screen. */
+    private void openUfopaedia() {
+        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+        javax.swing.JDialog dialog = new javax.swing.JDialog(owner, "UFOpaedia",
+                java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setContentPane(new UfopaediaScreen(ctx, campaign()));
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     // ---- actions ------------------------------------------------------------
@@ -253,7 +269,8 @@ public final class BaseScreen extends JPanel {
     private void save() {
         try {
             SaveGame.Snapshot snap = SaveGame.capture(campaign(), game.funds(),
-                    game.totalScore(), game.clock().seconds());
+                    game.totalScore(), game.clock().seconds(),
+                    game.consecutiveBadMonths(), game.gameWon(), game.gameLost());
             SaveGame.write(snap, SAVE_FILE);
             JOptionPane.showMessageDialog(this, "Saved to " + SAVE_FILE.getAbsolutePath(),
                     "Save Game", JOptionPane.INFORMATION_MESSAGE);
@@ -272,7 +289,8 @@ public final class BaseScreen extends JPanel {
             }
             SaveGame.Snapshot snap = SaveGame.read(SAVE_FILE);
             game.setCampaign(SaveGame.restoreCampaign(snap, ctx.ruleset()));
-            game.restoreState(snap.funds, snap.score, snap.clockSeconds);
+            game.restoreState(snap.funds, snap.score, snap.clockSeconds,
+                    snap.consecutiveBadMonths, snap.gameWon, snap.gameLost);
             refresh();
             JOptionPane.showMessageDialog(this, "Campaign loaded.",
                     "Load Game", JOptionPane.INFORMATION_MESSAGE);

@@ -59,6 +59,8 @@ public class GeoEngineTest {
             @Override public void onEvent(String message) { }
             @Override public void onChanged() { }
             @Override public void onCrashSite(Ufo ufo) { crash.set(ufo); }
+            @Override public void onVictory(String message) { }
+            @Override public void onDefeat(String message) { }
         });
         Ufo scout = g.deployUfo(rs.ufo("small_scout"), g.base().x(), g.base().y());
         scout.setDetected(true);
@@ -100,6 +102,8 @@ public class GeoEngineTest {
             }
             @Override public void onChanged() { }
             @Override public void onCrashSite(Ufo ufo) { }
+            @Override public void onVictory(String message) { }
+            @Override public void onDefeat(String message) { }
         });
         g.clock().setSpeed(GeoClock.Speed.DAY1);
         for (int i = 0; i < 31; i++) {

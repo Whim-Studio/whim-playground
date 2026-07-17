@@ -17,6 +17,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -28,6 +29,7 @@ import com.whim.xcom.geo.GeoClock;
 import com.whim.xcom.geo.GeoFactory;
 import com.whim.xcom.geo.GeoGame;
 import com.whim.xcom.geo.Interceptor;
+import com.whim.xcom.geo.TerrorSite;
 import com.whim.xcom.geo.Ufo;
 
 /**
@@ -42,6 +44,10 @@ public final class GeoScreen extends JPanel {
     /** How a crash/landing site becomes a tactical mission (app-supplied). */
     public interface AssaultHandler {
         void assault(GeoGame game, Ufo ufo);
+        /** Assault an alien terror site (a city under attack). */
+        void assaultTerror(GeoGame game, TerrorSite site);
+        /** Launch the two-stage Cydonia final assault (surface then alien base). */
+        void cydonia(GeoGame game);
     }
 
     private final transient GameContext ctx;
@@ -52,7 +58,9 @@ public final class GeoScreen extends JPanel {
     private final JTextArea log = new JTextArea();
     private final JLabel clockLabel = new JLabel(" ");
     private final JLabel statsLabel = new JLabel(" ");
+    private final JButton cydoniaBtn = pixelButton("Cydonia or Bust!");
     private final Timer timer;
+    private boolean endShown;
 
     public GeoScreen(GameContext ctx, long seed, AssaultHandler assault, Runnable onExit) {
         this.ctx = ctx;
@@ -83,6 +91,8 @@ public final class GeoScreen extends JPanel {
                     }
                 });
             }
+            @Override public void onVictory(String message) { endScreen("VICTORY", message); }
+            @Override public void onDefeat(String message) { endScreen("DEFEAT", message); }
         });
 
         timer = new Timer(80, new ActionListener() {
@@ -109,6 +119,98 @@ public final class GeoScreen extends JPanel {
             timer.start();
         }
         refresh();
+    }
+
+    /** Open the in-game UFOpaedia (researched encyclopedia entries). */
+    private void openUfopaedia() {
+        boolean wasRunning = timer.isRunning();
+        timer.stop();
+        java.awt.Window owner = SwingUtilities.getWindowAncestor(this);
+        final javax.swing.JDialog dialog = new javax.swing.JDialog(owner, "UFOpaedia",
+                java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setContentPane(new UfopaediaScreen(ctx, game.campaign()));
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+        if (wasRunning) {
+            timer.start();
+        }
+    }
+
+    /** A short "how to win / how to lose" briefing. */
+    private void showHelp() {
+        boolean wasRunning = timer.isRunning();
+        timer.stop();
+        JOptionPane.showMessageDialog(this,
+                "HOW TO WIN\n"
+                        + "1. Shoot down UFOs (click a red contact to scramble an interceptor),\n"
+                        + "   then win the crash-site Battlescape.\n"
+                        + "2. Respond to alien TERROR MISSIONS (magenta markers) fast — ignoring\n"
+                        + "   one costs " + (-GeoGame.TERROR_IGNORE_PENALTY) + " score and angers the Council.\n"
+                        + "3. Stun-capture a Sectoid Soldier AND a Sectoid Leader (carry the Stun Rod;\n"
+                        + "   keep an Alien Containment with free space).\n"
+                        + "4. In Base, interrogate both, then research Alien Origins -> The Martian\n"
+                        + "   Solution -> Cydonia or Bust!.\n"
+                        + "5. Press 'Cydonia or Bust!' and win the two-stage final assault — kill the\n"
+                        + "   Alien Brain to win the game.\n\n"
+                        + "HOW TO LOSE\n"
+                        + "Two poor months in a row (net-negative score or bankruptcy) and the\n"
+                        + "Council terminates X-COM. Keep score up: down UFOs and stop terror sites.",
+                "How to win", JOptionPane.INFORMATION_MESSAGE);
+        if (wasRunning) {
+            timer.start();
+        }
+    }
+
+    /** Pause the clock and hand a terror-site assault to the app-supplied handler. */
+    private void launchTerror(final TerrorSite site) {
+        game.clock().setSpeed(GeoClock.Speed.PAUSE);
+        if (assault != null) {
+            assault.assaultTerror(game, site);
+        }
+    }
+
+    /** Launch the Cydonia final assault via the app-supplied handler. */
+    private void launchCydonia() {
+        game.clock().setSpeed(GeoClock.Speed.PAUSE);
+        if (assault != null) {
+            assault.cydonia(game);
+        }
+    }
+
+    /** Show the terminal win/lose screen once, and stop the clock. */
+    private void endScreen(final String title, final String message) {
+        if (endShown) {
+            return;
+        }
+        endShown = true;
+        timer.stop();
+        final String summary = message + "\n\n" + campaignSummary();
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override public void run() {
+                JOptionPane.showMessageDialog(GeoScreen.this,
+                        summary, "X-COM — " + title,
+                        "VICTORY".equals(title)
+                                ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
+            }
+        });
+    }
+
+    /** A short end-of-campaign report: months survived, score, research, roster. */
+    private String campaignSummary() {
+        long months = game.clock().seconds() / (30L * 86400L) + 1;
+        int research = game.campaign() == null ? 0 : game.campaign().completedResearch().size();
+        int roster = game.campaign() == null ? 0 : game.campaign().roster().size();
+        return String.format(
+                "— Final report —%n"
+                        + "Months survived : %d%n"
+                        + "Final score     : %d%n"
+                        + "Funds           : $%,d%n"
+                        + "Research done   : %d projects%n"
+                        + "Live aliens held: %d%n"
+                        + "Soldiers left   : %d",
+                months, game.totalScore(), game.funds(), research,
+                game.liveAlienCount(), roster);
     }
 
     /** Stop the clock (used when leaving the screen or entering a battle). */
@@ -153,6 +255,20 @@ public final class GeoScreen extends JPanel {
         baseBtn.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { openBase(); }
         });
+        JButton pediaBtn = pixelButton("UFOpaedia");
+        pediaBtn.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { openUfopaedia(); }
+        });
+        JButton helpBtn = pixelButton("How to win");
+        helpBtn.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { showHelp(); }
+        });
+        cydoniaBtn.setBackground(new Color(70, 20, 30));
+        cydoniaBtn.setForeground(new Color(255, 210, 120));
+        cydoniaBtn.setVisible(false);
+        cydoniaBtn.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { launchCydonia(); }
+        });
         JButton exit = pixelButton("Menu");
         exit.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
@@ -164,6 +280,9 @@ public final class GeoScreen extends JPanel {
         });
         JPanel right = new JPanel();
         right.setOpaque(false);
+        right.add(cydoniaBtn);
+        right.add(pediaBtn);
+        right.add(helpBtn);
         right.add(baseBtn);
         right.add(exit);
         bar.add(right, BorderLayout.EAST);
@@ -212,10 +331,16 @@ public final class GeoScreen extends JPanel {
     private void refresh() {
         clockLabel.setText(game.clock().display()
                 + "    Speed: " + game.clock().speed().label());
+        int terror = game.activeTerrorCount();
+        String terrorLine = terror > 0
+                ? "<br><font color='#ff6699'>Terror sites: " + terror + " (respond!)</font>"
+                : "<br>Terror sites: 0";
         statsLabel.setText(String.format(
-                "<html>Funds: $%,d<br>Score: %d<br>UFOs tracked: %d<br>Interceptors: %d<br>Nations: %d</html>",
-                game.funds(), game.totalScore(), game.ufos().size(),
-                game.interceptors().size(), game.nations().size()));
+                "<html>Funds: $%,d<br>Score: %d<br>Live aliens: %d<br>UFOs tracked: %d%s"
+                        + "<br>Interceptors: %d<br>Nations: %d</html>",
+                game.funds(), game.totalScore(), game.liveAlienCount(), game.ufos().size(),
+                terrorLine, game.interceptors().size(), game.nations().size()));
+        cydoniaBtn.setVisible(game.cydoniaAvailable());
         canvas.repaint();
     }
 
@@ -227,6 +352,11 @@ public final class GeoScreen extends JPanel {
             setPreferredSize(new Dimension(660, 440));
             addMouseListener(new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent e) {
+                    TerrorSite site = terrorAt(e.getX(), e.getY());
+                    if (site != null) {
+                        launchTerror(site);
+                        return;
+                    }
                     Ufo hit = ufoAt(e.getX(), e.getY());
                     if (hit != null) {
                         game.intercept(hit);
@@ -237,6 +367,22 @@ public final class GeoScreen extends JPanel {
 
         private int px(double x) { return (int) Math.round(x * getWidth()); }
         private int py(double y) { return (int) Math.round(y * getHeight()); }
+
+        private TerrorSite terrorAt(int mx, int my) {
+            TerrorSite best = null;
+            double bestD = 18;
+            for (TerrorSite t : game.terrorSites()) {
+                if (!t.active()) {
+                    continue;
+                }
+                double d = Math.hypot(px(t.x()) - mx, py(t.y()) - my);
+                if (d < bestD) {
+                    bestD = d;
+                    best = t;
+                }
+            }
+            return best;
+        }
 
         private Ufo ufoAt(int mx, int my) {
             Ufo best = null;
@@ -309,6 +455,25 @@ public final class GeoScreen extends JPanel {
                     g2.setColor(new Color(220, 230, 120, 120));
                     g2.drawLine(ix, iy, px(c.target().x()), py(c.target().y()));
                 }
+            }
+
+            // Terror sites: pulsing magenta markers, always visible, click to assault.
+            for (TerrorSite t : game.terrorSites()) {
+                if (!t.active()) {
+                    continue;
+                }
+                int tx = px(t.x());
+                int ty = py(t.y());
+                g2.setColor(new Color(255, 70, 200));
+                int[] xs = {tx, tx + 7, tx, tx - 7};
+                int[] ys = {ty - 8, ty, ty + 8, ty};
+                g2.fillPolygon(xs, ys, 4);
+                g2.setColor(new Color(255, 150, 220));
+                g2.drawOval(tx - 11, ty - 11, 22, 22);
+                g2.setColor(new Color(255, 190, 230));
+                g2.setFont(new Font("Monospaced", Font.BOLD, 10));
+                g2.drawString("TERROR: " + t.cityName() + " ("
+                        + t.hoursRemaining(game.clock().seconds()) + "h)", tx + 12, ty + 3);
             }
 
             // UFOs (only detected ones are shown).
