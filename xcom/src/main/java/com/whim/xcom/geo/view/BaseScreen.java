@@ -52,6 +52,9 @@ public final class BaseScreen extends JPanel {
     private final JComboBox<String> researchCombo = new JComboBox<String>();
     private final JComboBox<String> manufactureCombo = new JComboBox<String>();
     private final JSpinner qtySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 50, 1));
+    private final JComboBox<String> soldierCombo = new JComboBox<String>();
+    private final JComboBox<String> weaponCombo = new JComboBox<String>();
+    private final JComboBox<String> armorCombo = new JComboBox<String>();
 
     public BaseScreen(GameContext ctx, GeoGame game) {
         this.ctx = ctx;
@@ -139,6 +142,20 @@ public final class BaseScreen extends JPanel {
     private JPanel buildRosterPanel() {
         JPanel p = section("Soldier Roster");
         p.add(new JScrollPane(styleArea(rosterArea)), BorderLayout.CENTER);
+        JPanel controls = new JPanel();
+        controls.setOpaque(false);
+        controls.add(new JLabel("Equip:"));
+        controls.add(soldierCombo);
+        controls.add(new JLabel("wpn"));
+        controls.add(weaponCombo);
+        controls.add(new JLabel("armor"));
+        controls.add(armorCombo);
+        JButton apply = button("Apply Loadout");
+        apply.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { applyLoadout(); }
+        });
+        controls.add(apply);
+        p.add(controls, BorderLayout.SOUTH);
         return p;
     }
 
@@ -195,6 +212,42 @@ public final class BaseScreen extends JPanel {
             }
         }
         refresh();
+    }
+
+    private void applyLoadout() {
+        Campaign c = campaign();
+        if (c == null || soldierCombo.getSelectedItem() == null) {
+            return;
+        }
+        String soldierName = (String) soldierCombo.getSelectedItem();
+        Soldier target = null;
+        for (Soldier sol : c.roster().soldiers()) {
+            if (sol.name().equals(soldierName)) {
+                target = sol;
+                break;
+            }
+        }
+        if (target == null) {
+            return;
+        }
+        String wid = idForName(c.equipableWeapons(ctx.ruleset()), weaponCombo.getSelectedItem(), true);
+        String aid = idForName(c.equipableArmors(ctx.ruleset()), armorCombo.getSelectedItem(), false);
+        target.equip(wid, aid);
+        refresh();
+    }
+
+    /** Map a combo's display name back to the def id it was drawn from. */
+    private String idForName(java.util.List<String> ids, Object displayName, boolean weapon) {
+        if (displayName == null) {
+            return null;
+        }
+        for (String id : ids) {
+            String name = weapon ? ctx.ruleset().weapon(id).name() : ctx.ruleset().armor(id).name();
+            if (name.equals(displayName)) {
+                return id;
+            }
+        }
+        return null;
     }
 
     private void save() {
@@ -264,14 +317,15 @@ public final class BaseScreen extends JPanel {
         manufactureArea.setText(m.length() == 0 ? "(workshops idle)" : m.toString());
 
         StringBuilder s = new StringBuilder();
-        s.append(String.format("%-16s %-10s %3s %3s %3s %3s  %3s  %s%n",
-                "NAME", "RANK", "TU", "HP", "ACC", "REA", "MIS", "STATUS"));
+        s.append(String.format("%-15s %-9s %3s %3s %3s  %-11s %-12s %s%n",
+                "NAME", "RANK", "TU", "HP", "ACC", "WEAPON", "ARMOR", "STATUS"));
         if (c != null) {
             for (Soldier sol : c.roster().soldiers()) {
-                s.append(String.format("%-16s %-10s %3d %3d %3d %3d  %3d  %s%n",
+                s.append(String.format("%-15s %-9s %3d %3d %3d  %-11s %-12s %s%n",
                         sol.name(), sol.rankName(), sol.timeUnits(), sol.health(),
-                        sol.firingAccuracy(), sol.reactions(), sol.missions(),
-                        sol.deployable() ? "ready" : ("wounded " + sol.woundedDays() + "d")));
+                        sol.firingAccuracy(), defName(sol.weaponId(), true),
+                        defName(sol.armorId(), false),
+                        sol.deployable() ? "ready" : ("wnd " + sol.woundedDays() + "d")));
             }
         }
         rosterArea.setText(s.toString());
@@ -294,6 +348,31 @@ public final class BaseScreen extends JPanel {
                 manufactureCombo.addItem(n.name());
             }
         }
+
+        Object prevSoldier = soldierCombo.getSelectedItem();
+        soldierCombo.removeAllItems();
+        for (Soldier sol : c.roster().soldiers()) {
+            soldierCombo.addItem(sol.name());
+        }
+        if (prevSoldier != null) {
+            soldierCombo.setSelectedItem(prevSoldier);
+        }
+        weaponCombo.removeAllItems();
+        for (String id : c.equipableWeapons(ctx.ruleset())) {
+            weaponCombo.addItem(ctx.ruleset().weapon(id).name());
+        }
+        armorCombo.removeAllItems();
+        for (String id : c.equipableArmors(ctx.ruleset())) {
+            armorCombo.addItem(ctx.ruleset().armor(id).name());
+        }
+    }
+
+    /** Display name for a stored def id, tolerant of ids no longer in the ruleset. */
+    private String defName(String id, boolean weapon) {
+        if (weapon) {
+            return ctx.ruleset().hasWeapon(id) ? ctx.ruleset().weapon(id).name() : id;
+        }
+        return ctx.ruleset().hasArmor(id) ? ctx.ruleset().armor(id).name() : id;
     }
 
     private static String bar(int pct) {

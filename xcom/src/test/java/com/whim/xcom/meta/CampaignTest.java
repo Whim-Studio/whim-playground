@@ -89,4 +89,27 @@ public class CampaignTest {
         assertEquals(c.activeResearch().get(0).percent(),
                 restored.activeResearch().get(0).percent());
     }
+
+    @Test
+    public void manufacturedGearBecomesEquipableAndLoadoutPersists() {
+        Campaign c = fresh();
+        // Basic issue is always available; laser rifle / personal armour are not yet.
+        assertTrue(c.equipableWeapons(rs).contains("rifle"));
+        assertFalse(c.equipableWeapons(rs).contains("laser_rifle"));
+        assertFalse(c.equipableArmors(rs).contains("personal_armor"));
+
+        // Build them into stores → they become equipable.
+        c.addToStores("laser_rifle", 1);
+        c.addToStores("personal_armor", 1);
+        assertTrue(c.equipableWeapons(rs).contains("laser_rifle"));
+        assertTrue(c.equipableArmors(rs).contains("personal_armor"));
+
+        // Equip a soldier and round-trip through a save.
+        c.roster().byName("A").equip("laser_rifle", "personal_armor");
+        SaveGame.Snapshot snap = SaveGame.capture(c, 0L, 0, 0L);
+        Campaign restored = SaveGame.restoreCampaign(SaveGame.fromJson(SaveGame.toJson(snap)), rs);
+        Soldier a = restored.roster().byName("A");
+        assertEquals("laser_rifle", a.weaponId());
+        assertEquals("personal_armor", a.armorId());
+    }
 }

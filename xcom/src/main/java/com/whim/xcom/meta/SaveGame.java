@@ -67,6 +67,8 @@ public final class SaveGame {
         public int missions;
         public int kills;
         public int woundedDays;
+        public String weaponId;
+        public String armorId;
     }
 
     private static Gson gson() {
@@ -114,6 +116,8 @@ public final class SaveGame {
             ss.missions = sol.missions();
             ss.kills = sol.kills();
             ss.woundedDays = sol.woundedDays();
+            ss.weaponId = sol.weaponId();
+            ss.armorId = sol.armorId();
             s.soldiers.add(ss);
         }
         return s;
@@ -126,6 +130,7 @@ public final class SaveGame {
             Soldier sol = new Soldier(ss.name, ss.timeUnits, ss.health,
                     ss.firingAccuracy, ss.reactions, ss.strength);
             sol.restore(ss.rank, ss.missions, ss.kills, ss.woundedDays);
+            sol.equip(ss.weaponId, ss.armorId);
             roster.add(sol);
         }
         Campaign c = new Campaign(s.scientists, s.engineers, roster);

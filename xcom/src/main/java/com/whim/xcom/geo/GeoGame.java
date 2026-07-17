@@ -327,7 +327,10 @@ public final class GeoGame {
         // Squad: the persistent roster if we have a campaign, else a default squad.
         if (campaign != null && campaign.roster().size() > 0) {
             for (Soldier s : campaign.roster().deployable(6)) {
-                setup.addSoldier(BattleSetup.UnitSpec.soldier(s.name(), rifle, "none",
+                // Deploy with the soldier's chosen loadout, falling back to safe defaults.
+                String wid = ruleset.hasWeapon(s.weaponId()) ? s.weaponId() : rifle;
+                String aid = ruleset.hasArmor(s.armorId()) ? s.armorId() : "none";
+                setup.addSoldier(BattleSetup.UnitSpec.soldier(s.name(), wid, aid,
                         s.firingAccuracy(), s.timeUnits(), s.health(), s.reactions(), s.strength()));
             }
         } else {

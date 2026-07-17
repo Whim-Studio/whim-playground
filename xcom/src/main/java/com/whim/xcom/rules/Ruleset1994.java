@@ -133,6 +133,8 @@ public class Ruleset1994 implements Ruleset {
 
     @Override public WeaponDef weapon(String id) { return weapons.get(id); }
     @Override public ArmorDef armor(String id) { return armors.get(id); }
+    @Override public boolean hasWeapon(String id) { return id != null && weapons.has(id); }
+    @Override public boolean hasArmor(String id) { return id != null && armors.has(id); }
     @Override public AlienDef alien(String id) { return aliens.get(id); }
     @Override public FacilityDef facility(String id) { return facilities.get(id); }
     @Override public ResearchNode research(String id) { return research.get(id); }

@@ -141,4 +141,42 @@ public final class Campaign {
         Integer cur = stores.get(itemId);
         stores.put(itemId, (cur == null ? 0 : cur) + qty);
     }
+
+    /** Basic-issue weapons available to every soldier without manufacturing. */
+    private static final Set<String> BASIC_WEAPONS = new LinkedHashSet<String>(
+            java.util.Arrays.asList("pistol", "rifle", "heavy_cannon", "auto_cannon"));
+
+    /**
+     * Weapons a soldier may equip: the basic issue plus anything of that kind
+     * sitting in stores (e.g. a manufactured laser rifle). Ids are resolved
+     * against the live ruleset so unknown store items are ignored.
+     */
+    public List<String> equipableWeapons(Ruleset ruleset) {
+        LinkedHashSet<String> ids = new LinkedHashSet<String>();
+        for (String id : BASIC_WEAPONS) {
+            if (ruleset.hasWeapon(id)) {
+                ids.add(id);
+            }
+        }
+        for (String id : stores.keySet()) {
+            if (ruleset.hasWeapon(id)) {
+                ids.add(id);
+            }
+        }
+        return new ArrayList<String>(ids);
+    }
+
+    /** Armours a soldier may equip: "none" plus any manufactured armour in stores. */
+    public List<String> equipableArmors(Ruleset ruleset) {
+        LinkedHashSet<String> ids = new LinkedHashSet<String>();
+        if (ruleset.hasArmor("none")) {
+            ids.add("none");
+        }
+        for (String id : stores.keySet()) {
+            if (ruleset.hasArmor(id)) {
+                ids.add(id);
+            }
+        }
+        return new ArrayList<String>(ids);
+    }
 }

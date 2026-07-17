@@ -89,6 +89,25 @@ and `BattleGame.explode`, so future weapons (rockets, blaster bombs) reuse them.
 subsystem was added by defining one strategy interface and its default, with no
 change to the engine's other formulas.
 
+## Soldier loadouts (Phase 6)
+
+The research → manufacture → **equip** → deploy loop is now closed. In the **Base**
+screen each soldier has a chosen weapon and armour, shown in the roster table.
+Use the new **Equip** row (pick a soldier, a weapon and an armour, then *Apply
+Loadout*) to change it. What a soldier may equip is data-driven:
+
+- **Weapons** — the basic issue (Pistol, Rifle, Heavy/Auto Cannon) plus anything
+  in your stores, so a **manufactured Laser Rifle** becomes equipable once built.
+- **Armour** — "None (jumpsuit)" plus any armour in stores (e.g. **Personal
+  Armour** after you make it).
+
+Each soldier's loadout persists in the save file and is carried into the next
+crash-site assault: the unit deploys wielding exactly the weapon and wearing the
+armour you assigned (verified end-to-end — a soldier equipped with a laser rifle
+and personal armour deploys with them). `Ruleset` gained `hasWeapon`/`hasArmor`
+safe-lookup predicates so stale or unknown ids fall back to defaults instead of
+throwing.
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

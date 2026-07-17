@@ -36,6 +36,12 @@ public interface Ruleset {
 
     ArmorDef armor(String id);
 
+    /** True if a weapon with this id exists (safe lookup; {@link #weapon} throws otherwise). */
+    boolean hasWeapon(String id);
+
+    /** True if an armour with this id exists (safe lookup; {@link #armor} throws otherwise). */
+    boolean hasArmor(String id);
+
     AlienDef alien(String id);
 
     FacilityDef facility(String id);

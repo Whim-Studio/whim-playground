@@ -19,6 +19,8 @@ public final class Soldier {
     private int missions;
     private int kills;
     private int woundedDays;  // >0 = in the infirmary, not deployable
+    private String weaponId = "rifle"; // equipped loadout
+    private String armorId = "none";
 
     public Soldier(String name, int timeUnits, int health, int firingAccuracy,
                    int reactions, int strength) {
@@ -41,6 +43,13 @@ public final class Soldier {
     public int kills() { return kills; }
     public int woundedDays() { return woundedDays; }
     public boolean deployable() { return woundedDays <= 0; }
+    public String weaponId() { return weaponId; }
+    public String armorId() { return armorId; }
+
+    public void equip(String weaponId, String armorId) {
+        if (weaponId != null) this.weaponId = weaponId;
+        if (armorId != null) this.armorId = armorId;
+    }
 
     private static final String[] RANKS = {
         "Rookie", "Squaddie", "Sergeant", "Captain", "Colonel", "Commander"
