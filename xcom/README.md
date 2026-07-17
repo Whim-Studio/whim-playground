@@ -38,6 +38,24 @@ The Geoscape ↔ Battlescape seam is `com.whim.xcom.geo.MissionLauncher` (a head
 auto-resolver is provided) and `GeoScreen.AssaultHandler` (the interactive path).
 Run the Geoscape standalone for testing via `GeoScreen` with a stub handler.
 
+## The meta loop (Phase 3)
+
+Click **Base** on the Geoscape to open base management (`com.whim.xcom.meta`):
+
+- **Research** — assign your scientists to tech-tree projects (`ResearchNode`);
+  progress accrues in scientist-days as Geoscape time passes, and completing a
+  project unlocks its follow-ons.
+- **Manufacturing** — build unlocked items (`ManufactureNode`); the up-front cost
+  is debited from funds and units accrue in engineer-hours into your stores.
+- **Soldier roster** — a persistent squad that carries between missions. Survivors
+  of a won assault gain stats and rank up; the killed are removed; the wounded sit
+  out in the infirmary until healed. Assaults deploy your fittest soldiers.
+- **Save / Load** — the whole campaign meta-state (funds, score, clock, research,
+  manufacturing, stores, roster) round-trips to `xcom-savegame.json` via Gson.
+
+Research and manufacturing advance on the same Geoscape clock, so compressing time
+also advances the labs and workshops.
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

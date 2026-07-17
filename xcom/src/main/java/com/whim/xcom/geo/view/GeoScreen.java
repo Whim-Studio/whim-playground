@@ -94,6 +94,23 @@ public final class GeoScreen extends JPanel {
         refresh();
     }
 
+    /** Open the base management screen (research/manufacturing/roster/save-load). */
+    private void openBase() {
+        boolean wasRunning = timer.isRunning();
+        timer.stop();
+        java.awt.Window owner = SwingUtilities.getWindowAncestor(this);
+        final javax.swing.JDialog dialog = new javax.swing.JDialog(owner, "Base",
+                java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setContentPane(new BaseScreen(ctx, game));
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true); // blocks until closed
+        if (wasRunning) {
+            timer.start();
+        }
+        refresh();
+    }
+
     /** Stop the clock (used when leaving the screen or entering a battle). */
     public void suspend() {
         timer.stop();
@@ -132,6 +149,10 @@ public final class GeoScreen extends JPanel {
         }
         bar.add(speeds, BorderLayout.CENTER);
 
+        JButton baseBtn = pixelButton("Base");
+        baseBtn.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { openBase(); }
+        });
         JButton exit = pixelButton("Menu");
         exit.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
@@ -143,6 +164,7 @@ public final class GeoScreen extends JPanel {
         });
         JPanel right = new JPanel();
         right.setOpaque(false);
+        right.add(baseBtn);
         right.add(exit);
         bar.add(right, BorderLayout.EAST);
         return bar;

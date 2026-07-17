@@ -33,6 +33,7 @@ public final class GeoClock {
     private Speed speed = Speed.PAUSE;
 
     public long seconds() { return seconds; }
+    public void setSeconds(long seconds) { this.seconds = Math.max(0, seconds); }
     public Speed speed() { return speed; }
     public void setSpeed(Speed speed) { this.speed = speed; }
 

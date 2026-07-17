@@ -6,8 +6,11 @@ import java.util.List;
 
 import com.whim.xcom.battle.BattleOutcome;
 import com.whim.xcom.battle.BattleSetup;
+import com.whim.xcom.meta.Campaign;
+import com.whim.xcom.meta.Soldier;
 import com.whim.xcom.rng.Rng;
 import com.whim.xcom.rules.Ruleset;
+import com.whim.xcom.rules.def.ManufactureNode;
 import com.whim.xcom.rules.def.UfoDef;
 
 /**
@@ -42,6 +45,7 @@ public final class GeoGame {
     private long funds = 1_000_000L;
     private int totalScore;
     private int lastMonth = 0;
+    private Campaign campaign;
     private long nextSpawnSeconds = 3600; // first UFO within the first game-hour
     private int ufoCounter;
 
@@ -70,6 +74,38 @@ public final class GeoGame {
     public List<FundingNation> nations() { return nations; }
     public long funds() { return funds; }
     public int totalScore() { return totalScore; }
+    public Campaign campaign() { return campaign; }
+    public void setCampaign(Campaign c) { this.campaign = c; }
+
+    /** Restore top-level state from a save (funds, score, clock). */
+    public void restoreState(long funds, int score, long clockSeconds) {
+        this.funds = funds;
+        this.totalScore = score;
+        this.clock.setSeconds(clockSeconds);
+        this.lastMonth = (int) (clockSeconds / MONTH_SECONDS);
+    }
+
+    /**
+     * Order manufacture of {@code quantity} units of {@code node}: deducts the
+     * up-front dollar cost and queues the job. Returns false if unaffordable, the
+     * research is not unlocked, or there is no campaign.
+     */
+    public boolean orderManufacture(ManufactureNode node, int quantity, int engineers) {
+        if (campaign == null || node == null
+                || !campaign.researchUnlocksManufacture(node)) {
+            return false;
+        }
+        long cost = (long) node.costDollars() * quantity;
+        if (funds < cost) {
+            listener.onEvent("Insufficient funds to manufacture " + node.name() + ".");
+            return false;
+        }
+        funds -= cost;
+        campaign.startManufacture(node, engineers, quantity);
+        listener.onEvent("Manufacture ordered: " + quantity + "x " + node.name());
+        listener.onChanged();
+        return true;
+    }
 
     public void addInterceptor(Interceptor i) { interceptors.add(i); }
     public void addNation(FundingNation n) { nations.add(n); }
@@ -97,6 +133,11 @@ public final class GeoGame {
         detectUfos(step);
         flyInterceptors(hours);
         expireUfos();
+        if (campaign != null) {
+            for (String ev : campaign.advance(step)) {
+                listener.onEvent(ev);
+            }
+        }
         checkMonthRollover();
 
         listener.onChanged();
@@ -279,11 +320,18 @@ public final class GeoGame {
         BattleSetup setup = new BattleSetup().mapSize(mapDim, mapDim).seed(seed);
         String rifle = ruleset.weapon("rifle") != null ? "rifle"
                 : ruleset.weapons().iterator().next().id();
-        // Squad from the base.
-        String[] squad = {"Sgt. Vasquez", "Cpl. Tanaka", "Pvt. Novak", "Pvt. Adeyemi", "Pvt. Ilves"};
-        for (int i = 0; i < 5; i++) {
-            setup.addSoldier(BattleSetup.UnitSpec.soldier(squad[i], rifle, "none",
-                    55 + (i % 3) * 5, 54 + (i % 4), 32 + (i % 5), 45 + (i % 4) * 3, 30));
+        // Squad: the persistent roster if we have a campaign, else a default squad.
+        if (campaign != null && campaign.roster().size() > 0) {
+            for (Soldier s : campaign.roster().deployable(6)) {
+                setup.addSoldier(BattleSetup.UnitSpec.soldier(s.name(), rifle, "none",
+                        s.firingAccuracy(), s.timeUnits(), s.health(), s.reactions(), s.strength()));
+            }
+        } else {
+            String[] squad = {"Sgt. Vasquez", "Cpl. Tanaka", "Pvt. Novak", "Pvt. Adeyemi", "Pvt. Ilves"};
+            for (int i = 0; i < 5; i++) {
+                setup.addSoldier(BattleSetup.UnitSpec.soldier(squad[i], rifle, "none",
+                        55 + (i % 3) * 5, 54 + (i % 4), 32 + (i % 5), 45 + (i % 4) * 3, 30));
+            }
         }
         // Crew scaled from the UFO type, capped for a playable slice.
         int crew = Math.min(6, Math.max(ufo.def().minCrew(),
@@ -296,17 +344,31 @@ public final class GeoGame {
         return setup;
     }
 
-    /** Apply the result of a ground assault and remove the site. */
+    /** Apply the result of a ground assault, update the roster and remove the site. */
     public void resolveMission(Ufo ufo, BattleOutcome outcome) {
         ufos.remove(ufo);
-        if (outcome != null && outcome.xcomVictory()) {
+        boolean victory = outcome != null && outcome.xcomVictory();
+        if (victory) {
             int pts = 40 + outcome.aliensKilled() * 10;
             addScore(pts, "ground assault success");
             funds += 30_000L; // salvage value (placeholder)
             listener.onEvent("Mission success: +" + pts + " score, salvage recovered.");
         } else {
             addScore(-20, "ground assault failed");
-            listener.onEvent("Mission failed — squad lost.");
+            listener.onEvent("Mission failed.");
+        }
+        // Roster consequences: KIA are removed, survivors gain experience.
+        if (campaign != null && outcome != null) {
+            for (String fallen : outcome.fallenSoldiers()) {
+                campaign.roster().removeByName(fallen);
+                listener.onEvent(fallen + " was killed in action.");
+            }
+            for (String name : outcome.survivingSoldiers()) {
+                Soldier s = campaign.roster().byName(name);
+                if (s != null) {
+                    s.onMissionSurvived(victory);
+                }
+            }
         }
         listener.onChanged();
     }

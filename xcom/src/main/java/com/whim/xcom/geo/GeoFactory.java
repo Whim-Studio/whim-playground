@@ -1,5 +1,9 @@
 package com.whim.xcom.geo;
 
+import com.whim.xcom.meta.Campaign;
+import com.whim.xcom.meta.SaveGame;
+import com.whim.xcom.meta.Soldier;
+import com.whim.xcom.meta.SoldierRoster;
 import com.whim.xcom.rng.SeededRng;
 import com.whim.xcom.rules.Ruleset;
 
@@ -35,6 +39,31 @@ public final class GeoFactory {
         for (String[] n : nationData) {
             game.addNation(new FundingNation(n[0], Integer.parseInt(n[1])));
         }
+
+        game.setCampaign(defaultCampaign());
+        return game;
+    }
+
+    private static Campaign defaultCampaign() {
+        SoldierRoster roster = new SoldierRoster();
+        String[] names = {
+            "Sgt. Vasquez", "Cpl. Tanaka", "Pvt. Novak", "Pvt. Adeyemi",
+            "Pvt. Ilves", "Pvt. Rossi", "Pvt. Okafor", "Pvt. Petrov"
+        };
+        for (int i = 0; i < names.length; i++) {
+            roster.add(new Soldier(names[i],
+                    52 + (i % 5), 32 + (i % 6), 52 + (i % 4) * 4,
+                    42 + (i % 5) * 3, 28 + (i % 5)));
+        }
+        return new Campaign(10, 10, roster);
+    }
+
+    /** Rebuild a running Geoscape from a saved snapshot against the live ruleset. */
+    public static GeoGame fromSnapshot(Ruleset ruleset, SaveGame.Snapshot snap) {
+        // A fresh campaign world, then overlay the saved meta-state.
+        GeoGame game = defaultCampaign(ruleset, snap.clockSeconds);
+        game.setCampaign(SaveGame.restoreCampaign(snap, ruleset));
+        game.restoreState(snap.funds, snap.score, snap.clockSeconds);
         return game;
     }
 }
