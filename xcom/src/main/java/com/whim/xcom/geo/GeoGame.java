@@ -30,10 +30,21 @@ public final class GeoGame {
         void onChanged();
         /** A crash/landing site is ready to assault; the view may launch a battle. */
         void onCrashSite(Ufo ufo);
+        /** The campaign has been won (Alien Brain destroyed on Cydonia). */
+        void onVictory(String message);
+        /** The campaign has been lost (Council termination / funding collapse). */
+        void onDefeat(String message);
     }
 
     private static final double INTERCEPT_DIST = 0.02;
     private static final long MONTH_SECONDS = 30L * 86400L;
+
+    /** Research id that opens the final Cydonia assault. */
+    public static final String CYDONIA_RESEARCH_ID = "cydonia_or_bust";
+    /** A month whose net score is below this counts as "poor performance". */
+    private static final int BAD_MONTH_SCORE = 0;
+    /** Consecutive poor months (or a funding collapse) that trigger Council termination. */
+    private static final int BAD_MONTHS_TO_LOSE = 2;
 
     private final Ruleset ruleset;
     private final Rng rng;
@@ -51,10 +62,18 @@ public final class GeoGame {
     private long nextSpawnSeconds = 3600; // first UFO within the first game-hour
     private int ufoCounter;
 
+    // ---- endgame state ------------------------------------------------------
+    private int monthStartScore;         // totalScore at the start of the current month
+    private int consecutiveBadMonths;    // for the Council-termination loss condition
+    private boolean gameWon;
+    private boolean gameLost;
+
     private Listener listener = new Listener() {
         @Override public void onEvent(String message) { }
         @Override public void onChanged() { }
         @Override public void onCrashSite(Ufo ufo) { }
+        @Override public void onVictory(String message) { }
+        @Override public void onDefeat(String message) { }
     };
 
     public GeoGame(Ruleset ruleset, Rng rng, Base base) {
@@ -81,12 +100,34 @@ public final class GeoGame {
     public Difficulty difficulty() { return difficulty; }
     public void setDifficulty(Difficulty d) { if (d != null) { this.difficulty = d; } }
 
+    // ---- endgame accessors --------------------------------------------------
+    public boolean gameWon() { return gameWon; }
+    public boolean gameLost() { return gameLost; }
+    public boolean gameOver() { return gameWon || gameLost; }
+    public int consecutiveBadMonths() { return consecutiveBadMonths; }
+
+    /** True once "Cydonia or Bust!" is researched and the final assault can be launched. */
+    public boolean cydoniaAvailable() {
+        return campaign != null && !gameOver()
+                && campaign.completedResearch().contains(CYDONIA_RESEARCH_ID);
+    }
+
     /** Restore top-level state from a save (funds, score, clock). */
     public void restoreState(long funds, int score, long clockSeconds) {
+        restoreState(funds, score, clockSeconds, 0, false, false);
+    }
+
+    /** Restore top-level state including the Phase 7 endgame flags. */
+    public void restoreState(long funds, int score, long clockSeconds,
+                             int consecutiveBadMonths, boolean gameWon, boolean gameLost) {
         this.funds = funds;
         this.totalScore = score;
         this.clock.setSeconds(clockSeconds);
         this.lastMonth = (int) (clockSeconds / MONTH_SECONDS);
+        this.monthStartScore = score;
+        this.consecutiveBadMonths = consecutiveBadMonths;
+        this.gameWon = gameWon;
+        this.gameLost = gameLost;
     }
 
     /**
@@ -126,6 +167,9 @@ public final class GeoGame {
 
     /** Advance the world by the current clock speed. No-op while paused. */
     public void tick() {
+        if (gameOver()) {
+            return;
+        }
         int step = clock.tick();
         if (step <= 0) {
             return;
@@ -372,6 +416,7 @@ public final class GeoGame {
             addScore(pts, "ground assault success");
             funds += 30_000L; // salvage value (placeholder)
             listener.onEvent("Mission success: +" + pts + " score, salvage recovered.");
+            recoverLiveAliens(outcome);
         } else {
             addScore(-20, "ground assault failed");
             listener.onEvent("Mission failed.");
@@ -390,6 +435,140 @@ public final class GeoGame {
             }
         }
         listener.onChanged();
+    }
+
+    /**
+     * Move any aliens stunned unconscious on a won field into the live-alien store,
+     * gated on an Alien Containment facility with free capacity. Without containment
+     * (or once full) the captive cannot be held and is lost. Live aliens are stored
+     * as {@code "live_<alienId>"} items so interrogation research can consume them.
+     */
+    private void recoverLiveAliens(BattleOutcome outcome) {
+        if (campaign == null || outcome.liveCaptures().isEmpty()) {
+            return;
+        }
+        if (!base.hasFacility("alien_containment")) {
+            listener.onEvent("No Alien Containment — " + outcome.liveCaptures().size()
+                    + " live alien(s) could not be held and expired.");
+            return;
+        }
+        int free = base.containmentCapacity() - liveAlienCount();
+        for (String alienId : outcome.liveCaptures()) {
+            if (free <= 0) {
+                listener.onEvent("Alien Containment full — a live captive was lost.");
+                continue;
+            }
+            campaign.addToStores("live_" + alienId, 1);
+            free--;
+            listener.onEvent("Live " + alienId + " secured in Alien Containment.");
+        }
+        addScore(15 * outcome.liveCaptures().size(), "live capture");
+    }
+
+    /** Count of live aliens currently held (store items keyed {@code "live_*"}). */
+    public int liveAlienCount() {
+        if (campaign == null) {
+            return 0;
+        }
+        int total = 0;
+        for (java.util.Map.Entry<String, Integer> e : campaign.stores().entrySet()) {
+            if (e.getKey().startsWith("live_")) {
+                total += e.getValue();
+            }
+        }
+        return total;
+    }
+
+    // ---- Cydonia final assault ----------------------------------------------
+
+    /**
+     * Build a stage of the two-stage Cydonia assault. Stage 0 is the Martian
+     * surface (an escort force); stage 1 is the alien base interior, which holds
+     * the {@link #CYDONIA_RESEARCH_ID Alien Brain} — killing it wins the game.
+     */
+    public BattleSetup buildCydoniaAssault(long seed, int stage) {
+        BattleSetup setup = new BattleSetup().mapSize(16, 16).seed(seed).difficulty(difficulty);
+        String rifle = ruleset.hasWeapon("rifle") ? "rifle" : ruleset.weapons().iterator().next().id();
+        String heavy = ruleset.hasWeapon("heavy_plasma") ? "heavy_plasma" : rifle;
+        String stun = ruleset.hasWeapon("stun_rod") ? "stun_rod" : rifle;
+        if (campaign != null && campaign.roster().size() > 0) {
+            int i = 0;
+            for (Soldier s : campaign.roster().deployable(6)) {
+                String wid = ruleset.hasWeapon(s.weaponId()) ? s.weaponId() : rifle;
+                String aid = ruleset.hasArmor(s.armorId()) ? s.armorId() : "none";
+                setup.addSoldier(BattleSetup.UnitSpec.soldier(s.name(), wid, aid,
+                        s.firingAccuracy(), s.timeUnits(), s.health(), s.reactions(), s.strength()));
+                i++;
+            }
+            if (i == 0) {
+                addDefaultCydoniaSquad(setup, rifle, stun);
+            }
+        } else {
+            addDefaultCydoniaSquad(setup, rifle, stun);
+        }
+        String elite = ruleset.alien("muton_soldier") != null ? "muton_soldier"
+                : ruleset.aliens().iterator().next().id();
+        String leader = ruleset.alien("sectoid_leader") != null ? "sectoid_leader" : elite;
+        if (stage <= 0) {
+            // Martian surface: an escort screen.
+            for (int k = 0; k < 5; k++) {
+                setup.addAlien(BattleSetup.UnitSpec.alien(k == 0 ? leader : elite, heavy));
+            }
+        } else {
+            // Alien base interior: guards plus the Brain objective.
+            for (int k = 0; k < 4; k++) {
+                setup.addAlien(BattleSetup.UnitSpec.alien(elite, heavy));
+            }
+            if (ruleset.alien("alien_brain") != null) {
+                setup.addAlien(BattleSetup.UnitSpec.alien("alien_brain", rifle));
+            }
+        }
+        return setup;
+    }
+
+    private void addDefaultCydoniaSquad(BattleSetup setup, String rifle, String stun) {
+        String[] squad = {"Sgt. Vasquez", "Cpl. Tanaka", "Pvt. Novak", "Pvt. Adeyemi", "Pvt. Ilves"};
+        for (int i = 0; i < squad.length; i++) {
+            setup.addSoldier(BattleSetup.UnitSpec.soldier(squad[i], i == 0 ? stun : rifle, "none",
+                    60, 58, 34, 50, 32));
+        }
+    }
+
+    /**
+     * Apply the result of the final Cydonia stage. Winning the alien-base stage
+     * (the Brain destroyed) wins the campaign. Returns true if the game was won.
+     */
+    public boolean resolveCydonia(BattleOutcome outcome, boolean finalStage) {
+        boolean victory = outcome != null && outcome.xcomVictory();
+        if (campaign != null && outcome != null) {
+            for (String fallen : outcome.fallenSoldiers()) {
+                campaign.roster().removeByName(fallen);
+            }
+            for (String name : outcome.survivingSoldiers()) {
+                Soldier s = campaign.roster().byName(name);
+                if (s != null) {
+                    s.onMissionSurvived(victory);
+                }
+            }
+        }
+        if (!victory) {
+            addScore(-100, "Cydonia assault failed");
+            listener.onEvent("The assault on Cydonia was repelled.");
+            listener.onChanged();
+            return false;
+        }
+        addScore(200, "Cydonia stage cleared");
+        if (finalStage) {
+            gameWon = true;
+            clock.setSpeed(GeoClock.Speed.PAUSE);
+            String msg = "The Alien Brain is destroyed. The alien threat is ended — X-COM is victorious!";
+            listener.onEvent("*** " + msg + " ***");
+            listener.onVictory(msg);
+        } else {
+            listener.onEvent("Martian surface cleared — advance into the alien base!");
+        }
+        listener.onChanged();
+        return gameWon;
     }
 
     // ---- scoring & funding --------------------------------------------------
@@ -418,8 +597,31 @@ public final class GeoGame {
         }
         long maintenance = base.monthlyMaintenance();
         funds += funding - maintenance;
-        listener.onEvent(String.format("— Monthly Report — funding +$%,d, maintenance -$%,d (score %d)",
-                funding, maintenance, totalScore));
+
+        int monthScore = totalScore - monthStartScore;
+        monthStartScore = totalScore;
+        listener.onEvent(String.format(
+                "— Monthly Report — funding +$%,d, maintenance -$%,d (month score %d, total %d)",
+                funding, maintenance, monthScore, totalScore));
+
+        // Council review: a poor month (net-negative score) or a funding collapse
+        // (bankruptcy) counts against X-COM; two in a row and the project is closed.
+        boolean poorMonth = monthScore < BAD_MONTH_SCORE || funds < 0;
+        if (poorMonth) {
+            consecutiveBadMonths++;
+            if (consecutiveBadMonths == 1) {
+                listener.onEvent("The Council is dissatisfied with X-COM's performance. Improve, or be terminated.");
+            }
+        } else {
+            consecutiveBadMonths = 0;
+        }
+        if (consecutiveBadMonths >= BAD_MONTHS_TO_LOSE && !gameOver()) {
+            gameLost = true;
+            clock.setSpeed(GeoClock.Speed.PAUSE);
+            String msg = "The Council of Funding Nations has terminated Project X-COM. Defeat.";
+            listener.onEvent("*** " + msg + " ***");
+            listener.onDefeat(msg);
+        }
         listener.onChanged();
     }
 

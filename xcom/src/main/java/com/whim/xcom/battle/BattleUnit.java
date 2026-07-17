@@ -14,6 +14,7 @@ public final class BattleUnit {
     private final String id;
     private final String name;
     private final Side side;
+    private String alienDefId; // ruleset alien id for aliens (null for soldiers); used for capture/recovery
 
     private int x;
     private int y;
@@ -24,6 +25,10 @@ public final class BattleUnit {
 
     private final int maxHealth;
     private int health;
+
+    private int stun;              // accrued stun damage; unit falls unconscious when stun >= health
+    private boolean unconscious;   // knocked out (alive but out of the fight — capturable if alien)
+    private boolean immobile;      // cannot move/act (e.g. the Cydonia Alien Brain)
 
     private int morale = 100;
 
@@ -64,6 +69,12 @@ public final class BattleUnit {
     public String name() { return name; }
     public Side side() { return side; }
     public boolean alien() { return side == Side.ALIEN; }
+
+    public String alienDefId() { return alienDefId; }
+    public void setAlienDefId(String id) { this.alienDefId = id; }
+
+    public boolean immobile() { return immobile; }
+    public void setImmobile(boolean immobile) { this.immobile = immobile; }
 
     public int x() { return x; }
     public int y() { return y; }
@@ -106,6 +117,12 @@ public final class BattleUnit {
 
     public boolean alive() { return alive; }
 
+    /** True while the unit is alive AND on its feet — i.e. still able to fight and be seen. */
+    public boolean conscious() { return alive && !unconscious; }
+
+    public boolean unconscious() { return unconscious; }
+    public int stun() { return stun; }
+
     public boolean reactionSpent() { return reactionSpent; }
     public void markReacted() { reactionSpent = true; }
 
@@ -133,6 +150,24 @@ public final class BattleUnit {
         if (health <= 0) {
             health = 0;
             alive = false;
+            unconscious = false;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Apply stun damage to the unit's stun pool. When accrued stun reaches the
+     * unit's remaining health it falls unconscious (alive, but out of the fight
+     * and — if an alien — capturable). Returns true the moment it goes down.
+     */
+    public boolean applyStun(int amount) {
+        if (amount <= 0 || !alive || unconscious) {
+            return false;
+        }
+        stun += amount;
+        if (stun >= health) {
+            unconscious = true;
             return true;
         }
         return false;

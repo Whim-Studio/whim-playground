@@ -108,6 +108,48 @@ and personal armour deploys with them). `Ruleset` gained `hasWeapon`/`hasArmor`
 safe-lookup predicates so stale or unknown ids fall back to defaults instead of
 throwing.
 
+## The endgame — win & lose (Phase 7)
+
+The campaign is now **winnable and loseable end to end**, per DESIGN §3.5.
+
+**Live capture & Alien Containment.** Soldiers carry a **Stun Rod** (a `STUN`-type
+melee weapon — basic issue, equipable from the Base screen). Stun damage accrues
+into a unit's stun pool; when it reaches the unit's health the alien falls
+**unconscious** (alive, out of the fight) instead of dying. An alien left
+unconscious on a field X-COM wins is **captured alive** — provided the base has an
+**Alien Containment** facility with free capacity (the default base ships one;
+without it the captive is lost). Live aliens are stored as `live_<race>` items and
+shown as "Live aliens" in the Geoscape sidebar.
+
+**Research path to Cydonia.** Interrogating a live captive is a data-driven
+research project gated on the captive in stores (consumed when the project starts):
+
+```
+Interrogate Sectoid Soldier ─┐
+                             ├─► Alien Origins ─┐
+Interrogate Sectoid Leader ──┴─────────────────┴─► The Martian Solution ─► Cydonia or Bust!
+```
+
+All of it lives in `data/rules1994.json` (new `requiredItems` field on a research
+node) — no engine change. Completing **"Cydonia or Bust!"** reveals the red
+**Cydonia or Bust!** button on the Geoscape.
+
+**How to WIN.** Shoot down UFOs, stun-capture a **Sectoid Soldier** and a **Sectoid
+Leader** (both appear in crash-site crews), interrogate both, research *Alien
+Origins → The Martian Solution → Cydonia or Bust!*, then press **Cydonia or Bust!**.
+That runs the **two-stage Cydonia assault** — the Martian surface, then the alien
+base — which holds the immobile **Alien Brain**. **Kill the Brain** and a victory
+screen ends the campaign.
+
+**How to LOSE.** The monthly **Council report** now tracks performance: a month with
+net-negative score (or a funding collapse into the red) is a *poor month*, and
+**two poor months in a row** trigger **Council termination** and a defeat screen.
+
+Save/load round-trips all of it (containment, live aliens, the bad-month counter and
+the win/lose flags). New headless tests cover capture eligibility, containment
+gating, the research chain, and the win/lose triggers (`CaptureTest`,
+`ResearchGatingTest`, `EndgameTest`) — **57 tests green** (`cd xcom && mvn -q test`).
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

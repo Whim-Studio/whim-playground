@@ -17,6 +17,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -42,6 +43,8 @@ public final class GeoScreen extends JPanel {
     /** How a crash/landing site becomes a tactical mission (app-supplied). */
     public interface AssaultHandler {
         void assault(GeoGame game, Ufo ufo);
+        /** Launch the two-stage Cydonia final assault (surface then alien base). */
+        void cydonia(GeoGame game);
     }
 
     private final transient GameContext ctx;
@@ -52,7 +55,9 @@ public final class GeoScreen extends JPanel {
     private final JTextArea log = new JTextArea();
     private final JLabel clockLabel = new JLabel(" ");
     private final JLabel statsLabel = new JLabel(" ");
+    private final JButton cydoniaBtn = pixelButton("Cydonia or Bust!");
     private final Timer timer;
+    private boolean endShown;
 
     public GeoScreen(GameContext ctx, long seed, AssaultHandler assault, Runnable onExit) {
         this.ctx = ctx;
@@ -83,6 +88,8 @@ public final class GeoScreen extends JPanel {
                     }
                 });
             }
+            @Override public void onVictory(String message) { endScreen("VICTORY", message); }
+            @Override public void onDefeat(String message) { endScreen("DEFEAT", message); }
         });
 
         timer = new Timer(80, new ActionListener() {
@@ -109,6 +116,31 @@ public final class GeoScreen extends JPanel {
             timer.start();
         }
         refresh();
+    }
+
+    /** Launch the Cydonia final assault via the app-supplied handler. */
+    private void launchCydonia() {
+        game.clock().setSpeed(GeoClock.Speed.PAUSE);
+        if (assault != null) {
+            assault.cydonia(game);
+        }
+    }
+
+    /** Show the terminal win/lose screen once, and stop the clock. */
+    private void endScreen(final String title, final String message) {
+        if (endShown) {
+            return;
+        }
+        endShown = true;
+        timer.stop();
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override public void run() {
+                JOptionPane.showMessageDialog(GeoScreen.this,
+                        message, "X-COM — " + title,
+                        "VICTORY".equals(title)
+                                ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
+            }
+        });
     }
 
     /** Stop the clock (used when leaving the screen or entering a battle). */
@@ -153,6 +185,12 @@ public final class GeoScreen extends JPanel {
         baseBtn.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { openBase(); }
         });
+        cydoniaBtn.setBackground(new Color(70, 20, 30));
+        cydoniaBtn.setForeground(new Color(255, 210, 120));
+        cydoniaBtn.setVisible(false);
+        cydoniaBtn.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { launchCydonia(); }
+        });
         JButton exit = pixelButton("Menu");
         exit.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
@@ -164,6 +202,7 @@ public final class GeoScreen extends JPanel {
         });
         JPanel right = new JPanel();
         right.setOpaque(false);
+        right.add(cydoniaBtn);
         right.add(baseBtn);
         right.add(exit);
         bar.add(right, BorderLayout.EAST);
@@ -213,9 +252,11 @@ public final class GeoScreen extends JPanel {
         clockLabel.setText(game.clock().display()
                 + "    Speed: " + game.clock().speed().label());
         statsLabel.setText(String.format(
-                "<html>Funds: $%,d<br>Score: %d<br>UFOs tracked: %d<br>Interceptors: %d<br>Nations: %d</html>",
-                game.funds(), game.totalScore(), game.ufos().size(),
+                "<html>Funds: $%,d<br>Score: %d<br>Live aliens: %d<br>UFOs tracked: %d"
+                        + "<br>Interceptors: %d<br>Nations: %d</html>",
+                game.funds(), game.totalScore(), game.liveAlienCount(), game.ufos().size(),
                 game.interceptors().size(), game.nations().size()));
+        cydoniaBtn.setVisible(game.cydoniaAvailable());
         canvas.repaint();
     }
 

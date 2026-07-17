@@ -69,6 +69,9 @@ public final class MainWindow extends JFrame {
             @Override public void assault(GeoGame game, Ufo ufo) {
                 launchAssault(geoRef[0], game, ufo);
             }
+            @Override public void cydonia(GeoGame game) {
+                launchCydonia(geoRef[0], game, 0);
+            }
         };
         GeoScreen geo = new GeoScreen(ctx, missionSeed++, assault, toMenu);
         geo.game().setDifficulty(difficulty);
@@ -86,6 +89,33 @@ public final class MainWindow extends JFrame {
                 game.resolveMission(ufo, bg.outcome());
                 screens.show(ScreenManager.GEOSCAPE);
                 geo.resume();
+            }
+        };
+        BattlePanel battle = new BattlePanel(ctx, bg, onDone);
+        screens.setScreen(ScreenManager.BATTLE, battle);
+        screens.show(ScreenManager.BATTLE);
+        battle.requestFocusInWindow();
+    }
+
+    /**
+     * Run one stage of the two-stage Cydonia assault. Winning stage 0 (Martian
+     * surface) chains into stage 1 (the alien base + Brain); winning stage 1 ends
+     * the campaign in victory via {@link GeoGame#resolveCydonia}.
+     */
+    private void launchCydonia(final GeoScreen geo, final GeoGame game, final int stage) {
+        geo.suspend();
+        BattleSetup setup = game.buildCydoniaAssault(missionSeed++, stage);
+        final BattleGame bg = BattleFactory.build(ctx.ruleset(), setup);
+        final boolean finalStage = stage >= 1;
+        Runnable onDone = new Runnable() {
+            @Override public void run() {
+                boolean won = game.resolveCydonia(bg.outcome(), finalStage);
+                screens.show(ScreenManager.GEOSCAPE);
+                if (bg.outcome().xcomVictory() && !finalStage) {
+                    launchCydonia(geo, game, stage + 1); // advance into the alien base
+                } else if (!won) {
+                    geo.resume();
+                }
             }
         };
         BattlePanel battle = new BattlePanel(ctx, bg, onDone);

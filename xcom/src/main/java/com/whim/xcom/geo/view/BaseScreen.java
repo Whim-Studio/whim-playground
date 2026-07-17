@@ -253,7 +253,8 @@ public final class BaseScreen extends JPanel {
     private void save() {
         try {
             SaveGame.Snapshot snap = SaveGame.capture(campaign(), game.funds(),
-                    game.totalScore(), game.clock().seconds());
+                    game.totalScore(), game.clock().seconds(),
+                    game.consecutiveBadMonths(), game.gameWon(), game.gameLost());
             SaveGame.write(snap, SAVE_FILE);
             JOptionPane.showMessageDialog(this, "Saved to " + SAVE_FILE.getAbsolutePath(),
                     "Save Game", JOptionPane.INFORMATION_MESSAGE);
@@ -272,7 +273,8 @@ public final class BaseScreen extends JPanel {
             }
             SaveGame.Snapshot snap = SaveGame.read(SAVE_FILE);
             game.setCampaign(SaveGame.restoreCampaign(snap, ctx.ruleset()));
-            game.restoreState(snap.funds, snap.score, snap.clockSeconds);
+            game.restoreState(snap.funds, snap.score, snap.clockSeconds,
+                    snap.consecutiveBadMonths, snap.gameWon, snap.gameLost);
             refresh();
             JOptionPane.showMessageDialog(this, "Campaign loaded.",
                     "Load Game", JOptionPane.INFORMATION_MESSAGE);
