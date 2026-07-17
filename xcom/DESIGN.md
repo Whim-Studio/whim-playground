@@ -250,6 +250,10 @@ some values reset — we **do not** reproduce the bug (flagged deviation).
 | Smoke accuracy penalty | reduces LOF accuracy | **×0.5 approximation** |
 | Panic check | bravery/morale based | **morale×2% to hold** (refine later) |
 | Difficulty bug | present in original | **not reproduced** |
+| Terror-ignore penalty | large negative score + funding fallout | **−150 score** on expiry (Phase 8) |
+| Terror frequency | scripted alien-mission waves | **~14→6 game-days by difficulty**, 24–48h to respond |
+| Terror battlescape | civilians on a distinct third side | **no civilian side** — a tougher night crew + a real geo-level ignore penalty (civilians deferred) |
+| UFOpaedia unlocking | per-item research/autopsy gates | **forgiving gates** (basic gear always; tech on its research; aliens on autopsy/interrogation or *Alien Origins*) |
 
 These live behind the ruleset interfaces, so tuning any of them is a data/strategy
 change, never an engine change.

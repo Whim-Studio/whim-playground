@@ -170,9 +170,25 @@ public final class BaseScreen extends JPanel {
         load.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { load(); }
         });
+        JButton pedia = button("UFOpaedia");
+        pedia.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { openUfopaedia(); }
+        });
         bar.add(save);
         bar.add(load);
+        bar.add(pedia);
         return bar;
+    }
+
+    /** Open the UFOpaedia as a modal dialog over the base screen. */
+    private void openUfopaedia() {
+        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+        javax.swing.JDialog dialog = new javax.swing.JDialog(owner, "UFOpaedia",
+                java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setContentPane(new UfopaediaScreen(ctx, campaign()));
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     // ---- actions ------------------------------------------------------------

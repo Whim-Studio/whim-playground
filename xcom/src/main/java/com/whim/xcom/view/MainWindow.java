@@ -13,6 +13,7 @@ import com.whim.xcom.battle.BattleFactory;
 import com.whim.xcom.battle.BattleGame;
 import com.whim.xcom.battle.BattleSetup;
 import com.whim.xcom.geo.GeoGame;
+import com.whim.xcom.geo.TerrorSite;
 import com.whim.xcom.geo.Ufo;
 import com.whim.xcom.geo.view.GeoScreen;
 import com.whim.xcom.model.Difficulty;
@@ -69,6 +70,9 @@ public final class MainWindow extends JFrame {
             @Override public void assault(GeoGame game, Ufo ufo) {
                 launchAssault(geoRef[0], game, ufo);
             }
+            @Override public void assaultTerror(GeoGame game, TerrorSite site) {
+                launchTerror(geoRef[0], game, site);
+            }
             @Override public void cydonia(GeoGame game) {
                 launchCydonia(geoRef[0], game, 0);
             }
@@ -87,6 +91,24 @@ public final class MainWindow extends JFrame {
         Runnable onDone = new Runnable() {
             @Override public void run() {
                 game.resolveMission(ufo, bg.outcome());
+                screens.show(ScreenManager.GEOSCAPE);
+                geo.resume();
+            }
+        };
+        BattlePanel battle = new BattlePanel(ctx, bg, onDone);
+        screens.setScreen(ScreenManager.BATTLE, battle);
+        screens.show(ScreenManager.BATTLE);
+        battle.requestFocusInWindow();
+    }
+
+    /** Switch to the Battlescape for a terror-mission assault, then return. */
+    private void launchTerror(final GeoScreen geo, final GeoGame game, final TerrorSite site) {
+        geo.suspend();
+        BattleSetup setup = game.buildTerrorAssault(site, missionSeed++);
+        final BattleGame bg = BattleFactory.build(ctx.ruleset(), setup);
+        Runnable onDone = new Runnable() {
+            @Override public void run() {
+                game.resolveTerror(site, bg.outcome());
                 screens.show(ScreenManager.GEOSCAPE);
                 geo.resume();
             }
