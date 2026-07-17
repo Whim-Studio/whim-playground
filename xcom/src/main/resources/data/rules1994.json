@@ -1,0 +1,109 @@
+{
+  "displayName": "1994 (X-COM: UFO Defense)",
+
+  "weapons": [
+    { "id": "pistol", "name": "Pistol", "power": 26, "damageType": "ARMOR_PIERCING",
+      "twoHanded": false, "weight": 5, "clipSize": 12,
+      "snapAccuracy": 60, "snapTu": 18, "aimedAccuracy": 78, "aimedTu": 30,
+      "autoAccuracy": -1, "autoTu": -1, "autoShots": 1 },
+
+    { "id": "rifle", "name": "Rifle", "power": 30, "damageType": "ARMOR_PIERCING",
+      "twoHanded": true, "weight": 8, "clipSize": 20,
+      "snapAccuracy": 60, "snapTu": 25, "aimedAccuracy": 110, "aimedTu": 80,
+      "autoAccuracy": 35, "autoTu": 35, "autoShots": 3 },
+
+    { "id": "heavy_cannon", "name": "Heavy Cannon", "power": 56, "damageType": "ARMOR_PIERCING",
+      "twoHanded": true, "weight": 18, "clipSize": 6,
+      "snapAccuracy": 60, "snapTu": 33, "aimedAccuracy": 90, "aimedTu": 80,
+      "autoAccuracy": -1, "autoTu": -1, "autoShots": 1 },
+
+    { "id": "auto_cannon", "name": "Auto-Cannon", "power": 42, "damageType": "ARMOR_PIERCING",
+      "twoHanded": true, "weight": 19, "clipSize": 14,
+      "snapAccuracy": 56, "snapTu": 33, "aimedAccuracy": 82, "aimedTu": 80,
+      "autoAccuracy": 32, "autoTu": 40, "autoShots": 3 },
+
+    { "id": "laser_rifle", "name": "Laser Rifle", "power": 60, "damageType": "LASER",
+      "twoHanded": true, "weight": 8, "clipSize": 0,
+      "snapAccuracy": 65, "snapTu": 25, "aimedAccuracy": 100, "aimedTu": 50,
+      "autoAccuracy": 46, "autoTu": 34, "autoShots": 3 },
+
+    { "id": "heavy_plasma", "name": "Heavy Plasma", "power": 115, "damageType": "PLASMA",
+      "twoHanded": true, "weight": 8, "clipSize": 35,
+      "snapAccuracy": 75, "snapTu": 30, "aimedAccuracy": 110, "aimedTu": 60,
+      "autoAccuracy": 55, "autoTu": 35, "autoShots": 3 }
+  ],
+
+  "armors": [
+    { "id": "none", "name": "None (jumpsuit)", "front": 0, "side": 0, "rear": 0, "under": 0,
+      "resistances": {} },
+    { "id": "personal_armor", "name": "Personal Armour", "front": 50, "side": 40, "rear": 30, "under": 30,
+      "resistances": { "PLASMA": 1.0, "LASER": 1.0 } },
+    { "id": "power_suit", "name": "Power Suit", "front": 100, "side": 80, "rear": 70, "under": 60,
+      "resistances": { "PLASMA": 1.0 } },
+    { "id": "flying_suit", "name": "Flying Suit", "front": 110, "side": 90, "rear": 80, "under": 70,
+      "resistances": {} }
+  ],
+
+  "aliens": [
+    { "id": "sectoid_soldier", "name": "Sectoid Soldier", "timeUnits": 54, "stamina": 90,
+      "health": 30, "reactions": 63, "firingAccuracy": 52, "strength": 30,
+      "psiStrength": 40, "frontArmor": 4, "scoreValue": 10 },
+    { "id": "sectoid_leader", "name": "Sectoid Leader", "timeUnits": 60, "stamina": 96,
+      "health": 32, "reactions": 72, "firingAccuracy": 65, "strength": 32,
+      "psiStrength": 45, "frontArmor": 12, "scoreValue": 20 },
+    { "id": "floater_soldier", "name": "Floater Soldier", "timeUnits": 50, "stamina": 100,
+      "health": 35, "reactions": 50, "firingAccuracy": 50, "strength": 40,
+      "psiStrength": 0, "frontArmor": 8, "scoreValue": 10 },
+    { "id": "muton_soldier", "name": "Muton Soldier", "timeUnits": 56, "stamina": 100,
+      "health": 125, "reactions": 60, "firingAccuracy": 60, "strength": 60,
+      "psiStrength": 0, "frontArmor": 40, "scoreValue": 15 }
+  ],
+
+  "facilities": [
+    { "id": "access_lift", "name": "Access Lift", "buildCostDollars": 300000, "buildTimeDays": 1,
+      "monthlyMaintenanceDollars": 4000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 0 },
+    { "id": "living_quarters", "name": "Living Quarters", "buildCostDollars": 400000, "buildTimeDays": 16,
+      "monthlyMaintenanceDollars": 10000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 },
+    { "id": "laboratory", "name": "Laboratory", "buildCostDollars": 750000, "buildTimeDays": 26,
+      "monthlyMaintenanceDollars": 30000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 },
+    { "id": "workshop", "name": "Workshop", "buildCostDollars": 800000, "buildTimeDays": 32,
+      "monthlyMaintenanceDollars": 35000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 },
+    { "id": "small_radar", "name": "Small Radar System", "buildCostDollars": 500000, "buildTimeDays": 12,
+      "monthlyMaintenanceDollars": 10000, "size": 1, "detectionRange": 450, "detectionChancePercent": 10, "capacity": 0 },
+    { "id": "large_radar", "name": "Large Radar System", "buildCostDollars": 800000, "buildTimeDays": 25,
+      "monthlyMaintenanceDollars": 15000, "size": 1, "detectionRange": 450, "detectionChancePercent": 20, "capacity": 0 },
+    { "id": "hangar", "name": "Hangar", "buildCostDollars": 200000, "buildTimeDays": 25,
+      "monthlyMaintenanceDollars": 25000, "size": 2, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 1 },
+    { "id": "general_stores", "name": "General Stores", "buildCostDollars": 150000, "buildTimeDays": 10,
+      "monthlyMaintenanceDollars": 5000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 }
+  ],
+
+  "research": [
+    { "id": "laser_weapons", "name": "Laser Weapons", "researchCost": 300,
+      "prerequisites": [], "unlocks": ["laser_pistol", "laser_rifle"], "needsCaptiveOrItem": false },
+    { "id": "alien_alloys", "name": "Alien Alloys", "researchCost": 200,
+      "prerequisites": [], "unlocks": ["personal_armor"], "needsCaptiveOrItem": true },
+    { "id": "sectoid_autopsy", "name": "Sectoid Autopsy", "researchCost": 60,
+      "prerequisites": [], "unlocks": [], "needsCaptiveOrItem": true }
+  ],
+
+  "manufacture": [
+    { "id": "make_laser_rifle", "name": "Laser Rifle", "requiredResearchId": "laser_weapons",
+      "engineerHours": 350, "costDollars": 34000, "workspace": 4,
+      "inputs": {}, "outputItemId": "laser_rifle", "outputQuantity": 1 },
+    { "id": "make_personal_armor", "name": "Personal Armour", "requiredResearchId": "alien_alloys",
+      "engineerHours": 600, "costDollars": 22000, "workspace": 6,
+      "inputs": { "alien_alloys": 5 }, "outputItemId": "personal_armor", "outputQuantity": 1 }
+  ],
+
+  "ufos": [
+    { "id": "small_scout", "name": "Small Scout", "hullPoints": 50, "speed": 2200,
+      "weaponPower": 0, "weaponRange": 0, "mapSize": 40, "minCrew": 1, "maxCrew": 3 },
+    { "id": "large_scout", "name": "Large Scout", "hullPoints": 160, "speed": 2400,
+      "weaponPower": 0, "weaponRange": 0, "mapSize": 50, "minCrew": 3, "maxCrew": 6 },
+    { "id": "harvester", "name": "Harvester", "hullPoints": 500, "speed": 4300,
+      "weaponPower": 44, "weaponRange": 30, "mapSize": 50, "minCrew": 8, "maxCrew": 13 },
+    { "id": "battleship", "name": "Battleship", "hullPoints": 3200, "speed": 5000,
+      "weaponPower": 148, "weaponRange": 65, "mapSize": 60, "minCrew": 20, "maxCrew": 30 }
+  ]
+}
