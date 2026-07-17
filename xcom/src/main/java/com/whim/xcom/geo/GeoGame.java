@@ -8,6 +8,7 @@ import com.whim.xcom.battle.BattleOutcome;
 import com.whim.xcom.battle.BattleSetup;
 import com.whim.xcom.meta.Campaign;
 import com.whim.xcom.meta.Soldier;
+import com.whim.xcom.model.Difficulty;
 import com.whim.xcom.rng.Rng;
 import com.whim.xcom.rules.Ruleset;
 import com.whim.xcom.rules.def.ManufactureNode;
@@ -46,6 +47,7 @@ public final class GeoGame {
     private int totalScore;
     private int lastMonth = 0;
     private Campaign campaign;
+    private Difficulty difficulty = Difficulty.EXPERIENCED;
     private long nextSpawnSeconds = 3600; // first UFO within the first game-hour
     private int ufoCounter;
 
@@ -76,6 +78,8 @@ public final class GeoGame {
     public int totalScore() { return totalScore; }
     public Campaign campaign() { return campaign; }
     public void setCampaign(Campaign c) { this.campaign = c; }
+    public Difficulty difficulty() { return difficulty; }
+    public void setDifficulty(Difficulty d) { if (d != null) { this.difficulty = d; } }
 
     /** Restore top-level state from a save (funds, score, clock). */
     public void restoreState(long funds, int score, long clockSeconds) {
@@ -317,7 +321,7 @@ public final class GeoGame {
     /** Build the tactical setup for assaulting a crash/landing site. */
     public BattleSetup buildAssault(Ufo ufo, long seed) {
         int mapDim = Math.max(12, Math.min(18, ufo.def().mapSize() / 3));
-        BattleSetup setup = new BattleSetup().mapSize(mapDim, mapDim).seed(seed);
+        BattleSetup setup = new BattleSetup().mapSize(mapDim, mapDim).seed(seed).difficulty(difficulty);
         String rifle = ruleset.weapon("rifle") != null ? "rifle"
                 : ruleset.weapons().iterator().next().id();
         // Squad: the persistent roster if we have a campaign, else a default squad.

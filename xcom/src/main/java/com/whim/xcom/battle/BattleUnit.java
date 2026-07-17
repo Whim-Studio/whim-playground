@@ -38,6 +38,7 @@ public final class BattleUnit {
     private boolean kneeling;
     private boolean alive = true;
     private boolean reactionSpent; // has this unit already reacted since it last acted
+    private int grenades;
 
     public BattleUnit(String id, String name, Side side,
                       int maxTU, int maxHealth, int firingAccuracy, int reactions, int strength,
@@ -105,6 +106,16 @@ public final class BattleUnit {
 
     public boolean reactionSpent() { return reactionSpent; }
     public void markReacted() { reactionSpent = true; }
+
+    public int grenades() { return grenades; }
+    public void setGrenades(int n) { this.grenades = Math.max(0, n); }
+    public boolean useGrenade() {
+        if (grenades <= 0) {
+            return false;
+        }
+        grenades--;
+        return true;
+    }
 
     /** Apply health damage; returns true if this blow killed the unit. */
     public boolean applyDamage(int amount) {

@@ -56,6 +56,23 @@ Click **Base** on the Geoscape to open base management (`com.whim.xcom.meta`):
 Research and manufacturing advance on the same Geoscape clock, so compressing time
 also advances the labs and workshops.
 
+## Breadth (Phase 4)
+
+- **Grenades, explosions & terrain destruction** — each soldier carries grenades;
+  press **G** and click a tile in range to lob one. The blast damages units in a
+  radius (high-explosive, via the ruleset damage model) and destroys terrain:
+  walls and UFO hull become walkable rubble, vegetation and boulders are cleared,
+  which also opens new lines of sight. A flash effect marks the detonation.
+- **Difficulty** — choose Beginner … Superhuman from the menu's **Options**; the
+  tier scales alien Time Units, health, accuracy and reactions around the
+  Experienced baseline and feeds through to every crash-site assault.
+- **Procedural sound** — `SynthAudioManager` synthesises short beeps with
+  `javax.sound.sampled` (no audio assets); it is best-effort and silently no-ops
+  on a device-less machine, so headless runs and CI are unaffected.
+
+Explosives and destruction are exposed on the engine as `BattleGame.throwGrenade`
+and `BattleGame.explode`, so future weapons (rockets, blaster bombs) reuse them.
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

@@ -60,9 +60,11 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
 
     private transient BattleUnit selected;
     private FireMode mode = FireMode.SNAP;
+    private boolean throwMode;
     private int hoverX = -1;
     private int hoverY = -1;
     private boolean ended;
+    private transient java.util.List<int[]> blastTiles = new java.util.ArrayList<int[]>();
 
     public BattlePanel(GameContext ctx, BattleGame game, Runnable onExit) {
         this.ctx = ctx;
@@ -148,6 +150,12 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
         });
         buttons.add(kneel);
 
+        JButton grenade = pixelButton("Throw [G]");
+        grenade.addActionListener(new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) { toggleThrow(); }
+        });
+        buttons.add(grenade);
+
         JButton next = pixelButton("Next [Space]");
         next.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) { cycleSoldier(); }
@@ -188,6 +196,7 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
     private void installKeys() {
         bindKey("SPACE", "next", new Runnable() { public void run() { cycleSoldier(); } });
         bindKey("K", "kneel", new Runnable() { public void run() { toggleKneel(); } });
+        bindKey("G", "throw", new Runnable() { public void run() { toggleThrow(); } });
         bindKey("ENTER", "end", new Runnable() { public void run() { endTurn(); } });
         bindKey("1", "snap", new Runnable() { public void run() { mode = FireMode.SNAP; refreshHud(); } });
         bindKey("2", "aimed", new Runnable() { public void run() { mode = FireMode.AIMED; refreshHud(); } });
@@ -230,6 +239,19 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
         canvas.repaint();
     }
 
+    private void toggleThrow() {
+        if (selected == null || game.currentSide() != Side.XCOM) {
+            return;
+        }
+        if (selected.grenades() <= 0) {
+            log.append("No grenades left.\n");
+            return;
+        }
+        throwMode = !throwMode;
+        refreshHud();
+        canvas.repaint();
+    }
+
     private void endTurn() {
         if (game.finished() || game.currentSide() != Side.XCOM) {
             return;
@@ -249,13 +271,24 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
             return;
         }
         BattleUnit u = game.unitAt(tx, ty);
-        if (u != null && u.side() == Side.XCOM) {
+        if (!throwMode && u != null && u.side() == Side.XCOM) {
             selected = u;                       // select own soldier
             refreshHud();
             canvas.repaint();
             return;
         }
         if (selected == null) {
+            return;
+        }
+        if (throwMode) {
+            if (game.throwGrenade(selected, tx, ty)) {
+                throwMode = false;
+            } else {
+                log.append("Out of range or no TU for a grenade.\n");
+            }
+            refreshHud();
+            canvas.repaint();
+            maybeShowResult();
             return;
         }
         if (u != null && u.alien() && game.visible(tx, ty)) {
@@ -299,9 +332,14 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
                     + (selected.weapon() != null && selected.weapon().clipSize() > 0
                         ? " (ammo " + selected.ammo() + ")" : "")
                     + (selected.kneeling() ? "   [kneeling]" : ""));
-            statLabel.setText(String.format("TU %d/%d    HP %d/%d    Morale %d    Mode: %s",
+            statLabel.setText(String.format("TU %d/%d    HP %d/%d    Morale %d    Grenades %d    Mode: %s",
                     selected.tu(), selected.maxTU(), selected.health(), selected.maxHealth(),
-                    selected.morale(), mode));
+                    selected.morale(), selected.grenades(), throwMode ? "THROW" : mode.toString()));
+        }
+        if (throwMode && selected != null) {
+            hoverLabel.setText("THROW MODE — click a tile within " + game.throwRange(selected)
+                    + " tiles (cost " + game.grenadeCost(selected) + " TU). G to cancel.");
+            return;
         }
         BattleUnit hover = (hoverX >= 0) ? game.unitAt(hoverX, hoverY) : null;
         if (selected != null && hover != null && hover.alien() && game.visible(hoverX, hoverY)) {
@@ -324,6 +362,20 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
     @Override public void onChanged() {
         refreshHud();
         canvas.repaint();
+    }
+
+    @Override public void onExplosion(java.util.List<int[]> tiles) {
+        blastTiles = tiles;
+        canvas.repaint();
+        // Clear the flash shortly after.
+        javax.swing.Timer t = new javax.swing.Timer(450, new ActionListener() {
+            @Override public void actionPerformed(ActionEvent e) {
+                blastTiles = new java.util.ArrayList<int[]>();
+                canvas.repaint();
+            }
+        });
+        t.setRepeats(false);
+        t.start();
     }
 
     // ---- rendering ----------------------------------------------------------
@@ -412,6 +464,16 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
                         drawUnit(g2, u);
                     }
                 }
+            }
+            // Explosion flash overlay.
+            for (int[] t : blastTiles) {
+                int cx = sx(t[0], t[1]);
+                int cy = sy(t[0], t[1]);
+                Polygon dia = diamond(cx, cy);
+                g2.setColor(new Color(255, 170, 40, 150));
+                g2.fillPolygon(dia);
+                g2.setColor(new Color(255, 240, 120, 200));
+                g2.fillOval(cx - 6, cy - 6, 12, 12);
             }
         }
 
@@ -535,6 +597,8 @@ public final class BattlePanel extends JPanel implements BattleGame.Listener {
                 case WALL: return new Color(110, 100, 92);
                 case UFO_HULL: return new Color(60, 110, 90);
                 case UFO_FLOOR: return new Color(48, 92, 78);
+                case RUBBLE: return new Color(84, 78, 70);
+                case SCORCHED: return new Color(34, 28, 24);
                 case GRASS:
                 default: return new Color(46, 92, 52);
             }

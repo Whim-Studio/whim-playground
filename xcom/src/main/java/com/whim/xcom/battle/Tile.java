@@ -16,7 +16,9 @@ public final class Tile {
         WALL(0, false, true),      // structure wall
         BUSH(6, true, false),      // passable but slow, does not block LOS
         UFO_HULL(0, false, true),  // outer hull wall
-        UFO_FLOOR(4, true, false); // inside a craft
+        UFO_FLOOR(4, true, false), // inside a craft
+        RUBBLE(4, true, false),    // blasted wall/hull — walkable, no cover
+        SCORCHED(4, true, false);  // blasted ground
 
         final int moveCost;
         final boolean walkable;
@@ -53,5 +55,33 @@ public final class Tile {
 
     public int moveCost() {
         return kind.moveCost;
+    }
+
+    /** True if an explosion can destroy this tile's terrain. */
+    public boolean destructible() {
+        return kind == Kind.WALL || kind == Kind.UFO_HULL
+                || kind == Kind.BUSH || kind == Kind.ROCK;
+    }
+
+    /**
+     * Apply blast destruction: walls/hull become walkable rubble, vegetation and
+     * boulders are cleared to scorched ground. Returns true if the tile changed
+     * (e.g. a sight-blocker was removed).
+     */
+    public boolean destroy() {
+        if (!destructible()) {
+            return false;
+        }
+        switch (kind) {
+            case WALL:
+            case UFO_HULL:
+                kind = Kind.RUBBLE;
+                return true;
+            case ROCK:
+            case BUSH:
+            default:
+                kind = Kind.SCORCHED;
+                return true;
+        }
     }
 }

@@ -15,6 +15,7 @@ import com.whim.xcom.battle.BattleSetup;
 import com.whim.xcom.geo.GeoGame;
 import com.whim.xcom.geo.Ufo;
 import com.whim.xcom.geo.view.GeoScreen;
+import com.whim.xcom.model.Difficulty;
 
 /**
  * Top-level application window. Hosts a {@link ScreenManager} that swaps between
@@ -27,6 +28,7 @@ public final class MainWindow extends JFrame {
     private final transient GameContext ctx;
     private final ScreenManager screens = new ScreenManager();
     private int missionSeed = 1;
+    private Difficulty difficulty = Difficulty.EXPERIENCED;
 
     public MainWindow(GameContext ctx) {
         super("UFO: Enemy Unknown — clean-room recreation");
@@ -69,6 +71,7 @@ public final class MainWindow extends JFrame {
             }
         };
         GeoScreen geo = new GeoScreen(ctx, missionSeed++, assault, toMenu);
+        geo.game().setDifficulty(difficulty);
         geoRef[0] = geo;
         screens.setScreen(ScreenManager.GEOSCAPE, geo);
         screens.show(ScreenManager.GEOSCAPE);
@@ -110,11 +113,15 @@ public final class MainWindow extends JFrame {
         return new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
                 ctx.audio().playSfx("menu_select");
-                JOptionPane.showMessageDialog(MainWindow.this,
-                        "Options (audio, difficulty, display) arrive with the meta layer.\n"
+                Difficulty[] all = Difficulty.values();
+                Difficulty chosen = (Difficulty) JOptionPane.showInputDialog(MainWindow.this,
+                        "Select difficulty (scales alien stats).\n\n"
                                 + "Battlescape controls: click to select/move, click an alien to fire,\n"
-                                + "1/2/3 fire mode, K kneel, Space next soldier, Enter end turn.",
-                        "Options", JOptionPane.INFORMATION_MESSAGE);
+                                + "1/2/3 fire mode, K kneel, G throw grenade, Space next, Enter end turn.",
+                        "Options", JOptionPane.QUESTION_MESSAGE, null, all, difficulty);
+                if (chosen != null) {
+                    difficulty = chosen;
+                }
             }
         };
     }

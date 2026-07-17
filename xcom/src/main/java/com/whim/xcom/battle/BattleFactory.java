@@ -34,6 +34,7 @@ public final class BattleFactory {
             BattleUnit u = new BattleUnit("S" + sIndex, spec.name, Side.XCOM,
                     spec.maxTU, spec.maxHealth, spec.firingAccuracy, spec.reactions, spec.strength,
                     weapon, armor);
+            u.setGrenades(2);
             u.setPos(pos[0], pos[1]);
             u.setFacing(0); // face north, toward the aliens
             game.addUnit(u);
@@ -49,10 +50,12 @@ public final class BattleFactory {
             WeaponDef weapon = ruleset.weapon(spec.weaponId);
             ArmorDef armor = Armors.uniform(spec.alienId + "_skin",
                     def != null ? def.frontArmor() : 0);
-            int tu = def != null ? def.timeUnits() : 50;
-            int hp = def != null ? def.health() : 30;
-            int acc = def != null ? def.firingAccuracy() : 50;
-            int rea = def != null ? def.reactions() : 50;
+            // Difficulty scales alien stats around the Experienced (level 2) baseline.
+            double scale = 1.0 + 0.08 * (setup.difficulty().level() - 2);
+            int tu = scaled(def != null ? def.timeUnits() : 50, scale);
+            int hp = scaled(def != null ? def.health() : 30, scale);
+            int acc = scaled(def != null ? def.firingAccuracy() : 50, scale);
+            int rea = scaled(def != null ? def.reactions() : 50, scale);
             int str = def != null ? def.strength() : 30;
             String name = (def != null ? def.name() : "Alien") + " " + (aIndex + 1);
             BattleUnit u = new BattleUnit("A" + aIndex, name, Side.ALIEN,
@@ -111,6 +114,10 @@ public final class BattleFactory {
             map.tile(bx + 1, by).setKind(Tile.Kind.ROAD);
         }
         return map;
+    }
+
+    private static int scaled(int base, double scale) {
+        return Math.max(1, (int) Math.round(base * scale));
     }
 
     private static int spreadColumn(BattleMap map, int index, int count) {

@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
+import com.whim.xcom.model.DamageType;
 import com.whim.xcom.model.FireMode;
 import com.whim.xcom.rng.Rng;
 import com.whim.xcom.rules.Ruleset;
@@ -24,7 +25,13 @@ public final class BattleGame {
     public interface Listener {
         void onEvent(String message);
         void onChanged();
+        /** A blast occurred over these tiles (for a transient view effect). */
+        default void onExplosion(java.util.List<int[]> tiles) { }
     }
+
+    private static final int GRENADE_POWER = 50;
+    private static final int GRENADE_RADIUS = 2;
+    private static final int GRENADE_TU_PERCENT = 25;
 
     private static final int SIGHT_DAY = 20;
     private static final int SIGHT_NIGHT = 9;
@@ -349,6 +356,75 @@ public final class BattleGame {
         listener.onChanged();
         checkVictory();
         return true;
+    }
+
+    /** Max tiles a unit can throw a grenade (strength-scaled). */
+    public int throwRange(BattleUnit u) {
+        return 5 + u.strength() / 8;
+    }
+
+    public int grenadeCost(BattleUnit u) {
+        return (int) Math.round(u.maxTU() * GRENADE_TU_PERCENT / 100.0);
+    }
+
+    /**
+     * {@code unit} lobs a grenade onto {@code (tx,ty)}: costs TU, consumes a
+     * grenade, and detonates a high-explosive blast that damages units and
+     * destroys terrain in a radius. Returns true if the throw happened.
+     */
+    public boolean throwGrenade(BattleUnit unit, int tx, int ty) {
+        if (unit == null || !unit.alive() || unit.grenades() <= 0 || !map.inBounds(tx, ty)) {
+            return false;
+        }
+        if (BattleMap.distance(unit.x(), unit.y(), tx, ty) > throwRange(unit)) {
+            return false;
+        }
+        int cost = grenadeCost(unit);
+        if (!unit.hasTU(cost)) {
+            return false;
+        }
+        unit.spendTU(cost);
+        unit.useGrenade();
+        unit.setFacing(directionTo(tx - unit.x(), ty - unit.y()));
+        listener.onEvent(unit.name() + " throws a grenade!");
+        explode(tx, ty, GRENADE_POWER, DamageType.HIGH_EXPLOSIVE);
+        checkVictory();
+        return true;
+    }
+
+    /** Detonate a blast of {@code power} at {@code (cx,cy)}: terrain + unit damage. */
+    public void explode(int cx, int cy, int power, DamageType type) {
+        List<int[]> tiles = new ArrayList<int[]>();
+        for (int dx = -GRENADE_RADIUS; dx <= GRENADE_RADIUS; dx++) {
+            for (int dy = -GRENADE_RADIUS; dy <= GRENADE_RADIUS; dy++) {
+                int x = cx + dx;
+                int y = cy + dy;
+                if (!map.inBounds(x, y)) {
+                    continue;
+                }
+                int d = BattleMap.distance(cx, cy, x, y);
+                if (d > GRENADE_RADIUS) {
+                    continue;
+                }
+                tiles.add(new int[] {x, y});
+                map.tile(x, y).destroy();
+                BattleUnit u = unitAt(x, y);
+                if (u != null) {
+                    int eff = power * (GRENADE_RADIUS + 1 - d) / (GRENADE_RADIUS + 1);
+                    int dmg = ruleset.damage().rollDamage(rng, eff, type, u.armor(),
+                            DamageModel.Facing.UNDER);
+                    boolean dead = u.applyDamage(dmg);
+                    listener.onEvent("  " + u.name() + " caught in blast (-" + dmg + ")"
+                            + (dead ? " — KILLED!" : ""));
+                    if (dead) {
+                        onDeath(u);
+                    }
+                }
+            }
+        }
+        recomputeVisibility();
+        listener.onExplosion(tiles);
+        listener.onChanged();
     }
 
     private void reactionFireAgainst(BattleUnit mover) {

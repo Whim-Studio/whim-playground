@@ -3,6 +3,8 @@ package com.whim.xcom.battle;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.whim.xcom.model.Difficulty;
+
 /**
  * The public INPUT contract for a tactical mission. A caller (a skirmish, or —
  * later — the Geoscape when a UFO mission begins) fills one of these and hands it
@@ -57,12 +59,15 @@ public final class BattleSetup {
     private int mapHeight = 16;
     private boolean night = false;
     private long seed = 1L;
+    private Difficulty difficulty = Difficulty.EXPERIENCED;
 
     public BattleSetup addSoldier(UnitSpec s) { soldiers.add(s); return this; }
     public BattleSetup addAlien(UnitSpec a) { aliens.add(a); return this; }
     public BattleSetup mapSize(int w, int h) { this.mapWidth = w; this.mapHeight = h; return this; }
     public BattleSetup night(boolean night) { this.night = night; return this; }
     public BattleSetup seed(long seed) { this.seed = seed; return this; }
+    public BattleSetup difficulty(Difficulty d) { this.difficulty = d; return this; }
+    public Difficulty difficulty() { return difficulty; }
 
     public List<UnitSpec> soldiers() { return soldiers; }
     public List<UnitSpec> aliens() { return aliens; }

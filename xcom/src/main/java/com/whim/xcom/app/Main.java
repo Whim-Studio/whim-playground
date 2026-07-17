@@ -27,10 +27,11 @@ public final class Main {
     public static void main(String[] args) {
         Ruleset ruleset = Ruleset1994.load();
         Rng rng = new SeededRng(defaultSeed(args));
-        AudioManager audio = new NoopAudioManager();
+        boolean forceHeadless = hasFlag(args, "--headless");
+        AudioManager audio = (forceHeadless || GraphicsEnvironment.isHeadless())
+                ? new NoopAudioManager() : new SynthAudioManager();
         final GameContext ctx = new GameContext(ruleset, rng, audio);
 
-        boolean forceHeadless = hasFlag(args, "--headless");
         if (forceHeadless || GraphicsEnvironment.isHeadless()) {
             printHeadlessSummary(ruleset, rng);
             return;
