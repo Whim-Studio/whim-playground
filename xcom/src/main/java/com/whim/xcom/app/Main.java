@@ -28,6 +28,7 @@ public final class Main {
         Ruleset ruleset = Ruleset1994.load();
         Rng rng = new SeededRng(defaultSeed(args));
         AudioManager audio = new NoopAudioManager();
+        final GameContext ctx = new GameContext(ruleset, rng, audio);
 
         boolean forceHeadless = hasFlag(args, "--headless");
         if (forceHeadless || GraphicsEnvironment.isHeadless()) {
@@ -43,7 +44,7 @@ public final class Main {
                 } catch (Exception ignored) {
                     // fall back to default L&F
                 }
-                new MainWindow(ruleset, audio).setVisible(true);
+                new MainWindow(ctx).setVisible(true);
             }
         });
     }

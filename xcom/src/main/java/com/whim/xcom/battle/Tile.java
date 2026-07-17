@@ -1,0 +1,57 @@
+package com.whim.xcom.battle;
+
+/**
+ * One battlescape floor cell. A tile can be walked on (or not), can block
+ * line-of-sight (a wall/large object), and publishes a movement cost — the base
+ * 1994 ground cost is 4 TU (see {@link com.whim.xcom.rules.model.TimeUnitModel}).
+ */
+public final class Tile {
+
+    /** Terrain kinds — purely cosmetic + cost/LOS behaviour for the slice. */
+    public enum Kind {
+        GRASS(4, true, false),
+        DIRT(4, true, false),
+        ROAD(4, true, false),
+        ROCK(0, false, true),      // impassable, blocks sight (boulder/wall)
+        WALL(0, false, true),      // structure wall
+        BUSH(6, true, false),      // passable but slow, does not block LOS
+        UFO_HULL(0, false, true),  // outer hull wall
+        UFO_FLOOR(4, true, false); // inside a craft
+
+        final int moveCost;
+        final boolean walkable;
+        final boolean blocksSight;
+
+        Kind(int moveCost, boolean walkable, boolean blocksSight) {
+            this.moveCost = moveCost;
+            this.walkable = walkable;
+            this.blocksSight = blocksSight;
+        }
+    }
+
+    private Kind kind;
+
+    public Tile(Kind kind) {
+        this.kind = kind;
+    }
+
+    public Kind kind() {
+        return kind;
+    }
+
+    public void setKind(Kind kind) {
+        this.kind = kind;
+    }
+
+    public boolean walkable() {
+        return kind.walkable;
+    }
+
+    public boolean blocksSight() {
+        return kind.blocksSight;
+    }
+
+    public int moveCost() {
+        return kind.moveCost;
+    }
+}

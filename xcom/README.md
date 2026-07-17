@@ -1,10 +1,27 @@
 # UFO: Enemy Unknown — clean-room Java 8 / Swing recreation
 
 A from-scratch desktop recreation of **UFO: Enemy Unknown** (*X-COM: UFO Defense*,
-MicroProse / Mythos Games, 1994). This repository currently contains **Phase 0: the
-foundation** — a clean, layered, data-driven, ruleset-pluggable architecture and a
-runnable Swing shell. The Geoscape and Battlescape gameplay are built in later
-phases on top of this skeleton.
+MicroProse / Mythos Games, 1994). It contains **Phase 0: the foundation** — a clean,
+layered, data-driven, ruleset-pluggable architecture — and **Phase 1: the
+Battlescape** — a playable turn-based tactical mission rendered in an isometric
+Swing view. The Geoscape and meta layers are built in later phases on top of this.
+
+## Playing the Battlescape (Phase 1)
+
+Launch the app and choose **New Game** to drop into a skirmish: 4 X-COM soldiers
+vs 4 Sectoids on a procedurally generated map. All combat math (to-hit, TU costs,
+damage, reaction fire) runs through the Phase 0 ruleset models.
+
+Controls:
+- **Left-click a soldier** — select it (yellow ring).
+- **Left-click a floor tile** — move there (spends Time Units; may draw reaction fire).
+- **Left-click a visible alien** — fire the current mode at it.
+- **1 / 2 / 3** — Snap / Aimed / Auto fire mode. **K** — kneel (accuracy bonus).
+- **Space** — cycle to the next soldier. **Enter** — end turn (aliens act).
+- Hovering an alien shows the live hit % and TU cost in the HUD.
+
+Win by eliminating all aliens; lose if the squad is wiped out. Fog of war hides
+undiscovered tiles and unseen aliens; day/night changes sight range.
 
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
