@@ -19,4 +19,10 @@ public interface ResearchNode extends GameDef {
 
     /** {@code true} if a live captive or recovered item is consumed to start it. */
     boolean needsCaptiveOrItem();
+
+    /**
+     * Store item ids that must be present (and are consumed) to begin this project,
+     * e.g. {@code "live_sectoid_leader"} for an interrogation. Empty for most tech.
+     */
+    List<String> requiredItems();
 }

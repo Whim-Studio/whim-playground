@@ -30,7 +30,12 @@
     { "id": "heavy_plasma", "name": "Heavy Plasma", "power": 115, "damageType": "PLASMA",
       "twoHanded": true, "weight": 8, "clipSize": 35,
       "snapAccuracy": 75, "snapTu": 30, "aimedAccuracy": 110, "aimedTu": 60,
-      "autoAccuracy": 55, "autoTu": 35, "autoShots": 3 }
+      "autoAccuracy": 55, "autoTu": 35, "autoShots": 3 },
+
+    { "id": "stun_rod", "name": "Stun Rod", "power": 65, "damageType": "STUN",
+      "twoHanded": false, "weight": 6, "clipSize": 0,
+      "snapAccuracy": 100, "snapTu": 20, "aimedAccuracy": -1, "aimedTu": -1,
+      "autoAccuracy": -1, "autoTu": -1, "autoShots": 1 }
   ],
 
   "armors": [
@@ -56,7 +61,10 @@
       "psiStrength": 0, "frontArmor": 8, "scoreValue": 10 },
     { "id": "muton_soldier", "name": "Muton Soldier", "timeUnits": 56, "stamina": 100,
       "health": 125, "reactions": 60, "firingAccuracy": 60, "strength": 60,
-      "psiStrength": 0, "frontArmor": 40, "scoreValue": 15 }
+      "psiStrength": 0, "frontArmor": 40, "scoreValue": 15 },
+    { "id": "alien_brain", "name": "Alien Brain", "timeUnits": 40, "stamina": 100,
+      "health": 200, "reactions": 40, "firingAccuracy": 70, "strength": 20,
+      "psiStrength": 90, "frontArmor": 40, "scoreValue": 400 }
   ],
 
   "facilities": [
@@ -75,7 +83,9 @@
     { "id": "hangar", "name": "Hangar", "buildCostDollars": 200000, "buildTimeDays": 25,
       "monthlyMaintenanceDollars": 25000, "size": 2, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 1 },
     { "id": "general_stores", "name": "General Stores", "buildCostDollars": 150000, "buildTimeDays": 10,
-      "monthlyMaintenanceDollars": 5000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 }
+      "monthlyMaintenanceDollars": 5000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 50 },
+    { "id": "alien_containment", "name": "Alien Containment", "buildCostDollars": 400000, "buildTimeDays": 24,
+      "monthlyMaintenanceDollars": 15000, "size": 1, "detectionRange": 0, "detectionChancePercent": 0, "capacity": 10 }
   ],
 
   "research": [
@@ -84,7 +94,23 @@
     { "id": "alien_alloys", "name": "Alien Alloys", "researchCost": 200,
       "prerequisites": [], "unlocks": ["personal_armor"], "needsCaptiveOrItem": true },
     { "id": "sectoid_autopsy", "name": "Sectoid Autopsy", "researchCost": 60,
-      "prerequisites": [], "unlocks": [], "needsCaptiveOrItem": true }
+      "prerequisites": [], "unlocks": [], "needsCaptiveOrItem": true },
+
+    { "id": "interrogate_sectoid_soldier", "name": "Interrogate Sectoid Soldier", "researchCost": 50,
+      "prerequisites": [], "requiredItems": ["live_sectoid_soldier"],
+      "unlocks": ["alien_origins"], "needsCaptiveOrItem": true },
+    { "id": "interrogate_sectoid_leader", "name": "Interrogate Sectoid Leader", "researchCost": 80,
+      "prerequisites": [], "requiredItems": ["live_sectoid_leader"],
+      "unlocks": ["the_martian_solution"], "needsCaptiveOrItem": true },
+    { "id": "alien_origins", "name": "Alien Origins", "researchCost": 150,
+      "prerequisites": ["interrogate_sectoid_soldier"], "unlocks": ["the_martian_solution"],
+      "needsCaptiveOrItem": false },
+    { "id": "the_martian_solution", "name": "The Martian Solution", "researchCost": 200,
+      "prerequisites": ["alien_origins", "interrogate_sectoid_leader"],
+      "unlocks": ["cydonia_or_bust"], "needsCaptiveOrItem": false },
+    { "id": "cydonia_or_bust", "name": "Cydonia or Bust!", "researchCost": 300,
+      "prerequisites": ["the_martian_solution"], "unlocks": ["cydonia_mission"],
+      "needsCaptiveOrItem": false }
   ],
 
   "manufacture": [

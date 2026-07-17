@@ -21,7 +21,8 @@ public final class GeoFactory {
         Base base = new Base("X-COM HQ", 0.50, 0.42);
         String[] facilityIds = {
             "access_lift", "living_quarters", "laboratory", "workshop",
-            "small_radar", "large_radar", "hangar", "general_stores"
+            "small_radar", "large_radar", "hangar", "general_stores",
+            "alien_containment"
         };
         for (String id : facilityIds) {
             base.addFacility(ruleset.facility(id));
@@ -63,7 +64,8 @@ public final class GeoFactory {
         // A fresh campaign world, then overlay the saved meta-state.
         GeoGame game = defaultCampaign(ruleset, snap.clockSeconds);
         game.setCampaign(SaveGame.restoreCampaign(snap, ruleset));
-        game.restoreState(snap.funds, snap.score, snap.clockSeconds);
+        game.restoreState(snap.funds, snap.score, snap.clockSeconds,
+                snap.consecutiveBadMonths, snap.gameWon, snap.gameLost);
         return game;
     }
 }

@@ -53,6 +53,27 @@ public final class Base {
         return best;
     }
 
+    /** True if a facility with this id is built at the base. */
+    public boolean hasFacility(String id) {
+        for (FacilityDef f : facilities) {
+            if (f.id().equals(id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Total live-alien holding capacity from Alien Containment facilities. */
+    public int containmentCapacity() {
+        int total = 0;
+        for (FacilityDef f : facilities) {
+            if ("alien_containment".equals(f.id())) {
+                total += f.capacity();
+            }
+        }
+        return total;
+    }
+
     public int monthlyMaintenance() {
         int total = 0;
         for (FacilityDef f : facilities) {

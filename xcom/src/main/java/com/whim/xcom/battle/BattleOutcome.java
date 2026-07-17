@@ -14,15 +14,26 @@ public final class BattleOutcome {
     private final List<String> survivingSoldiers;
     private final List<String> fallenSoldiers;
     private final int aliensKilled;
+    private final List<String> liveCaptures; // alien def ids taken alive (unconscious) on a won field
+    private final boolean brainKilled;       // Cydonia objective: the Alien Brain was destroyed
 
     public BattleOutcome(Side winner, int turns,
                          List<String> survivingSoldiers, List<String> fallenSoldiers,
                          int aliensKilled) {
+        this(winner, turns, survivingSoldiers, fallenSoldiers, aliensKilled,
+                java.util.Collections.<String>emptyList(), false);
+    }
+
+    public BattleOutcome(Side winner, int turns,
+                         List<String> survivingSoldiers, List<String> fallenSoldiers,
+                         int aliensKilled, List<String> liveCaptures, boolean brainKilled) {
         this.winner = winner;
         this.turns = turns;
         this.survivingSoldiers = survivingSoldiers;
         this.fallenSoldiers = fallenSoldiers;
         this.aliensKilled = aliensKilled;
+        this.liveCaptures = liveCaptures;
+        this.brainKilled = brainKilled;
     }
 
     public boolean decided() { return winner != null; }
@@ -32,4 +43,10 @@ public final class BattleOutcome {
     public List<String> survivingSoldiers() { return Collections.unmodifiableList(survivingSoldiers); }
     public List<String> fallenSoldiers() { return Collections.unmodifiableList(fallenSoldiers); }
     public int aliensKilled() { return aliensKilled; }
+
+    /** Alien def ids captured alive (stunned unconscious) when X-COM won the field. */
+    public List<String> liveCaptures() { return Collections.unmodifiableList(liveCaptures); }
+
+    /** True if the Alien Brain was killed this mission (the Cydonia win objective). */
+    public boolean brainKilled() { return brainKilled; }
 }
