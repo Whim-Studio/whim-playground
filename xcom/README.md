@@ -23,6 +23,21 @@ Controls:
 Win by eliminating all aliens; lose if the squad is wiped out. Fog of war hides
 undiscovered tiles and unseen aliens; day/night changes sight range.
 
+## The Geoscape campaign (Phase 2)
+
+**New Game** now starts the Geoscape: a drawn world map with your radar-equipped
+base, funding nations, and real-time-with-pause flow. Use the six 1994 time
+controls (Pause / 5 Secs / 1 Min / 5 Mins / 30 Mins / 1 Hour / 1 Day) to
+compress time. UFOs spawn and fly; your radar detects them (chance derived from
+the base's radar facilities). **Click a red (detected) UFO** to scramble an
+interceptor; if it shoots the UFO down, a crash site hands off to a live
+Battlescape assault. Winning the ground battle awards score and salvage; the
+monthly Council report adjusts each nation's funding based on your performance.
+
+The Geoscape ↔ Battlescape seam is `com.whim.xcom.geo.MissionLauncher` (a headless
+auto-resolver is provided) and `GeoScreen.AssaultHandler` (the interactive path).
+Run the Geoscape standalone for testing via `GeoScreen` with a stub handler.
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

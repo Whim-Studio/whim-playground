@@ -11,6 +11,10 @@ import com.whim.xcom.app.GameContext;
 import com.whim.xcom.app.ScreenManager;
 import com.whim.xcom.battle.BattleFactory;
 import com.whim.xcom.battle.BattleGame;
+import com.whim.xcom.battle.BattleSetup;
+import com.whim.xcom.geo.GeoGame;
+import com.whim.xcom.geo.Ufo;
+import com.whim.xcom.geo.view.GeoScreen;
 
 /**
  * Top-level application window. Hosts a {@link ScreenManager} that swaps between
@@ -45,11 +49,49 @@ public final class MainWindow extends JFrame {
         return new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
                 ctx.audio().playSfx("menu_select");
-                startSkirmish();
+                startCampaign();
             }
         };
     }
 
+    /** Launch the Geoscape campaign; crash sites hand off to the Battlescape. */
+    private void startCampaign() {
+        final GeoScreen[] geoRef = new GeoScreen[1];
+        Runnable toMenu = new Runnable() {
+            @Override public void run() {
+                screens.setScreen(ScreenManager.MAIN_MENU, buildMenu());
+                screens.show(ScreenManager.MAIN_MENU);
+            }
+        };
+        GeoScreen.AssaultHandler assault = new GeoScreen.AssaultHandler() {
+            @Override public void assault(GeoGame game, Ufo ufo) {
+                launchAssault(geoRef[0], game, ufo);
+            }
+        };
+        GeoScreen geo = new GeoScreen(ctx, missionSeed++, assault, toMenu);
+        geoRef[0] = geo;
+        screens.setScreen(ScreenManager.GEOSCAPE, geo);
+        screens.show(ScreenManager.GEOSCAPE);
+    }
+
+    private void launchAssault(final GeoScreen geo, final GeoGame game, final Ufo ufo) {
+        geo.suspend();
+        BattleSetup setup = game.buildAssault(ufo, missionSeed++);
+        final BattleGame bg = BattleFactory.build(ctx.ruleset(), setup);
+        Runnable onDone = new Runnable() {
+            @Override public void run() {
+                game.resolveMission(ufo, bg.outcome());
+                screens.show(ScreenManager.GEOSCAPE);
+                geo.resume();
+            }
+        };
+        BattlePanel battle = new BattlePanel(ctx, bg, onDone);
+        screens.setScreen(ScreenManager.BATTLE, battle);
+        screens.show(ScreenManager.BATTLE);
+        battle.requestFocusInWindow();
+    }
+
+    /** A direct tactical skirmish (kept for quick testing). */
     private void startSkirmish() {
         BattleGame game = BattleFactory.defaultSkirmish(ctx.ruleset(), missionSeed++);
         Runnable toMenu = new Runnable() {
