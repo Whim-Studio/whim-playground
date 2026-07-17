@@ -223,9 +223,13 @@ public final class GeoGame {
         if (defs.isEmpty()) {
             return;
         }
-        // Weight toward smaller craft early: bias the pick low.
-        int idx = Math.min(defs.size() - 1, rng.nextInt(defs.size()));
-        UfoDef def = defs.get(idx);
+        // Weight toward smaller craft: take the lower of two rolls so scouts (the
+        // early defs) dominate and unkillable capital ships stay rare. Higher
+        // difficulty shifts the mix upward by biasing less.
+        int a = rng.nextInt(defs.size());
+        int b = rng.nextInt(defs.size());
+        int idx = difficulty.level() >= 3 ? Math.max(a, b) : Math.min(a, b);
+        UfoDef def = defs.get(Math.min(defs.size() - 1, idx));
         double x = rng.nextDouble();
         double y = 0.1 + rng.nextDouble() * 0.8;
         Ufo ufo = new Ufo("U" + (++ufoCounter), def, x, y, clock.seconds());
