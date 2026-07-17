@@ -340,10 +340,22 @@ public final class GeoGame {
         // Crew scaled from the UFO type, capped for a playable slice.
         int crew = Math.min(6, Math.max(ufo.def().minCrew(),
                 ufo.def().minCrew() + rng.nextInt(Math.max(1, ufo.def().maxCrew() - ufo.def().minCrew() + 1))));
-        String alienId = ruleset.alien("sectoid_soldier") != null ? "sectoid_soldier"
+        String soldierId = ruleset.alien("sectoid_soldier") != null ? "sectoid_soldier"
                 : ruleset.aliens().iterator().next().id();
-        for (int i = 0; i < crew; i++) {
-            setup.addAlien(BattleSetup.UnitSpec.alien(alienId, rifle));
+        // Mixed crew: a psi leader plus soldiers, with tougher races at higher difficulty.
+        List<String> races = new ArrayList<String>();
+        races.add(ruleset.alien("sectoid_leader") != null ? "sectoid_leader" : soldierId);
+        for (int i = 1; i < crew; i++) {
+            races.add(soldierId);
+        }
+        if (difficulty.level() >= 2 && ruleset.alien("floater_soldier") != null && races.size() > 1) {
+            races.set(1, "floater_soldier");
+        }
+        if (difficulty.level() >= 3 && ruleset.alien("muton_soldier") != null && races.size() > 2) {
+            races.set(races.size() - 1, "muton_soldier");
+        }
+        for (String race : races) {
+            setup.addAlien(BattleSetup.UnitSpec.alien(race, rifle));
         }
         return setup;
     }

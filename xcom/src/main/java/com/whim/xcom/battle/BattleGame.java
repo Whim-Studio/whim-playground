@@ -488,9 +488,21 @@ public final class BattleGame {
         for (BattleUnit s : living(Side.XCOM)) {
             s.refreshTU();
         }
+        processPanic();
         turn++;
         listener.onEvent("— Turn " + turn + " —");
         listener.onChanged();
+    }
+
+    /** Panicked soldiers cower for their turn (lose all TU), then recover. */
+    private void processPanic() {
+        for (BattleUnit s : living(Side.XCOM)) {
+            if (s.panicked()) {
+                s.spendTU(s.tu());
+                s.setPanicked(false);
+                listener.onEvent(s.name() + " is panicking and cannot act this turn!");
+            }
+        }
     }
 
     private void runAlienTurn() {
@@ -506,9 +518,48 @@ public final class BattleGame {
         }
     }
 
-    /** One small alien action: shoot a visible soldier, else step toward the nearest. */
+    private static final int PSI_TU_PERCENT = 25;
+    private static final int PSI_MIN_STRENGTH = 45; // only leaders/commanders wield psi
+
+    public int psiCost(BattleUnit u) {
+        return (int) Math.round(u.maxTU() * PSI_TU_PERCENT / 100.0);
+    }
+
+    /** A psi-capable alien assaults a soldier's mind; on success the soldier panics. */
+    public boolean psiAttack(BattleUnit attacker, BattleUnit target) {
+        if (attacker == null || target == null || !attacker.alive() || !target.alive()) {
+            return false;
+        }
+        int cost = psiCost(attacker);
+        if (!attacker.hasTU(cost)) {
+            return false;
+        }
+        attacker.spendTU(cost);
+        int dist = BattleMap.distance(attacker.x(), attacker.y(), target.x(), target.y());
+        int chance = ruleset.psi().panicChancePercent(
+                attacker.psiStrength(), target.psiStrength(), dist);
+        if (rng.chance(chance / 100.0)) {
+            target.setPanicked(true);
+            target.changeMorale(-30);
+            listener.onEvent(attacker.name() + " assaults " + target.name()
+                    + "'s mind — panic sets in!");
+        } else {
+            listener.onEvent(target.name() + " resists a psi attack.");
+        }
+        listener.onChanged();
+        return true;
+    }
+
+    /** One small alien action: psi-attack, shoot a visible soldier, else advance. */
     private boolean aiActOnce(BattleUnit a) {
         BattleUnit target = nearestVisibleFoe(a);
+        // Psi-capable leaders prefer to break the squad's will.
+        if (target != null && a.psiStrength() >= PSI_MIN_STRENGTH && !target.panicked()
+                && a.hasTU(psiCost(a))
+                && ruleset.psi().panicChancePercent(a.psiStrength(), target.psiStrength(),
+                        BattleMap.distance(a.x(), a.y(), target.x(), target.y())) > 0) {
+            return psiAttack(a, target);
+        }
         WeaponDef w = a.weapon();
         if (target != null && w != null) {
             // Prefer the best affordable shot with a real hit chance.

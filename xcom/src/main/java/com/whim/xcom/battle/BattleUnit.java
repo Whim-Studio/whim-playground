@@ -39,6 +39,8 @@ public final class BattleUnit {
     private boolean alive = true;
     private boolean reactionSpent; // has this unit already reacted since it last acted
     private int grenades;
+    private int psiStrength;       // psi attack power (aliens) / resistance (all)
+    private boolean panicked;      // will cower on its next turn
 
     public BattleUnit(String id, String name, Side side,
                       int maxTU, int maxHealth, int firingAccuracy, int reactions, int strength,
@@ -109,6 +111,11 @@ public final class BattleUnit {
 
     public int grenades() { return grenades; }
     public void setGrenades(int n) { this.grenades = Math.max(0, n); }
+
+    public int psiStrength() { return psiStrength; }
+    public void setPsiStrength(int n) { this.psiStrength = Math.max(0, n); }
+    public boolean panicked() { return panicked; }
+    public void setPanicked(boolean p) { this.panicked = p; }
     public boolean useGrenade() {
         if (grenades <= 0) {
             return false;

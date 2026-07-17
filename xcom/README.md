@@ -73,6 +73,22 @@ also advances the labs and workshops.
 Explosives and destruction are exposed on the engine as `BattleGame.throwGrenade`
 and `BattleGame.explode`, so future weapons (rockets, blaster bombs) reuse them.
 
+## Psionics & mixed alien crews (Phase 5)
+
+- **Psionics** — a new pluggable ruleset strategy `PsiModel` (default
+  `Ruleset1994Psi`) sits alongside the accuracy/damage/reaction/TU models on the
+  `Ruleset` seam. Psi-capable aliens (Sectoid Leaders and above) can assault a
+  soldier's mind on their turn; success depends on attacker psi strength, the
+  soldier's psi resistance and distance. A panicked soldier **cowers and loses its
+  next turn**, so keeping your squad's morale up matters.
+- **Mixed alien crews** — crash-site assaults are no longer all Sectoids: a psi
+  **leader** joins the crew, and tougher races (Floaters, then Mutons) appear as
+  difficulty rises, each with the stats and psi values from the data pack.
+
+`PsiModel` is a clean example of the Phase 0 design paying off: a whole new combat
+subsystem was added by defining one strategy interface and its default, with no
+change to the engine's other formulas.
+
 > **Clean-room / no original assets.** All code is original. Every rule and number
 > is reconstructed from public documentation (UFOpaedia, OpenXcom) — see
 > [`DESIGN.md`](DESIGN.md) and [`CREDITS.md`](CREDITS.md). All art is drawn

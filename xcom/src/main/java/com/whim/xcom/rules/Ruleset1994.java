@@ -21,8 +21,10 @@ import com.whim.xcom.rules.def.WeaponDef;
 import com.whim.xcom.rules.model.AccuracyModel;
 import com.whim.xcom.rules.model.DamageModel;
 import com.whim.xcom.rules.model.ReactionModel;
+import com.whim.xcom.rules.model.PsiModel;
 import com.whim.xcom.rules.model.Ruleset1994Accuracy;
 import com.whim.xcom.rules.model.Ruleset1994Damage;
+import com.whim.xcom.rules.model.Ruleset1994Psi;
 import com.whim.xcom.rules.model.Ruleset1994Reactions;
 import com.whim.xcom.rules.model.Ruleset1994TimeUnits;
 import com.whim.xcom.rules.model.TimeUnitModel;
@@ -52,6 +54,7 @@ public class Ruleset1994 implements Ruleset {
     private final ReactionModel reactions = new Ruleset1994Reactions();
     private final DamageModel damage = new Ruleset1994Damage();
     private final TimeUnitModel timeUnits = new Ruleset1994TimeUnits();
+    private final PsiModel psi = new Ruleset1994Psi();
 
     private String displayName = "1994 (X-COM: UFO Defense)";
 
@@ -148,6 +151,7 @@ public class Ruleset1994 implements Ruleset {
     @Override public ReactionModel reactions() { return reactions; }
     @Override public DamageModel damage() { return damage; }
     @Override public TimeUnitModel timeUnits() { return timeUnits; }
+    @Override public PsiModel psi() { return psi; }
 
     /** Convenience for UI: is the given weapon+mode combination legal? */
     public boolean supports(String weaponId, FireMode mode) {

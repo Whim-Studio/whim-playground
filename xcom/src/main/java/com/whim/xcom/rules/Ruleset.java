@@ -11,6 +11,7 @@ import com.whim.xcom.rules.def.UfoDef;
 import com.whim.xcom.rules.def.WeaponDef;
 import com.whim.xcom.rules.model.AccuracyModel;
 import com.whim.xcom.rules.model.DamageModel;
+import com.whim.xcom.rules.model.PsiModel;
 import com.whim.xcom.rules.model.ReactionModel;
 import com.whim.xcom.rules.model.TimeUnitModel;
 
@@ -68,4 +69,6 @@ public interface Ruleset {
     DamageModel damage();
 
     TimeUnitModel timeUnits();
+
+    PsiModel psi();
 }

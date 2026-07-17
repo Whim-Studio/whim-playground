@@ -35,6 +35,7 @@ public final class BattleFactory {
                     spec.maxTU, spec.maxHealth, spec.firingAccuracy, spec.reactions, spec.strength,
                     weapon, armor);
             u.setGrenades(2);
+            u.setPsiStrength(20 + (sIndex % 4) * 3); // modest innate psi resistance
             u.setPos(pos[0], pos[1]);
             u.setFacing(0); // face north, toward the aliens
             game.addUnit(u);
@@ -60,6 +61,7 @@ public final class BattleFactory {
             String name = (def != null ? def.name() : "Alien") + " " + (aIndex + 1);
             BattleUnit u = new BattleUnit("A" + aIndex, name, Side.ALIEN,
                     tu, hp, acc, rea, str, weapon, armor);
+            u.setPsiStrength(def != null ? def.psiStrength() : 0);
             u.setPos(pos[0], pos[1]);
             u.setFacing(4); // face south, toward the squad
             game.addUnit(u);
