@@ -1,0 +1,20 @@
+{
+  "name": "tiwas-mahjong-web",
+  "version": "0.1.0-skeleton",
+  "private": true,
+  "description": "Tiwa's Mah Jong — browser single-player-vs-3-AI, Node + Express + MySQL. Design/schema/skeleton.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:schema": "mysql --defaults-extra-file=./db/.my.cnf < db/schema.sql",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20.19.0" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0",
+    "ws": "^8.18.0"
+  }
+}

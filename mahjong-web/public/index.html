@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Tiwa's Mah Jong</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ================= Identity / consent screen ================= -->
+    <section id="screen-identity" class="screen active">
+      <h1>Tiwa's Mah Jong <span class="tag">Demo</span></h1>
+      <p class="sub">One player vs. three AI. Money games only.</p>
+
+      <div class="card">
+        <div class="seg">
+          <button data-mode="guest" class="seg-btn active">Play as Guest</button>
+          <button data-mode="name" class="seg-btn">Name only</button>
+          <button data-mode="name_email" class="seg-btn">Name + email</button>
+        </div>
+
+        <div id="fields-name" class="fields hidden">
+          <label>Display name <input id="in-name" maxlength="64" placeholder="e.g. Alice" /></label>
+        </div>
+        <div id="fields-email" class="fields hidden">
+          <label>Email <input id="in-email" type="email" placeholder="you@example.com" /></label>
+        </div>
+
+        <!-- REQUIRED disclosure copy — shown verbatim before any submission. -->
+        <p id="consent" class="consent">
+          Your name and email are used only to save and load your game statistics —
+          they are not used for login authentication, marketing, or any other purpose,
+          and no password is required. Anyone who enters the same name and email
+          combination can load this profile, so don't use a real email if you'd prefer
+          this stay private.
+        </p>
+
+        <button id="btn-start" class="primary">Start playing</button>
+        <p id="identity-error" class="error hidden"></p>
+      </div>
+    </section>
+
+    <!-- ================= Round setup (Limited/Unlimited, every hand) ===== -->
+    <section id="screen-round" class="screen">
+      <h2>New hand</h2>
+      <div class="card">
+        <div class="seg">
+          <button data-limit="limited" class="seg-btn active">Limited</button>
+          <button data-limit="unlimited" class="seg-btn">Unlimited</button>
+        </div>
+        <div id="limit-fields" class="fields">
+          <label>Points Limit <input id="in-points" type="number" value="1000" min="1" /></label>
+          <label>Money Limit ($) <input id="in-money" type="number" value="10" min="1" /></label>
+        </div>
+        <p class="hint">You choose Limited or Unlimited fresh before every hand.</p>
+        <button id="btn-deal" class="primary">Deal</button>
+      </div>
+    </section>
+
+    <!-- ================= Table ================= -->
+    <section id="screen-table" class="screen">
+      <header class="hud">
+        <span id="hud-name">—</span>
+        <span>💰 <b id="hud-money">1000</b></span>
+        <span>★ <b id="hud-points">0</b></span>
+        <span id="hud-mode" class="pill">Limited 1000/$10</span>
+      </header>
+
+      <div id="opponents" class="opponents"><!-- 3 AI seat summaries --></div>
+
+      <div class="discard-area">
+        <div class="discard-label">Discards</div>
+        <div id="discard-pile" class="discard-pile"></div>
+      </div>
+
+      <!-- 6-second claim prompt -->
+      <div id="claim-prompt" class="claim-prompt hidden">
+        <div class="claim-timer"><div id="claim-bar"></div></div>
+        <div class="claim-actions">
+          <button data-claim="pung">Pung</button>
+          <button data-claim="mahjong">Mahjong</button>
+          <button data-claim="pass">Pass</button>
+        </div>
+      </div>
+
+      <div id="turn-note" class="turn-note">Dealing…</div>
+      <div id="rack" class="rack"><!-- human tiles --></div>
+      <div id="melds" class="melds"><!-- exposed melds / flowers --></div>
+    </section>
+
+    <!-- ================= Settlement summary ================= -->
+    <section id="screen-settlement" class="screen">
+      <h2 id="settle-title">Hand settled</h2>
+      <div id="settle-body" class="card"></div>
+      <div id="bankrupt-banner" class="banner hidden">A player has gone broke — the game ends.</div>
+      <button id="btn-next" class="primary">Next hand</button>
+    </section>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
