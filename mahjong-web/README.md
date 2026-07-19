@@ -121,21 +121,26 @@ Resolved:
   winning tile is attributed to a chow/pair first when possible (0 penalty) so the
   winner is never over-penalised. Covered by `test/engine.test.js`.
 
-Still open (defaults chosen; confirm or correct):
+Defaults chosen **and implemented + tested** (confirm, or ask for a variant — each
+is a localized rule change, not a rewrite):
 
 4. **"Kong" claim priority tier:** §4 forbids claiming a kong from a discard, so the
    Kong priority tier is vestigial for discards. `ClaimResolver` filters kong claims
-   out and keeps Mahjong > Pung. Confirm no discard-kong variant is wanted.
-5. **Which structural doubles are mutually exclusive / independently stackable**
-   (e.g. can `NO_CHOWS` co-exist with `DOUBLE_PUNG` + `ALL_ONE_SUIT_HONORS`?). The
-   scorer stacks **every flag `HandAnalyzer.detectStructuralDoubles` returns**; the
-   exact detection rules (and any exclusions) are the main open specification item
-   before that analyzer is implemented. The cap at Points Limit bounds the blow-up.
-6. **Pure single-suit hand with no honors** (Full Flush) has no listed double —
-   only "All One Suit with Honours (7)". Assumed: no extra double unless honors are
-   present. Confirm.
+   out and keeps Mahjong > Pung. *Implemented in `ClaimResolver`.* Confirm no
+   discard-kong variant is wanted.
+5. **Which structural doubles stack vs are mutually exclusive:** the scorer stacks
+   **every flag `HandAnalyzer.detectStructuralDoubles` returns**, with these built-in
+   exclusions: `NO_CHOWS`/`ALL_CHOWS` are mutually exclusive by construction;
+   `DOUBLE_PUNG` is awarded once even with multiple same-rank pairs; suit composition
+   yields at most one of `ALL_HONORS`/`ALL_ONE_SUIT_HONORS`. All other doubles (e.g.
+   `SHORT_STRAIGHT` + `DOUBLE_PUNG`) stack. The Points Limit cap bounds the blow-up.
+   *Implemented + tested in `HandAnalyzer`.* Confirm the exclusion set.
+6. **Pure single-suit hand with no honors** (Full Flush) gets no listed double —
+   only "All One Suit with Honours (7)". `ALL_ONE_SUIT_HONORS` requires ≥1 honor, so a
+   pure single-suit-no-honor hand scores no extra double. *Implemented + tested.*
 7. **`FULLY_CONCEALED` vs `ALL_CONCEALED_HAND`:** §5 describes them as the same
-   2-double bonus; treated as one bonus (not stacked). Confirm they never double up.
+   2-double bonus; `FULLY_CONCEALED` is an alias and they never stack. *Implemented
+   in `constants.js` / `GameEngine`.* Confirm they should never double up.
 
 ## Status of each module
 
