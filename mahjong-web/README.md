@@ -98,11 +98,18 @@ Resolved:
   mapping (`persistence/handRecords.js`) is unit-tested (settlement vs flower vs
   penalty money split, unlimited nulls). Persistence is **best-effort**: any DB
   failure disables the recorder for that table and play continues in-memory, so the
-  no-DB guest path is byte-for-byte unchanged. **v1 model:** the live table is a
-  fresh $1000 buy-in per session; the profile is the lifetime ledger (its
-  `current_money` = 1000 + Σ all recorded deltas). Auto-loading the persisted
-  bankroll as the table's starting stack is the next step (needs a live-DB smoke
-  test — no MySQL is provisioned in this container).
+  no-DB guest path is byte-for-byte unchanged. **Bankroll carry-over:** a returning
+  player (persisted profile) loads their lifetime `current_money` as seat East's
+  opening stack on the first hand (`startingBalances`, unit-tested); the three AI
+  opponents always start from a fresh $1000 buy-in so they can't go permanently
+  bankrupt across sessions. Offline guests / no-DB keep the fresh $1000 buy-in.
+  The profile stays the lifetime ledger (`current_money` = 1000 + Σ all recorded
+  deltas). **Verified against live MySQL** (MariaDB 10.11): a full headless hand
+  commits the `games`/`game_seats`/`hands`/`hand_results`/`hand_events` rows in one
+  transaction, per-hand money nets to zero, the profile ledger updates
+  (1000 → 976 → 956 over two hands, `games_played` incrementing), and a fresh
+  session loads the returning player's persisted balance (976) into East's opening
+  stack while the AI seats start from a fresh $1000 — carry-over confirmed.
 - **False-Mahjong enforced server-side (§8).** Declaring or claiming Mahjong on a
   hand that is not a legal win ends the round immediately; the offender pays the
   limit penalty (`floor((1000/pointsLimit)*moneyLimit)`, or $1000 Unlimited) to each
@@ -118,21 +125,26 @@ Resolved:
   winning tile is attributed to a chow/pair first when possible (0 penalty) so the
   winner is never over-penalised. Covered by `test/engine.test.js`.
 
-Still open (defaults chosen; confirm or correct):
+Defaults chosen **and implemented + tested** (confirm, or ask for a variant — each
+is a localized rule change, not a rewrite):
 
 4. **"Kong" claim priority tier:** §4 forbids claiming a kong from a discard, so the
    Kong priority tier is vestigial for discards. `ClaimResolver` filters kong claims
-   out and keeps Mahjong > Pung. Confirm no discard-kong variant is wanted.
-5. **Which structural doubles are mutually exclusive / independently stackable**
-   (e.g. can `NO_CHOWS` co-exist with `DOUBLE_PUNG` + `ALL_ONE_SUIT_HONORS`?). The
-   scorer stacks **every flag `HandAnalyzer.detectStructuralDoubles` returns**; the
-   exact detection rules (and any exclusions) are the main open specification item
-   before that analyzer is implemented. The cap at Points Limit bounds the blow-up.
-6. **Pure single-suit hand with no honors** (Full Flush) has no listed double —
-   only "All One Suit with Honours (7)". Assumed: no extra double unless honors are
-   present. Confirm.
+   out and keeps Mahjong > Pung. *Implemented in `ClaimResolver`.* Confirm no
+   discard-kong variant is wanted.
+5. **Which structural doubles stack vs are mutually exclusive:** the scorer stacks
+   **every flag `HandAnalyzer.detectStructuralDoubles` returns**, with these built-in
+   exclusions: `NO_CHOWS`/`ALL_CHOWS` are mutually exclusive by construction;
+   `DOUBLE_PUNG` is awarded once even with multiple same-rank pairs; suit composition
+   yields at most one of `ALL_HONORS`/`ALL_ONE_SUIT_HONORS`. All other doubles (e.g.
+   `SHORT_STRAIGHT` + `DOUBLE_PUNG`) stack. The Points Limit cap bounds the blow-up.
+   *Implemented + tested in `HandAnalyzer`.* Confirm the exclusion set.
+6. **Pure single-suit hand with no honors** (Full Flush) gets no listed double —
+   only "All One Suit with Honours (7)". `ALL_ONE_SUIT_HONORS` requires ≥1 honor, so a
+   pure single-suit-no-honor hand scores no extra double. *Implemented + tested.*
 7. **`FULLY_CONCEALED` vs `ALL_CONCEALED_HAND`:** §5 describes them as the same
-   2-double bonus; treated as one bonus (not stacked). Confirm they never double up.
+   2-double bonus; `FULLY_CONCEALED` is an alias and they never stack. *Implemented
+   in `constants.js` / `GameEngine`.* Confirm they should never double up.
 
 ## Status of each module
 

@@ -10,6 +10,7 @@ import { moneyForPoints, falseMahjongPenaltyPerOpponent, settleWin, settleFalseM
 import { resolveClaims } from '../src/engine/ClaimResolver.js';
 import { validateIdentityInput } from '../src/api/identity.js';
 import { buildHandRecords } from '../src/persistence/handRecords.js';
+import { startingBalances } from '../src/realtime/LiveGame.js';
 
 test('mahjong bonus is floor(1% of limit); 0 when unlimited', () => {
   assert.equal(mahjongBonus(1000), 10);
@@ -233,6 +234,15 @@ test('buildHandRecords: unlimited mode nulls the limit columns', () => {
   assert.equal(hand.points_limit, null);
   assert.equal(hand.money_limit, null);
   assert.equal(hand.result_type, 'draw');
+});
+
+test('bankroll carry-over: East loads persisted balance, AI stay fresh; guest unchanged', () => {
+  // Returning profile: East carries lifetime bankroll, opponents get a fresh buy-in.
+  assert.deepEqual(startingBalances(2500), { E: 2500, S: 1000, W: 1000, N: 1000 });
+  assert.deepEqual(startingBalances(300), { E: 300, S: 1000, W: 1000, N: 1000 });
+  // Offline guest / no DB (null) => everyone fresh; guest path unchanged.
+  assert.deepEqual(startingBalances(null), { E: 1000, S: 1000, W: 1000, N: 1000 });
+  assert.deepEqual(startingBalances(undefined), { E: 1000, S: 1000, W: 1000, N: 1000 });
 });
 
 test('identity validation enforces modes', () => {
