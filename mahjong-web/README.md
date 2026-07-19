@@ -104,8 +104,12 @@ Resolved:
   opponents always start from a fresh $1000 buy-in so they can't go permanently
   bankrupt across sessions. Offline guests / no-DB keep the fresh $1000 buy-in.
   The profile stays the lifetime ledger (`current_money` = 1000 + Σ all recorded
-  deltas). The carry-over path still needs a live-DB smoke test — no MySQL is
-  provisioned in this container.
+  deltas). **Verified against live MySQL** (MariaDB 10.11): a full headless hand
+  commits the `games`/`game_seats`/`hands`/`hand_results`/`hand_events` rows in one
+  transaction, per-hand money nets to zero, the profile ledger updates
+  (1000 → 976 → 956 over two hands, `games_played` incrementing), and a fresh
+  session loads the returning player's persisted balance (976) into East's opening
+  stack while the AI seats start from a fresh $1000 — carry-over confirmed.
 - **False-Mahjong enforced server-side (§8).** Declaring or claiming Mahjong on a
   hand that is not a legal win ends the round immediately; the offender pays the
   limit penalty (`floor((1000/pointsLimit)*moneyLimit)`, or $1000 Unlimited) to each
