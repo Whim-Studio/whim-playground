@@ -98,11 +98,14 @@ Resolved:
   mapping (`persistence/handRecords.js`) is unit-tested (settlement vs flower vs
   penalty money split, unlimited nulls). Persistence is **best-effort**: any DB
   failure disables the recorder for that table and play continues in-memory, so the
-  no-DB guest path is byte-for-byte unchanged. **v1 model:** the live table is a
-  fresh $1000 buy-in per session; the profile is the lifetime ledger (its
-  `current_money` = 1000 + Σ all recorded deltas). Auto-loading the persisted
-  bankroll as the table's starting stack is the next step (needs a live-DB smoke
-  test — no MySQL is provisioned in this container).
+  no-DB guest path is byte-for-byte unchanged. **Bankroll carry-over:** a returning
+  player (persisted profile) loads their lifetime `current_money` as seat East's
+  opening stack on the first hand (`startingBalances`, unit-tested); the three AI
+  opponents always start from a fresh $1000 buy-in so they can't go permanently
+  bankrupt across sessions. Offline guests / no-DB keep the fresh $1000 buy-in.
+  The profile stays the lifetime ledger (`current_money` = 1000 + Σ all recorded
+  deltas). The carry-over path still needs a live-DB smoke test — no MySQL is
+  provisioned in this container.
 - **False-Mahjong enforced server-side (§8).** Declaring or claiming Mahjong on a
   hand that is not a legal win ends the round immediately; the offender pays the
   limit penalty (`floor((1000/pointsLimit)*moneyLimit)`, or $1000 Unlimited) to each

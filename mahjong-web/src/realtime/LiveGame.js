@@ -17,6 +17,21 @@ import { STARTING_MONEY } from '../domain/constants.js';
 import { validateRoundConfig } from '../api/validation.js';
 import { StatsRecorder } from '../persistence/StatsRecorder.js';
 
+/**
+ * Compute the table's opening balances. A returning player (persisted profile)
+ * carries their lifetime bankroll into seat East; the three AI opponents always
+ * start from a fresh buy-in so they can't go permanently bankrupt across sessions.
+ * `startingMoney == null` (offline guest / no DB) => everyone gets a fresh buy-in,
+ * so the guest path is byte-for-byte unchanged.
+ * @param {?number} startingMoney East's persisted balance, or null for a guest.
+ * @returns {{E:number,S:number,W:number,N:number}}
+ */
+export function startingBalances(startingMoney) {
+  const east = (startingMoney != null && Number.isFinite(startingMoney))
+    ? startingMoney : STARTING_MONEY;
+  return { E: east, S: STARTING_MONEY, W: STARTING_MONEY, N: STARTING_MONEY };
+}
+
 export class LiveGame {
   constructor(send, { humanName = 'You' } = {}) {
     this.send = send;                      // (type, payload) => void
@@ -63,10 +78,20 @@ export class LiveGame {
     if (!cfg.ok) return this.send('error', { message: cfg.errors.join(', ') });
 
     this.inHand = true;
-    this.handNumber++;
     // Open the game row + seat profiles on the first hand (best-effort, no-op with
     // no DB). Capture this hand's dealer/wind BEFORE settlement rotates them.
-    await this.recorder.init(this.humanPlayerId);
+    const initInfo = await this.recorder.init(this.humanPlayerId);
+    // Bankroll carry-over: on the very first hand of a persisted profile, load the
+    // player's lifetime balance as East's starting stack (AI stay a fresh buy-in).
+    // Guest / no-DB leaves the fresh $1000 buy-in untouched.
+    if (this.handNumber === 0 && initInfo && initInfo.startingMoney != null) {
+      this.balances = startingBalances(initInfo.startingMoney);
+      if (this.balances.E <= 0) {
+        this.ended = true; this.inHand = false;
+        return this.send('error', { message: 'your profile is out of funds — cannot start a hand' });
+      }
+    }
+    this.handNumber++;
     this._handCtx = { handNumber: this.handNumber, dealerSeat: this.dealerSeat,
       roundWind: this.roundWind, cfg: cfg.value };
     this.engine = new GameEngine({
