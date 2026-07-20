@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Arcana — Tarot Readings</title>
+<style>
+  :root{
+    --bg:#0e0a1f; --bg2:#171130; --panel:#1d1638; --panel2:#251b4a;
+    --ink:#efe9ff; --muted:#a99fce; --line:#3a2f63;
+    --gold:#e8c37e; --gold-dim:#b9975a; --violet:#8b6cf0; --violet-dim:#6a4fd0;
+    --pos:#63d6a0; --chal:#e0748a; --trans:#e8c37e;
+    --pay:#f0c96a;
+    --shadow:0 10px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#241a49 0%,var(--bg) 55%);color:var(--ink);
+    font-family:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;line-height:1.5;min-height:100vh}
+  a{color:var(--gold)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 22px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(20,15,45,.9),rgba(20,15,45,.55));position:sticky;top:0;z-index:20;backdrop-filter:blur(8px)}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand h1{font-size:26px;margin:0;letter-spacing:.14em;font-weight:600}
+  .brand h1 .glyph{color:var(--gold)}
+  .brand .tag{color:var(--muted);font-size:12px;letter-spacing:.24em;text-transform:uppercase}
+  nav{display:flex;gap:6px;flex-wrap:wrap}
+  nav button{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 14px;border-radius:9px;
+    font:inherit;font-size:14px;cursor:pointer;letter-spacing:.05em}
+  nav button:hover{color:var(--ink);border-color:var(--line)}
+  nav button.active{color:var(--bg);background:var(--gold);border-color:var(--gold);font-weight:600}
+  .acct{font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center}
+  .acct button{background:transparent;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;font:inherit;cursor:pointer}
+  main{max-width:1120px;margin:0 auto;padding:26px 22px 80px}
+  .view{display:none;animation:fade .4s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  h2{font-weight:600;letter-spacing:.04em;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .card-surface{background:linear-gradient(180deg,var(--panel),#191233);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  /* spread picker */
+  .spreads{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .spread{cursor:pointer;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;transition:.15s;color:var(--ink)}
+  .spread:hover{border-color:var(--violet);transform:translateY(-2px)}
+  .spread.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+  .spread h3{margin:0 0 4px;font-size:18px}
+  .spread .n{color:var(--gold);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+  .spread p{margin:8px 0 0;color:var(--muted);font-size:13px}
+  textarea,input[type=text],input[type=email],input[type=password]{width:100%;background:#120d28;border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:12px 14px;font:inherit;font-size:15px;resize:vertical}
+  label.fld{display:block;margin:14px 0 6px;color:var(--muted);font-size:13px;letter-spacing:.06em}
+  .btn{background:var(--gold);color:#241a10;border:none;padding:12px 22px;border-radius:10px;font:inherit;font-weight:600;
+    font-size:15px;cursor:pointer;letter-spacing:.04em;transition:.15s}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn.violet{background:var(--violet);color:#fff}
+  .btn.pay{background:linear-gradient(180deg,#f4d27a,#dca94e);color:#3a2a08}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .disclaimer{margin-top:26px;color:var(--muted);font-size:12px;text-align:center;letter-spacing:.04em;opacity:.85}
+  /* board */
+  .board{position:relative;margin:8px 0 4px}
+  .slot{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .tarot{width:120px;height:205px;border-radius:12px;position:relative;cursor:pointer;perspective:900px;flex:none}
+  .tarot .flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.3,.7,.3,1)}
+  .tarot.up .flip{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
+  .back{background:
+      radial-gradient(circle at 50% 30%,rgba(232,195,126,.25),transparent 60%),
+      repeating-linear-gradient(45deg,#241a49 0 10px,#1c1440 10px 20px);
+    display:flex;align-items:center;justify-content:center}
+  .back::after{content:"✦";color:var(--gold);font-size:34px;opacity:.85}
+  .front{transform:rotateY(180deg);background:#0c0820;display:flex;flex-direction:column}
+  .front img{width:100%;height:100%;object-fit:cover;display:block}
+  .front.rev img{transform:rotate(180deg)}
+  .imgph{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-align:center;padding:8px}
+  .slot .pos{font-size:11px;color:var(--muted);text-align:center;max-width:130px;letter-spacing:.03em;min-height:26px}
+  .slot .tone{font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:2px 8px;border-radius:20px;border:1px solid}
+  .tone.Positive{color:var(--pos);border-color:var(--pos)}
+  .tone.Challenging{color:var(--chal);border-color:var(--chal)}
+  .tone.Transitional{color:var(--trans);border-color:var(--trans)}
+  .rev-badge{font-size:10px;color:var(--chal);letter-spacing:.1em}
+  /* detail + synthesis */
+  .reading-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+  @media(max-width:820px){.reading-cols{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .panel h3{margin:0 0 10px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+  .detail-name{font-size:20px;margin:0}
+  .detail-meta{color:var(--muted);font-size:13px;margin:2px 0 12px}
+  .paywall{border:1px dashed var(--gold-dim);border-radius:14px;padding:20px;text-align:center;background:rgba(232,195,126,.06)}
+  .paywall .lock{font-size:30px}
+  .paywall h3{color:var(--gold);text-transform:none;letter-spacing:0;font-size:20px}
+  .locked-preview{filter:blur(5px);user-select:none;pointer-events:none;opacity:.6}
+  .synth p{margin:0 0 12px}
+  .demo-note{font-size:11px;color:var(--muted);margin-top:8px}
+  /* library */
+  .lib-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .lib-controls input{max-width:280px}
+  .lib-controls select{background:#120d28;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 12px;font:inherit}
+  .lib{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .libcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:.15s}
+  .libcard:hover{border-color:var(--gold);transform:translateY(-3px)}
+  .libcard .thumb{aspect-ratio:120/205;background:#0c0820;display:flex;align-items:center;justify-content:center}
+  .libcard .thumb img{width:100%;height:100%;object-fit:cover}
+  .libcard .lc{padding:8px 10px}
+  .libcard .lc b{font-size:13px;display:block}
+  .libcard .lc span{font-size:11px;color:var(--muted)}
+  /* history */
+  .hist-item{display:flex;justify-content:space-between;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer}
+  .hist-item:hover{border-color:var(--violet)}
+  .hist-item .q{font-size:15px}
+  .hist-item .m{font-size:12px;color:var(--muted)}
+  .pill{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .pill.unlocked{color:var(--pos);border-color:var(--pos)}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(6,4,16,.75);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal.open{display:flex}
+  .modal .box{background:var(--panel2);border:1px solid var(--line);border-radius:16px;max-width:560px;width:100%;padding:24px;box-shadow:var(--shadow);max-height:90vh;overflow:auto}
+  .modal .box .x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
+  .mimg{width:130px;height:222px;border-radius:10px;object-fit:cover;float:left;margin:0 18px 12px 0;border:1px solid var(--line)}
+  .empty{color:var(--muted);text-align:center;padding:40px}
+  code.export{display:block;white-space:pre-wrap;background:#0a0718;border:1px solid var(--line);border-radius:10px;padding:14px;font-family:ui-monospace,monospace;font-size:12px;color:#cdbff5;max-height:320px;overflow:auto;margin-top:10px}
+  .free-tag{font-size:11px;color:var(--pos);border:1px solid var(--pos);border-radius:20px;padding:2px 9px;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1><span class="glyph">✦</span> ARCANA</h1>
+    <span class="tag">Tarot Readings</span>
+  </div>
+  <nav id="nav">
+    <button data-view="read" class="active">New Reading</button>
+    <button data-view="library">Card Library</button>
+    <button data-view="history">History</button>
+    <button data-view="account">Account</button>
+  </nav>
+  <div class="acct" id="acct"></div>
+</header>
+
+<main>
+  <!-- ============ READING VIEW ============ -->
+  <section class="view active" id="view-read">
+    <div id="step-setup">
+      <h2>Choose your spread</h2>
+      <p class="sub">Focus on a question, select a spread, and draw the cards.</p>
+      <div class="grid spreads" id="spread-picker"></div>
+
+      <div class="card-surface" style="margin-top:22px">
+        <label class="fld" for="question">Your question <span style="opacity:.6">(optional — hold it in mind)</span></label>
+        <textarea id="question" rows="2" placeholder="e.g. What should I focus on in my career this season?"></textarea>
+        <div class="row" style="margin-top:16px">
+          <button class="btn" id="draw-btn" disabled>Shuffle &amp; Draw</button>
+          <span class="muted" id="draw-hint" style="color:var(--muted);font-size:13px">Select a spread above to begin.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="step-reading" style="display:none">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div>
+          <h2 id="reading-title" style="margin-bottom:2px"></h2>
+          <p class="sub" id="reading-q" style="margin:0"></p>
+        </div>
+        <button class="btn ghost" id="new-reading-btn">← New Reading</button>
+      </div>
+
+      <div class="card-surface">
+        <div class="board grid" id="board"></div>
+        <p style="text-align:center;color:var(--muted);font-size:13px;margin:14px 0 0" id="reveal-hint">Tap each card to turn it over.</p>
+      </div>
+
+      <div class="reading-cols">
+        <div class="panel" id="detail-panel">
+          <h3>Card Detail</h3>
+          <div id="detail-body"><p class="muted" style="color:var(--muted)">Select a card above to see its meaning.</p></div>
+        </div>
+        <div class="panel">
+          <h3>Surface Reading <span class="free-tag">Free</span></h3>
+          <div id="surface-body"><p style="color:var(--muted)">Turn over your cards to reveal the surface reading.</p></div>
+        </div>
+      </div>
+
+      <div id="full-section" style="margin-top:18px"></div>
+
+      <div class="panel" style="margin-top:18px">
+        <h3>LLM-Ready Export <span class="free-tag">Free</span></h3>
+        <p style="color:var(--muted);font-size:13px;margin:0 0 6px">Structured JSON of your draw for use with any chatbot. The full synthesized interpretation is included only after unlock.</p>
+        <button class="btn ghost" id="export-btn">Show JSON export</button>
+        <code class="export" id="export-out" style="display:none"></code>
+      </div>
+    </div>
+
+    <p class="disclaimer">✦ For entertainment purposes only. Tarot readings are not a substitute for professional medical, legal, financial, or psychological advice. ✦</p>
+  </section>
+
+  <!-- ============ LIBRARY VIEW ============ -->
+  <section class="view" id="view-library">
+    <h2>Card Library</h2>
+    <p class="sub">All 78 cards of the Rider–Waite–Smith deck — always free to browse.</p>
+    <div class="lib-controls">
+      <input type="text" id="lib-search" placeholder="Search cards…" />
+      <select id="lib-suit">
+        <option value="">All Arcana</option>
+        <option value="MAJOR">Major Arcana</option>
+        <option value="WANDS">Wands</option>
+        <option value="CUPS">Cups</option>
+        <option value="SWORDS">Swords</option>
+        <option value="PENTACLES">Pentacles</option>
+      </select>
+    </div>
+    <div class="grid lib" id="lib-grid"></div>
+  </section>
+
+  <!-- ============ HISTORY VIEW ============ -->
+  <section class="view" id="view-history">
+    <h2>Reading History</h2>
+    <p class="sub">Your past readings, stored locally in this browser.</p>
+    <div id="hist-list"></div>
+  </section>
+
+  <!-- ============ ACCOUNT VIEW ============ -->
+  <section class="view" id="view-account">
+    <h2>Account</h2>
+    <p class="sub">Demo account — stored locally, no real authentication or server.</p>
+    <div class="card-surface" style="max-width:440px" id="account-box"></div>
+  </section>
+</main>
+
+<!-- card detail modal (library) -->
+<div class="modal" id="modal"><div class="box"><span class="x" id="modal-x">×</span><div id="modal-body"></div></div></div>
+
+<script src="cards.js"></script>
+<script>
+(function(){
+  "use strict";
+  var CARDS = window.TAROT_CARDS;
+  var LS = {
+    user:'arcana_user', hist:'arcana_history'
+  };
+
+  // ---------- Spreads ----------
+  var SPREADS = {
+    single:{ name:'Daily Focus', n:1, blurb:'A single card for the energy of your day.',
+      positions:[{name:'Daily Focus',meaning:'The central energy or lesson to carry through your day.'}] },
+    three:{ name:'Past · Present · Future', n:3, blurb:'The classic three-card timeline reading.',
+      positions:[
+        {name:'The Past',meaning:'Roots of the situation — what has led you here.'},
+        {name:'The Present',meaning:'The heart of the matter as it stands now.'},
+        {name:'The Future',meaning:'Where the current path is tending.'}] },
+    horseshoe:{ name:'The Horseshoe', n:7, blurb:'Seven cards mapping the shape of a situation.',
+      positions:[
+        {name:'The Past',meaning:'Past influences still at work.'},
+        {name:'The Present',meaning:'Your present circumstances.'},
+        {name:'Hidden Influences',meaning:'Unseen forces beneath the surface.'},
+        {name:'Obstacles',meaning:'The chief challenge to overcome.'},
+        {name:'External Influences',meaning:'How others and the environment affect you.'},
+        {name:'Guidance',meaning:'The advised course of action.'},
+        {name:'Likely Outcome',meaning:'Where things resolve if the path holds.'}] },
+    celtic:{ name:'Celtic Cross', n:10, blurb:'The definitive ten-card in-depth reading.',
+      positions:[
+        {name:'The Present',meaning:'The heart of the matter — where you stand.'},
+        {name:'The Challenge',meaning:'What crosses you, for good or ill.'},
+        {name:'The Foundation',meaning:'The distant past and underlying basis.'},
+        {name:'The Recent Past',meaning:'Events just passing out of influence.'},
+        {name:'The Crown',meaning:'The best possible outcome or aspiration.'},
+        {name:'The Near Future',meaning:'What approaches next.'},
+        {name:'Your Attitude',meaning:'How you see yourself in this.'},
+        {name:'External Influences',meaning:'Your environment and other people.'},
+        {name:'Hopes & Fears',meaning:'What you most desire — and most dread.'},
+        {name:'The Outcome',meaning:'The culmination of all these currents.'}] },
+    astro:{ name:'Astrological Spread', n:12, blurb:'Twelve cards, one for each house of the zodiac.',
+      positions:[
+        {name:'1st House · Self',meaning:'Identity, appearance, the way you begin things.'},
+        {name:'2nd House · Values',meaning:'Money, possessions, self-worth.'},
+        {name:'3rd House · Communication',meaning:'Thinking, siblings, short journeys.'},
+        {name:'4th House · Home',meaning:'Family, roots, your foundations.'},
+        {name:'5th House · Creativity',meaning:'Romance, play, self-expression.'},
+        {name:'6th House · Work',meaning:'Health, routine, daily service.'},
+        {name:'7th House · Partnership',meaning:'Committed relationships and open enemies.'},
+        {name:'8th House · Transformation',meaning:'Shared resources, intimacy, rebirth.'},
+        {name:'9th House · Philosophy',meaning:'Travel, belief, higher learning.'},
+        {name:'10th House · Career',meaning:'Reputation, ambition, public life.'},
+        {name:'11th House · Community',meaning:'Friends, groups, hopes for the future.'},
+        {name:'12th House · The Hidden',meaning:'The subconscious, secrets, what is undone.'}] }
+  };
+
+  // ---------- Tone (rule-based surface classification) ----------
+  var MAJOR_TONE = {
+    0:'Transitional',1:'Positive',2:'Transitional',3:'Positive',4:'Positive',5:'Positive',
+    6:'Positive',7:'Positive',8:'Positive',9:'Transitional',10:'Transitional',11:'Transitional',
+    12:'Transitional',13:'Transitional',14:'Positive',15:'Challenging',16:'Challenging',17:'Positive',
+    18:'Challenging',19:'Positive',20:'Transitional',21:'Positive'
+  };
+  // Minor: base by suit, with challenging numbers per suit.
+  var CHALLENGING_NUM = { WANDS:[5,7,10], CUPS:[5,8], SWORDS:[3,5,9,10], PENTACLES:[5] };
+  var TRANSITIONAL_NUM = { WANDS:[8], CUPS:[6], SWORDS:[6,2], PENTACLES:[7] };
+  function baseTone(card){
+    if(card.suit==='MAJOR') return MAJOR_TONE[card.number]||'Transitional';
+    var n=card.number;
+    if((CHALLENGING_NUM[card.suit]||[]).indexOf(n)>=0) return 'Challenging';
+    if((TRANSITIONAL_NUM[card.suit]||[]).indexOf(n)>=0) return 'Transitional';
+    return 'Positive'; // aces & courts & the rest lean constructive
+  }
+  function toneFor(card,reversed){
+    var t=baseTone(card);
+    if(reversed){ if(t==='Positive') return 'Challenging'; if(t==='Challenging') return 'Positive'; }
+    return t;
+  }
+  var TONE_WORD = {
+    Positive:'a supportive, forward-moving current',
+    Challenging:'friction that asks something of you',
+    Transitional:'a threshold — one chapter turning into the next'
+  };
+
+  // ---------- State ----------
+  var current = null; // active reading object
+
+  // ---------- Utilities ----------
+  function el(id){return document.getElementById(id);}
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function rand(n){return Math.floor(Math.random()*n);}
+  function shuffled(){ var a=CARDS.slice(); for(var i=a.length-1;i>0;i--){var j=rand(i+1);var t=a[i];a[i]=a[j];a[j]=t;} return a; }
+  function getUser(){ try{return JSON.parse(localStorage.getItem(LS.user));}catch(e){return null;} }
+  function setUser(u){ if(u) localStorage.setItem(LS.user,JSON.stringify(u)); else localStorage.removeItem(LS.user); renderAccount(); renderAcctBar(); }
+  function getHist(){ try{return JSON.parse(localStorage.getItem(LS.hist))||[];}catch(e){return [];} }
+  function saveHist(h){ localStorage.setItem(LS.hist,JSON.stringify(h.slice(0,50))); }
+  function fmtDate(ts){ var d=new Date(ts); return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+  // ---------- Navigation ----------
+  function showView(v){
+    var btns=el('nav').querySelectorAll('button');
+    for(var i=0;i<btns.length;i++) btns[i].classList.toggle('active',btns[i].dataset.view===v);
+    document.querySelectorAll('.view').forEach(function(s){s.classList.remove('active');});
+    el('view-'+v).classList.add('active');
+    if(v==='library') renderLibrary();
+    if(v==='history') renderHistory();
+    if(v==='account') renderAccount();
+  }
+  el('nav').addEventListener('click',function(e){ if(e.target.dataset.view) showView(e.target.dataset.view); });
+
+  // ---------- Spread picker ----------
+  var selectedSpread=null;
+  function renderSpreadPicker(){
+    var host=el('spread-picker'); host.innerHTML='';
+    Object.keys(SPREADS).forEach(function(key){
+      var s=SPREADS[key];
+      var d=document.createElement('button');
+      d.className='spread'; d.dataset.key=key;
+      d.innerHTML='<div class="n">'+s.n+' card'+(s.n>1?'s':'')+'</div><h3>'+esc(s.name)+'</h3><p>'+esc(s.blurb)+'</p>';
+      d.addEventListener('click',function(){
+        selectedSpread=key;
+        host.querySelectorAll('.spread').forEach(function(x){x.classList.toggle('sel',x.dataset.key===key);});
+        el('draw-btn').disabled=false;
+        el('draw-hint').textContent='Ready: '+s.name+' ('+s.n+' cards).';
+      });
+      host.appendChild(d);
+    });
+  }
+
+  // ---------- Draw ----------
+  el('draw-btn').addEventListener('click',function(){
+    if(!selectedSpread) return;
+    var spread=SPREADS[selectedSpread];
+    var deck=shuffled().slice(0,spread.n);
+    var drawn=deck.map(function(card,i){
+      var reversed=Math.random()<0.5;
+      return { id:card.id, reversed:reversed, tone:toneFor(card,reversed) };
+    });
+    current={
+      key:selectedSpread, spreadName:spread.name, n:spread.n,
+      question:el('question').value.trim(),
+      cards:drawn, ts:Date.now(), unlocked:false, revealed:{}
+    };
+    persistCurrent(true);
+    openReading(current);
+  });
+
+  function persistCurrent(isNew){
+    var h=getHist();
+    if(isNew){ current.hid='r'+current.ts+'_'+rand(9999); h.unshift(serialize(current)); }
+    else { for(var i=0;i<h.length;i++){ if(h[i].hid===current.hid){ h[i]=serialize(current); break; } } }
+    saveHist(h);
+  }
+  function serialize(r){ return {hid:r.hid,key:r.key,spreadName:r.spreadName,n:r.n,question:r.question,cards:r.cards,ts:r.ts,unlocked:r.unlocked}; }
+
+  // ---------- Reading view ----------
+  function openReading(r){
+    current=r; if(!r.revealed) r.revealed={};
+    showView('read');
+    el('step-setup').style.display='none';
+    el('step-reading').style.display='block';
+    el('reading-title').textContent=r.spreadName;
+    el('reading-q').textContent=r.question ? '“'+r.question+'”' : 'No question — a general reading.';
+    el('export-out').style.display='none'; el('export-btn').textContent='Show JSON export';
+    renderBoard();
+    renderSurface();
+    renderFullSection();
+    el('detail-body').innerHTML='<p style="color:var(--muted)">Select a card above to see its meaning.</p>';
+  }
+  el('new-reading-btn').addEventListener('click',function(){
+    el('step-reading').style.display='none';
+    el('step-setup').style.display='block';
+    selectedSpread=null; el('draw-btn').disabled=true; el('draw-hint').textContent='Select a spread above to begin.';
+    el('question').value='';
+    el('spread-picker').querySelectorAll('.spread').forEach(function(x){x.classList.remove('sel');});
+  });
+
+  // layout maps for special spreads (grid column spans)
+  function renderBoard(){
+    var board=el('board'); board.innerHTML='';
+    var key=current.key;
+    // choose columns
+    var cols = key==='single'?1 : key==='three'?3 : key==='horseshoe'?7 : key==='celtic'?4 : 4;
+    board.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
+    board.style.justifyItems='center';
+    current.cards.forEach(function(dc,i){
+      var card=CARDS[dc.id];
+      var pos=SPREADS[key].positions[i];
+      var slot=document.createElement('div'); slot.className='slot'; slot.dataset.i=i;
+      var revealed=!!current.revealed[i];
+      slot.innerHTML=
+        '<div class="tarot'+(revealed?' up':'')+'" data-i="'+i+'">'
+        + '<div class="flip">'
+        +   '<div class="face back"></div>'
+        +   '<div class="face front'+(dc.reversed?' rev':'')+'">'
+        +     '<div class="imgph">'+esc(card.name)+'</div>'
+        +   '</div>'
+        + '</div></div>'
+        + '<div class="pos">'+(i+1)+'. '+esc(pos.name)+'</div>'
+        + (revealed?('<div class="tone '+dc.tone+'">'+dc.tone+'</div>'):'')
+        + (revealed&&dc.reversed?'<div class="rev-badge">⟳ Reversed</div>':'');
+      board.appendChild(slot);
+      // lazy image into front face once revealed
+      var tarot=slot.querySelector('.tarot');
+      tarot.addEventListener('click',function(){ toggleCard(i); });
+      if(revealed) loadFront(slot,card,dc);
+    });
+  }
+  function loadFront(slot,card,dc){
+    var front=slot.querySelector('.front');
+    if(front.dataset.loaded) return; front.dataset.loaded='1';
+    var img=new Image();
+    img.alt=card.name;
+    img.onload=function(){ front.innerHTML=''; front.appendChild(img); };
+    img.onerror=function(){ /* keep text placeholder */ };
+    img.src=card.image;
+  }
+  function toggleCard(i){
+    var wasRevealed=!!current.revealed[i];
+    current.revealed[i]=true;
+    var slot=el('board').querySelector('.slot[data-i="'+i+'"]');
+    var tarot=slot.querySelector('.tarot');
+    if(!wasRevealed){
+      tarot.classList.add('up');
+      var card=CARDS[current.cards[i].id], dc=current.cards[i];
+      loadFront(slot,card,dc);
+      // add tone/badge
+      if(!slot.querySelector('.tone')){
+        var tone=document.createElement('div'); tone.className='tone '+dc.tone; tone.textContent=dc.tone; slot.appendChild(tone);
+        if(dc.reversed){ var rb=document.createElement('div'); rb.className='rev-badge'; rb.innerHTML='⟳ Reversed'; slot.appendChild(rb); }
+      }
+      renderSurface();
+    }
+    showDetail(i);
+  }
+  function showDetail(i){
+    var dc=current.cards[i], card=CARDS[dc.id], pos=SPREADS[current.key].positions[i];
+    var meaning=dc.reversed?card.reversed:card.upright;
+    el('detail-body').innerHTML=
+      '<p class="detail-name">'+esc(card.name)+(dc.reversed?' <span class="rev-badge">(Reversed)</span>':'')+'</p>'
+      +'<p class="detail-meta">'+esc(card.suit==='MAJOR'?'Major Arcana':titleCase(card.suit))+' · Position '+(i+1)+': '+esc(pos.name)+'</p>'
+      +'<p style="font-size:13px;color:var(--muted);margin:0 0 10px">'+esc(pos.meaning)+'</p>'
+      +'<p>'+esc(meaning)+'</p>'
+      +'<p style="color:var(--muted);font-size:13px;font-style:italic">'+esc(card.description)+'</p>';
+  }
+  function titleCase(s){return s.charAt(0)+s.slice(1).toLowerCase();}
+
+  // ---------- Surface reading (free) ----------
+  function renderSurface(){
+    var revealedIdx=Object.keys(current.revealed).map(Number).filter(function(i){return current.revealed[i];});
+    var host=el('surface-body');
+    if(revealedIdx.length===0){ host.innerHTML='<p style="color:var(--muted)">Turn over your cards to reveal the surface reading.</p>'; return; }
+    var counts={Positive:0,Challenging:0,Transitional:0};
+    var lines=current.cards.map(function(dc,i){
+      if(!current.revealed[i]) return null;
+      counts[dc.tone]++;
+      var card=CARDS[dc.id], pos=SPREADS[current.key].positions[i];
+      return '<li><b>'+esc(pos.name)+':</b> '+esc(card.name)+(dc.reversed?' (rev)':'')
+        +' — <span class="tone '+dc.tone+'" style="display:inline-block">'+dc.tone+'</span></li>';
+    }).filter(Boolean);
+    var dominant=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})[0];
+    var overall = counts[dominant]>0
+      ? 'The overall current of this reading is <b>'+dominant.toLowerCase()+'</b> — '+TONE_WORD[dominant]+'.'
+      : '';
+    host.innerHTML=
+      '<p style="margin:0 0 10px">'+overall+'</p>'
+      +'<ul style="margin:0;padding-left:18px">'+lines.join('')+'</ul>'
+      +(revealedIdx.length<current.n?'<p style="color:var(--muted);font-size:12px;margin-top:10px">Reveal all '+current.n+' cards for the complete surface picture.</p>':'');
+  }
+
+  // ---------- Full reading (paid / gated) ----------
+  function renderFullSection(){
+    var host=el('full-section');
+    var allRevealed=Object.keys(current.revealed).length>=current.n;
+    if(current.unlocked){
+      host.innerHTML='<div class="panel synth"><h3>Full Synthesized Reading <span class="free-tag" style="color:var(--gold);border-color:var(--gold)">Unlocked</span></h3>'
+        +buildSynthesis()+'</div>';
+    } else {
+      host.innerHTML=
+        '<div class="paywall">'
+        +'<div class="lock">🔒</div>'
+        +'<h3>Unlock your full reading</h3>'
+        +'<p style="color:var(--muted);max-width:520px;margin:6px auto 4px">The surface reading shows the shape. The full reading weaves every card, its orientation, and its position into a cohesive, position-aware interpretation of your question.</p>'
+        +'<div class="locked-preview" style="text-align:left;max-width:520px;margin:14px auto">'+buildSynthesis().slice(0,420)+'…</div>'
+        +'<button class="btn pay" id="unlock-btn"'+(allRevealed?'':' disabled')+'>Unlock Full Reading — $2.99</button>'
+        +(allRevealed?'':'<p class="demo-note">Reveal all your cards first.</p>')
+        +'<p class="demo-note">Demo checkout — no real payment is taken. Simulates a Stripe entitlement gate.</p>'
+        +'</div>';
+      var ub=el('unlock-btn');
+      if(ub) ub.addEventListener('click',function(){ simulatePayment(); });
+    }
+  }
+  function simulatePayment(){
+    var btn=el('unlock-btn'); btn.textContent='Processing…'; btn.disabled=true;
+    setTimeout(function(){
+      current.unlocked=true; persistCurrent(false); renderFullSection();
+      if(el('export-out').style.display!=='none') showExport();
+    },700);
+  }
+  function buildSynthesis(){
+    var q=current.question;
+    var intro = q
+      ? 'You asked: <em>“'+esc(q)+'”</em> The cards answer through the '+esc(current.spreadName)+'.'
+      : 'With no single question set, the '+esc(current.spreadName)+' speaks to the season you are in.';
+    var paras=['<p>'+intro+'</p>'];
+    current.cards.forEach(function(dc,i){
+      var card=CARDS[dc.id], pos=SPREADS[current.key].positions[i];
+      var meaning=dc.reversed?card.reversed:card.upright;
+      var orient=dc.reversed?'reversed':'upright';
+      paras.push('<p><b>'+esc(pos.name)+' — '+esc(card.name)+' ('+orient+').</b> '
+        +'In the place of '+esc(pos.meaning.toLowerCase().replace(/\.$/,''))+', '
+        +lower1(meaning)+' '
+        +'Here it reads as '+TONE_WORD[dc.tone]+'.</p>');
+    });
+    paras.push('<p><b>Synthesis.</b> '+synthConclusion()+'</p>');
+    return paras.join('');
+  }
+  function lower1(s){return s.charAt(0).toLowerCase()+s.slice(1);}
+  function synthConclusion(){
+    var counts={Positive:0,Challenging:0,Transitional:0}, revd=0;
+    current.cards.forEach(function(dc){counts[dc.tone]++;});
+    var dom=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})[0];
+    var majorCount=current.cards.filter(function(dc){return CARDS[dc.id].suit==='MAJOR';}).length;
+    var revCount=current.cards.filter(function(dc){return dc.reversed;}).length;
+    var s='Taken together, the spread leans '+dom.toLowerCase()+' — '+TONE_WORD[dom]+'. ';
+    if(majorCount>=Math.ceil(current.n/2)) s+='The strong showing of Major Arcana marks this as a pivotal, fated stretch rather than everyday concerns. ';
+    if(revCount>current.n/2) s+='With more cards reversed than upright, much of this energy is still internal, delayed, or waiting to be released. ';
+    else if(revCount===0) s+='Every card upright suggests these forces are open, active, and available to work with directly. ';
+    s+=(current.question?'Let the '+esc(current.cards.length)+'-card arc be your lens on the question, not a verdict on it — the outcome position shows a tendency, not a fixed fate.':'Read the final position as a direction of travel, not a destination.');
+    return s;
+  }
+
+  // ---------- Export ----------
+  el('export-btn').addEventListener('click',function(){
+    var out=el('export-out');
+    if(out.style.display==='none'){ showExport(); this.textContent='Hide JSON export'; }
+    else { out.style.display='none'; this.textContent='Show JSON export'; }
+  });
+  function showExport(){
+    var payload={
+      spread:current.spreadName, question:current.question||null,
+      timestamp:new Date(current.ts).toISOString(),
+      cards:current.cards.map(function(dc,i){
+        var card=CARDS[dc.id], pos=SPREADS[current.key].positions[i];
+        return { position:pos.name, position_meaning:pos.meaning, card:card.name,
+          arcana:card.suit==='MAJOR'?'Major':titleCase(card.suit),
+          orientation:dc.reversed?'reversed':'upright', tone:dc.tone,
+          meaning:dc.reversed?card.reversed:card.upright };
+      }),
+      full_interpretation: current.unlocked ? stripHtml(buildSynthesis()) : null,
+      full_interpretation_locked: !current.unlocked
+    };
+    var out=el('export-out'); out.style.display='block';
+    out.textContent=JSON.stringify(payload,null,2);
+  }
+  function stripHtml(h){ var d=document.createElement('div'); d.innerHTML=h; return d.textContent.replace(/\s+/g,' ').trim(); }
+
+  // ---------- Library ----------
+  function renderLibrary(){
+    var q=(el('lib-search').value||'').toLowerCase(), suit=el('lib-suit').value;
+    var grid=el('lib-grid'); grid.innerHTML='';
+    CARDS.filter(function(c){
+      if(suit&&c.suit!==suit) return false;
+      if(q&&c.name.toLowerCase().indexOf(q)<0) return false;
+      return true;
+    }).forEach(function(c){
+      var d=document.createElement('div'); d.className='libcard';
+      d.innerHTML='<div class="thumb"><span style="color:var(--muted);font-size:11px;padding:6px;text-align:center">'+esc(c.name)+'</span></div>'
+        +'<div class="lc"><b>'+esc(c.name)+'</b><span>'+esc(c.suit==='MAJOR'?'Major Arcana':titleCase(c.suit))+'</span></div>';
+      var thumb=d.querySelector('.thumb');
+      var img=new Image(); img.onload=function(){thumb.innerHTML='';thumb.appendChild(img);}; img.src=c.image; img.alt=c.name;
+      d.addEventListener('click',function(){ openCardModal(c); });
+      grid.appendChild(d);
+    });
+  }
+  el('lib-search').addEventListener('input',renderLibrary);
+  el('lib-suit').addEventListener('change',renderLibrary);
+  function openCardModal(c){
+    el('modal-body').innerHTML=
+      '<img class="mimg" src="'+c.image+'" alt="'+esc(c.name)+'"/>'
+      +'<h2 style="margin:0 0 2px">'+esc(c.name)+'</h2>'
+      +'<p class="detail-meta">'+esc(c.suit==='MAJOR'?'Major Arcana':titleCase(c.suit))+'</p>'
+      +'<p style="font-style:italic;color:var(--muted)">'+esc(c.description)+'</p>'
+      +'<p><b style="color:var(--pos)">Upright.</b> '+esc(c.upright)+'</p>'
+      +'<p><b style="color:var(--chal)">Reversed.</b> '+esc(c.reversed)+'</p>'
+      +'<div style="clear:both"></div>';
+    el('modal').classList.add('open');
+  }
+  el('modal-x').addEventListener('click',function(){el('modal').classList.remove('open');});
+  el('modal').addEventListener('click',function(e){ if(e.target===el('modal')) el('modal').classList.remove('open'); });
+
+  // ---------- History ----------
+  function renderHistory(){
+    var list=el('hist-list'); var h=getHist();
+    if(h.length===0){ list.innerHTML='<div class="empty">No readings yet. Draw your first spread to begin.</div>'; return; }
+    list.innerHTML='';
+    h.forEach(function(r){
+      var d=document.createElement('div'); d.className='hist-item';
+      d.innerHTML='<div><div class="q">'+esc(r.question||'General reading')+'</div>'
+        +'<div class="m">'+esc(r.spreadName)+' · '+fmtDate(r.ts)+'</div></div>'
+        +'<span class="pill'+(r.unlocked?' unlocked':'')+'">'+(r.unlocked?'✓ Full':'Surface')+'</span>';
+      d.addEventListener('click',function(){ var rr=Object.assign({},r); rr.revealed={}; for(var i=0;i<rr.n;i++) rr.revealed[i]=true; openReading(rr); });
+      list.appendChild(d);
+    });
+  }
+
+  // ---------- Account (demo, local only) ----------
+  function renderAcctBar(){
+    var u=getUser();
+    el('acct').innerHTML = u
+      ? '<span>✦ '+esc(u.email)+'</span><button id="logout-mini">Sign out</button>'
+      : '<button id="login-mini">Sign in</button>';
+    var lm=el('login-mini'); if(lm) lm.addEventListener('click',function(){showView('account');});
+    var lo=el('logout-mini'); if(lo) lo.addEventListener('click',function(){setUser(null);});
+  }
+  function renderAccount(){
+    var u=getUser(); var box=el('account-box');
+    if(u){
+      box.innerHTML='<p style="margin:0 0 4px">Signed in as</p><p style="font-size:20px;margin:0 0 16px">✦ '+esc(u.email)+'</p>'
+        +'<p style="color:var(--muted);font-size:13px">Readings and unlocks are stored locally in this browser.</p>'
+        +'<button class="btn ghost" id="logout-btn">Sign out</button>';
+      el('logout-btn').addEventListener('click',function(){setUser(null);});
+    } else {
+      box.innerHTML=
+        '<label class="fld">Email</label><input type="email" id="ac-email" placeholder="you@example.com"/>'
+        +'<label class="fld">Password</label><input type="password" id="ac-pass" placeholder="••••••••"/>'
+        +'<div class="row" style="margin-top:16px"><button class="btn" id="ac-signin">Sign in / Register</button></div>'
+        +'<p style="color:var(--muted);font-size:12px;margin-top:14px">Demo only: no data leaves your browser and no real authentication is performed. A production build would hash passwords server-side and issue a session.</p>';
+      el('ac-signin').addEventListener('click',function(){
+        var em=el('ac-email').value.trim(); if(!em){el('ac-email').focus();return;}
+        setUser({email:em, since:Date.now()});
+        showView('read');
+      });
+    }
+  }
+
+  // ---------- Init ----------
+  renderSpreadPicker(); renderAcctBar(); renderAccount();
+})();
+</script>
+</body>
+</html>
