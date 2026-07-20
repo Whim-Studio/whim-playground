@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Whim Playground — App Launcher</title>
+<style>
+  :root{
+    --bg:#0d1220; --panel:#161d31; --panel2:#1d2740; --line:#2c3a5a;
+    --ink:#e7ecf7; --muted:#93a1c0; --accent:#7aa2ff; --gold:#e8c37e;
+    --shadow:0 12px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:
+      radial-gradient(1100px 560px at 15% -10%,rgba(122,162,255,.12),transparent 60%),
+      radial-gradient(900px 500px at 100% 0%,rgba(232,195,126,.10),transparent 55%),var(--bg);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto;padding:48px 22px 90px}
+  header{margin-bottom:34px}
+  .kicker{font-size:.72rem;letter-spacing:.26em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:2rem;margin:8px 0 6px;letter-spacing:.4px}
+  header p{color:var(--muted);margin:0;max-width:640px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;margin-top:26px}
+  a.app{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;background:var(--panel);
+    border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:.16s;position:relative;overflow:hidden}
+  a.app:hover{transform:translateY(-3px);border-color:var(--accent)}
+  a.app.feature{border-color:rgba(232,195,126,.55);background:linear-gradient(180deg,#1c1836,#161d31)}
+  a.app.feature::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 200px at 100% 0%,rgba(232,195,126,.14),transparent 60%);pointer-events:none}
+  .emoji{font-size:30px}
+  a.app h2{margin:2px 0 0;font-size:1.2rem}
+  a.app .tag{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent)}
+  a.app.feature .tag{color:var(--gold)}
+  a.app p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+  a.app .go{margin-top:12px;font-size:.85rem;color:var(--accent);font-weight:600}
+  a.app.feature .go{color:var(--gold)}
+  footer{margin-top:40px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px}
+  footer code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Whim Playground</div>
+    <h1>App Launcher</h1>
+    <p>Browser-based apps in this workspace. Each opens in its own page.</p>
+  </header>
+
+  <div class="grid">
+    <a class="app feature" href="tarot-web/">
+      <div class="emoji">✦</div>
+      <div class="tag">Featured</div>
+      <h2>Arcana — Tarot Readings</h2>
+      <p>Full 78-card Rider–Waite–Smith deck. Five spreads, free surface readings, and a paywalled full interpretation with LLM-ready export.</p>
+      <div class="go">Open reading →</div>
+    </a>
+
+    <a class="app" href="index.html">
+      <div class="emoji">🧭</div>
+      <div class="tag">Assessment</div>
+      <h2>TVAD Personality Assessment</h2>
+      <p>Vector Allocation Dynamics — a four-axis self-assessment with a computed polarization report.</p>
+      <div class="go">Open assessment →</div>
+    </a>
+
+    <a class="app" href="hbdi-web/">
+      <div class="emoji">🧠</div>
+      <div class="tag">Assessment</div>
+      <h2>Whole Brain (HBDI)</h2>
+      <p>Four-quadrant cognitive-preference assessment with a visual results breakdown.</p>
+      <div class="go">Open assessment →</div>
+    </a>
+
+    <a class="app" href="startrek-coda-creator/">
+      <div class="emoji">🖖</div>
+      <div class="tag">Tabletop</div>
+      <h2>Star Trek RPG — Character Creator</h2>
+      <p>Build a character for the Coda-system Star Trek roleplaying game, step by step.</p>
+      <div class="go">Open creator →</div>
+    </a>
+  </div>
+
+  <footer>
+    Served by Vite. To make this the front door, it can be promoted to <code>index.html</code> — ask and I'll do it.
+    Java/desktop apps in this repo (e.g. <code>tarot/</code>, <code>heroquest/</code>) aren't listed here since they don't run in the browser.
+  </footer>
+</div>
+</body>
+</html>
