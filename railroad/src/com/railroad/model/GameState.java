@@ -2,7 +2,9 @@ package com.railroad.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Central mutable game state and the single source of truth tying the static
@@ -19,18 +21,20 @@ public final class GameState {
     // original game's economy.
     public static final long STARTING_CASH = 1_000_000L;
     public static final long TRAIN_COST = 40_000L;
-    public static final long REVENUE_PER_SEGMENT = 1_200L; // per one-way trip
     public static final double DEFAULT_TRAIN_SPEED = 0.9;  // path-indices per day
-    public static final int DEFAULT_TRAIN_CAPACITY = 8;    // reserved for Phase 2
+    public static final int DEFAULT_TRAIN_CAPACITY = 8;    // carloads a train can haul
 
     private final World world;
     private final TrackNetwork network;
     private final Company company;
     private final GameDate date;
     private final List<Train> trains = new ArrayList<Train>();
+    private final List<Station> stations = new ArrayList<Station>();
 
-    private long lastTripRevenue; // for HUD feedback
+    private long lastDeliveryRevenue; // for HUD feedback
+    private long totalFreightRevenue; // running total (Phase 3 finance reads this)
     private int completedTrips;
+    private final List<DeliveryRecord> deliveries = new ArrayList<DeliveryRecord>();
 
     public GameState(World world, Company company) {
         this.world = world;
@@ -63,12 +67,69 @@ public final class GameState {
         return !trains.isEmpty();
     }
 
-    public long getLastTripRevenue() {
-        return lastTripRevenue;
+    public List<Station> getStations() {
+        return Collections.unmodifiableList(stations);
+    }
+
+    /** The station occupying tile {@code p}, or null if none. */
+    public Station stationAt(GridPoint p) {
+        for (Station s : stations) {
+            if (s.getPosition().equals(p)) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    public long getLastDeliveryRevenue() {
+        return lastDeliveryRevenue;
+    }
+
+    public long getTotalFreightRevenue() {
+        return totalFreightRevenue;
+    }
+
+    /** Immutable log of every delivery (for Phase 3 finance reporting). */
+    public List<DeliveryRecord> getDeliveries() {
+        return Collections.unmodifiableList(deliveries);
     }
 
     public int getCompletedTrips() {
         return completedTrips;
+    }
+
+    /**
+     * Builds a station at {@code p}, charged to the company. Valid only on a town
+     * tile or a tile adjacent to a town, when nothing is already there and funds
+     * suffice.
+     *
+     * @return the new Station, or null if the placement was rejected.
+     */
+    public Station buildStation(GridPoint p) {
+        if (!world.getGrid().inBounds(p) || stationAt(p) != null) {
+            return null;
+        }
+        if (!isTownOrAdjacent(p)) {
+            return null;
+        }
+        if (!company.canAfford(Economy.STATION_COST) || !company.spend(Economy.STATION_COST)) {
+            return null;
+        }
+        Station station = new Station("Station " + (stations.size() + 1), p,
+                world.getGrid(), world);
+        stations.add(station);
+        return station;
+    }
+
+    /** True if {@code p} is a town tile or Chebyshev-adjacent to one. */
+    public boolean isTownOrAdjacent(GridPoint p) {
+        for (Town t : world.getTowns()) {
+            GridPoint tp = t.getPosition();
+            if (tp.equals(p) || tp.isAdjacent(p)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -127,18 +188,95 @@ public final class GameState {
     }
 
     /**
-     * Advances the simulation by {@code dDays} in-game days: moves the clock and
-     * every train, booking revenue for each completed one-way trip.
+     * Advances the simulation by {@code dDays} in-game days. This is the single
+     * driver: first production accrues at every town and industry, then every
+     * train moves; on reaching a station a train first delivers demanded cargo
+     * for revenue and then loads whatever cargo the station has available.
      */
     public void tick(double dDays) {
         date.advance(dDays);
+
+        // 1. Production accrues at sources.
+        for (Town t : world.getTowns()) {
+            t.produce(dDays);
+        }
+        for (Industry ind : world.getIndustries()) {
+            ind.produce(dDays);
+        }
+
+        // 2. Trains move, then load/haul/deliver at endpoints.
         for (Train train : trains) {
             train.advance(dDays);
             if (train.consumeArrival()) {
-                long revenue = (long) train.getRoute().segmentCount() * REVENUE_PER_SEGMENT;
-                company.earn(revenue);
-                lastTripRevenue = revenue;
                 completedTrips++;
+                serviceArrival(train);
+            }
+        }
+    }
+
+    /**
+     * Delivers demanded cargo (for revenue) and then loads available cargo when a
+     * train arrives at an endpoint that has a station.
+     */
+    private void serviceArrival(Train train) {
+        Station station = stationAt(train.arrivalTown().getPosition());
+        if (station == null) {
+            return; // town has no station yet — nothing to service
+        }
+        deliverTo(train, station);
+        loadFrom(train, station);
+    }
+
+    /** Unloads and pays for every carload the station demands. */
+    private void deliverTo(Train train, Station station) {
+        Set<CargoType> demanded = new HashSet<CargoType>();
+        for (CargoType type : CargoType.values()) {
+            if (station.demands(type)) {
+                demanded.add(type);
+            }
+        }
+        if (demanded.isEmpty()) {
+            return;
+        }
+        List<Cargo> unloaded = train.unloadDemanded(demanded);
+        int distance = train.getRoute().segmentCount();
+        long tripRevenue = 0;
+        for (Cargo c : unloaded) {
+            long r = Economy.deliveryRevenue(c.getType(), distance);
+            tripRevenue += r;
+            station.receive(c.getType());
+            deliveries.add(new DeliveryRecord(c.getType(), 1, distance, r, date.getElapsedDays()));
+        }
+        if (tripRevenue > 0) {
+            company.earn(tripRevenue);
+            lastDeliveryRevenue = tripRevenue;
+            totalFreightRevenue += tripRevenue;
+        }
+    }
+
+    /**
+     * Fills the train's remaining capacity from the station's catchment,
+     * round-robin across the available cargo types so no single busy source (a
+     * town's passengers) crowds out the others (a mine's coal).
+     */
+    private void loadFrom(Train train, Station station) {
+        while (train.hasSpace()) {
+            List<CargoType> available = station.availableCargoTypes();
+            if (available.isEmpty()) {
+                break; // nothing left to load
+            }
+            boolean loadedAny = false;
+            for (CargoType type : available) {
+                if (!train.hasSpace()) {
+                    break;
+                }
+                if (station.take(type)) {
+                    train.load(new Cargo(type, station.getPosition()));
+                    loadedAny = true;
+                }
+            }
+            if (!loadedAny) {
+                break;
             }
         }
     }

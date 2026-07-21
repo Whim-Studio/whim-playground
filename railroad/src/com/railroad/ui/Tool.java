@@ -1,9 +1,10 @@
 package com.railroad.ui;
 
-/** The map-interaction tools available in Phase 1. */
+/** The map-interaction tools available to the player. */
 public enum Tool {
     SELECT("Select"),
-    BUILD_TRACK("Build Track");
+    BUILD_TRACK("Build Track"),
+    BUILD_STATION("Build Station");
 
     private final String label;
 

@@ -1,5 +1,9 @@
 package com.railroad.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * A single locomotive assigned to one {@link Route}, shuttling back and forth.
  *
@@ -7,10 +11,12 @@ package com.railroad.model;
  * first tile, {@code route.segmentCount()} is the last. {@code direction} is +1
  * heading toward {@code to} and -1 heading back toward {@code from}. When it
  * reaches an endpoint it reverses; the game logic reads {@link #consumeArrival()}
- * to award trip revenue.
+ * to load/deliver cargo there.
  *
- * <p>{@code capacity} is unused in Phase 1 but present so Phase 2 cargo hauling
- * extends this class rather than replacing it.
+ * <p>Phase 2 puts {@code capacity} to work: the train holds up to {@code capacity}
+ * {@link Cargo} carloads, loading at one endpoint and delivering demanded cargo
+ * at the other. {@link #arrivedAtTo()} reports which endpoint the last arrival
+ * was, so {@link GameState} knows which station to service.
  */
 public final class Train {
 
@@ -19,9 +25,12 @@ public final class Train {
     private double position;      // index along route.getPath()
     private int direction = 1;    // +1 toward 'to', -1 toward 'from'
     private double speed;         // path-indices advanced per in-game day
-    private final int capacity;   // cargo capacity — reserved for Phase 2
+    private final int capacity;   // max carloads carried
+
+    private final List<Cargo> hold = new ArrayList<Cargo>();
 
     private boolean arrived;      // set true on the tick an endpoint is reached
+    private boolean arrivedAtTo;  // true if the last arrival was the 'to' endpoint
 
     public Train(String name, Route route, double speed, int capacity) {
         this.name = name;
@@ -82,10 +91,12 @@ public final class Train {
             position = end;
             direction = -1;
             arrived = true;
+            arrivedAtTo = true;
         } else if (position <= 0) {
             position = 0;
             direction = 1;
             arrived = true;
+            arrivedAtTo = false;
         }
     }
 
@@ -96,5 +107,57 @@ public final class Train {
             return true;
         }
         return false;
+    }
+
+    /** Which endpoint the most recent arrival was: true = {@code to}, false = {@code from}. */
+    public boolean arrivedAtTo() {
+        return arrivedAtTo;
+    }
+
+    /** The town the most recent arrival reached. */
+    public Town arrivalTown() {
+        return arrivedAtTo ? route.getTo() : route.getFrom();
+    }
+
+    // --- Phase 2: cargo hold --------------------------------------------------
+
+    /** Carloads currently aboard. */
+    public int loadCount() {
+        return hold.size();
+    }
+
+    /** True while there is room for at least one more carload. */
+    public boolean hasSpace() {
+        return hold.size() < capacity;
+    }
+
+    /** Loads one carload if there is room. */
+    public boolean load(Cargo cargo) {
+        if (!hasSpace()) {
+            return false;
+        }
+        return hold.add(cargo);
+    }
+
+    /** Live, unmodifiable view of the hold (for the HUD). */
+    public List<Cargo> getHold() {
+        return Collections.unmodifiableList(hold);
+    }
+
+    /**
+     * Removes and returns every carload whose type is in {@code demanded}. Used
+     * by {@link GameState} to unload only what the arrival station will pay for.
+     */
+    public List<Cargo> unloadDemanded(java.util.Set<CargoType> demanded) {
+        List<Cargo> out = new ArrayList<Cargo>();
+        java.util.Iterator<Cargo> it = hold.iterator();
+        while (it.hasNext()) {
+            Cargo c = it.next();
+            if (demanded.contains(c.getType())) {
+                out.add(c);
+                it.remove();
+            }
+        }
+        return out;
     }
 }

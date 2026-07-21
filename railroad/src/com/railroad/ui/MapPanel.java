@@ -2,7 +2,9 @@ package com.railroad.ui;
 
 import com.railroad.model.GameState;
 import com.railroad.model.GridPoint;
+import com.railroad.model.Industry;
 import com.railroad.model.Route;
+import com.railroad.model.Station;
 import com.railroad.model.TerrainType;
 import com.railroad.model.TileGrid;
 import com.railroad.model.Town;
@@ -39,6 +41,10 @@ public final class MapPanel extends JPanel {
     private static final Color TRAIN_COLOR = new Color(200, 40, 40);
     private static final Color TOWN_FILL = new Color(250, 240, 180);
     private static final Color TOWN_EDGE = new Color(60, 40, 10);
+    private static final Color STATION_FILL = new Color(240, 60, 60);
+    private static final Color STATION_EDGE = new Color(255, 255, 255);
+    private static final Color CATCHMENT_FILL = new Color(120, 200, 255, 55);
+    private static final Color CATCHMENT_EDGE = new Color(120, 200, 255, 130);
 
     private final GameController controller;
     private final Runnable onChange; // refresh HUD after a build action
@@ -84,6 +90,26 @@ public final class MapPanel extends JPanel {
             public void mouseReleased(MouseEvent e) {
                 lastDragTile = null;
             }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                GridPoint p = tileAtPixel(e.getX(), e.getY());
+                if (p == null) {
+                    return;
+                }
+                if (controller.getCurrentTool() == Tool.BUILD_STATION) {
+                    controller.tryBuildStation(p);
+                    repaint();
+                    if (onChange != null) {
+                        onChange.run();
+                    }
+                } else if (controller.getCurrentTool() == Tool.SELECT) {
+                    controller.selectTrainNear(p);
+                    if (onChange != null) {
+                        onChange.run();
+                    }
+                }
+            }
         };
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
@@ -108,10 +134,69 @@ public final class MapPanel extends JPanel {
         GameState state = controller.getState();
         World world = state.getWorld();
         drawTerrain(g2, world.getGrid());
+        drawCatchments(g2, state);
         drawTrack(g2, state);
+        drawIndustries(g2, world.getIndustries());
         drawTowns(g2, world.getTowns());
+        drawStations(g2, state);
         drawTrains(g2, state);
         drawLegend(g2);
+    }
+
+    /** Translucent overlay of every station's catchment tiles. */
+    private void drawCatchments(Graphics2D g2, GameState state) {
+        for (Station s : state.getStations()) {
+            for (GridPoint p : s.getCatchment()) {
+                g2.setColor(CATCHMENT_FILL);
+                g2.fillRect(p.x * TILE, p.y * TILE, TILE, TILE);
+                g2.setColor(CATCHMENT_EDGE);
+                g2.drawRect(p.x * TILE, p.y * TILE, TILE, TILE);
+            }
+        }
+    }
+
+    /** Industries as distinct square markers with a one-letter tag and label. */
+    private void drawIndustries(Graphics2D g2, List<Industry> industries) {
+        for (Industry ind : industries) {
+            int cx = center(ind.getPosition().x);
+            int cy = center(ind.getPosition().y);
+            int s = TILE - 8;
+            g2.setColor(ind.getType().getColor());
+            g2.fillRect(cx - s / 2, cy - s / 2, s, s);
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRect(cx - s / 2, cy - s / 2, s, s);
+
+            String tag = ind.getType() == com.railroad.model.IndustryType.COAL_MINE ? "C" : "S";
+            int tw = g2.getFontMetrics().stringWidth(tag);
+            g2.drawString(tag, cx - tw / 2, cy + 4);
+
+            String name = ind.getName();
+            int nw = g2.getFontMetrics().stringWidth(name);
+            int lx = cx - nw / 2;
+            int ly = cy + s / 2 + 12;
+            g2.setColor(new Color(0, 0, 0, 170));
+            g2.fillRect(lx - 2, ly - g2.getFontMetrics().getAscent(), nw + 4,
+                    g2.getFontMetrics().getHeight());
+            g2.setColor(Color.WHITE);
+            g2.drawString(name, lx, ly);
+        }
+    }
+
+    /** Stations as small red diamonds sitting on their tile. */
+    private void drawStations(Graphics2D g2, GameState state) {
+        for (Station s : state.getStations()) {
+            int cx = center(s.getPosition().x);
+            int cy = center(s.getPosition().y);
+            int r = TILE / 2 - 2;
+            int[] xs = {cx, cx + r, cx, cx - r};
+            int[] ys = {cy - r, cy, cy + r, cy};
+            g2.setColor(STATION_FILL);
+            g2.fillPolygon(xs, ys, 4);
+            g2.setColor(STATION_EDGE);
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.drawPolygon(xs, ys, 4);
+        }
     }
 
     private void drawTerrain(Graphics2D g2, TileGrid grid) {
@@ -188,6 +273,17 @@ public final class MapPanel extends JPanel {
             g2.setColor(Color.WHITE);
             g2.setStroke(new BasicStroke(1.5f));
             g2.drawRect(px - s / 2, py - s / 2, s, s);
+
+            // Small load indicator above the train (carloads / capacity).
+            String load = train.loadCount() + "/" + train.getCapacity();
+            int lw = g2.getFontMetrics().stringWidth(load);
+            int lx = px - lw / 2;
+            int ly = py - s / 2 - 3;
+            g2.setColor(new Color(0, 0, 0, 180));
+            g2.fillRect(lx - 2, ly - g2.getFontMetrics().getAscent(), lw + 4,
+                    g2.getFontMetrics().getHeight());
+            g2.setColor(Color.WHITE);
+            g2.drawString(load, lx, ly);
         }
     }
 
@@ -215,6 +311,38 @@ public final class MapPanel extends JPanel {
             g2.drawString(t.getLabel() + "  $" + t.getSegmentCost(), x + pad + 20, ry);
             ry += rowH;
         }
+
+        // Second panel: Phase 2 map symbols.
+        int y2 = y + boxH + 8;
+        int boxH2 = pad * 2 + rowH * 4;
+        g2.setColor(new Color(0, 0, 0, 170));
+        g2.fillRoundRect(x, y2, boxW, boxH2, 10, 10);
+        g2.setColor(Color.WHITE);
+        g2.drawString("Map symbols", x + pad, y2 + pad + 12);
+        int sy = y2 + pad + rowH + 6;
+
+        // Station diamond swatch.
+        int sc = x + pad + 6;
+        int[] dx = {sc, sc + 6, sc, sc - 6};
+        int[] dy = {sy - 12, sy - 6, sy, sy - 6};
+        g2.setColor(STATION_FILL);
+        g2.fillPolygon(dx, dy, 4);
+        g2.setColor(Color.WHITE);
+        g2.drawString("Station (catchment ring)", x + pad + 20, sy);
+        sy += rowH;
+
+        g2.setColor(com.railroad.model.IndustryType.COAL_MINE.getColor());
+        g2.fillRect(x + pad, sy - 11, 12, 12);
+        g2.setColor(Color.WHITE);
+        g2.drawRect(x + pad, sy - 11, 12, 12);
+        g2.drawString("C = Coal Mine (coal)", x + pad + 20, sy);
+        sy += rowH;
+
+        g2.setColor(com.railroad.model.IndustryType.STEEL_MILL.getColor());
+        g2.fillRect(x + pad, sy - 11, 12, 12);
+        g2.setColor(Color.WHITE);
+        g2.drawRect(x + pad, sy - 11, 12, 12);
+        g2.drawString("S = Steel Mill (coal->steel)", x + pad + 20, sy);
     }
 
     private static int center(int tileCoord) {

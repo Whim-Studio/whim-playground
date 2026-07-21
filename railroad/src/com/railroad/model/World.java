@@ -12,11 +12,13 @@ public final class World {
 
     private final TileGrid grid;
     private final List<Town> towns;
+    private final List<Industry> industries;
     private final long seed;
 
-    public World(TileGrid grid, List<Town> towns, long seed) {
+    public World(TileGrid grid, List<Town> towns, List<Industry> industries, long seed) {
         this.grid = grid;
         this.towns = towns;
+        this.industries = industries;
         this.seed = seed;
     }
 
@@ -29,10 +31,24 @@ public final class World {
         return Collections.unmodifiableList(towns);
     }
 
+    /** Unmodifiable industry list (Phase 2 production sites). */
+    public List<Industry> getIndustries() {
+        return Collections.unmodifiableList(industries);
+    }
+
     public Town townAt(GridPoint p) {
         for (Town t : towns) {
             if (t.getPosition().equals(p)) {
                 return t;
+            }
+        }
+        return null;
+    }
+
+    public Industry industryAt(GridPoint p) {
+        for (Industry ind : industries) {
+            if (ind.getPosition().equals(p)) {
+                return ind;
             }
         }
         return null;

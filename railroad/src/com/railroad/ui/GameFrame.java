@@ -21,7 +21,7 @@ public final class GameFrame extends JFrame {
     private static final int MAP_HEIGHT = 30;
 
     public GameFrame(long seed) {
-        super("Railroad Tycoon (Phase 1) — seed " + seed);
+        super("Railroad Tycoon (Phase 2) — seed " + seed);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         World world = new MapGenerator(seed, MAP_WIDTH, MAP_HEIGHT).generate();
