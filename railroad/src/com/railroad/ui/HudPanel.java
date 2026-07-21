@@ -1,7 +1,14 @@
 package com.railroad.ui;
 
 import com.railroad.logic.GameClock;
+import com.railroad.model.Cargo;
+import com.railroad.model.CargoType;
+import com.railroad.model.Economy;
 import com.railroad.model.GameState;
+import com.railroad.model.Train;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -27,6 +34,7 @@ public final class HudPanel extends JPanel {
 
     private final JButton selectBtn = new JButton("Select");
     private final JButton buildBtn = new JButton("Build Track");
+    private final JButton stationBtn = new JButton("Build Station ($" + Economy.STATION_COST + ")");
     private final JButton buyTrainBtn = new JButton("Buy Train ($" + GameState.TRAIN_COST + ")");
     private final JButton pauseBtn = new JButton("Start");
     private final JButton speedBtn = new JButton("Speed: 1x");
@@ -35,6 +43,7 @@ public final class HudPanel extends JPanel {
     private final JLabel dateLabel = new JLabel();
     private final JLabel toolLabel = new JLabel();
     private final JLabel tripsLabel = new JLabel();
+    private final JLabel loadLabel = new JLabel();
     private final JLabel statusLabel = new JLabel();
 
     public HudPanel(GameController controller, Runnable repaintMap) {
@@ -52,6 +61,7 @@ public final class HudPanel extends JPanel {
         bar.add(new JLabel("Tools:"));
         bar.add(selectBtn);
         bar.add(buildBtn);
+        bar.add(stationBtn);
         bar.add(Box.createHorizontalStrut(12));
         bar.add(buyTrainBtn);
         bar.add(Box.createHorizontalStrut(12));
@@ -69,10 +79,12 @@ public final class HudPanel extends JPanel {
         dateLabel.setFont(mono);
         toolLabel.setFont(mono);
         tripsLabel.setFont(mono);
+        loadLabel.setFont(mono);
         bar.add(cashLabel);
         bar.add(dateLabel);
         bar.add(toolLabel);
         bar.add(tripsLabel);
+        bar.add(loadLabel);
 
         JPanel wrap = new JPanel();
         wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
@@ -89,6 +101,10 @@ public final class HudPanel extends JPanel {
         });
         buildBtn.addActionListener(e -> {
             controller.setCurrentTool(Tool.BUILD_TRACK);
+            refresh();
+        });
+        stationBtn.addActionListener(e -> {
+            controller.setCurrentTool(Tool.BUILD_STATION);
             refresh();
         });
         buyTrainBtn.addActionListener(e -> {
@@ -118,13 +134,42 @@ public final class HudPanel extends JPanel {
         dateLabel.setText("Date: " + s.getDate().format());
         toolLabel.setText("Tool: " + controller.getCurrentTool().getLabel());
         String trips = "Trips: " + s.getCompletedTrips();
-        if (s.getLastTripRevenue() > 0) {
-            trips += " (last +$" + s.getLastTripRevenue() + ")";
+        if (s.getLastDeliveryRevenue() > 0) {
+            trips += " (last +$" + s.getLastDeliveryRevenue() + ")";
         }
         tripsLabel.setText(trips);
+        loadLabel.setText(describeLoad());
         pauseBtn.setText(controller.getClock().isRunning() ? "Pause" : "Start");
         speedBtn.setText("Speed: " + controller.getClock().getSpeedMultiplier() + "x");
         statusLabel.setText(controller.getStatusMessage());
+    }
+
+    /** Summarises the selected train's current cargo load for the HUD. */
+    private String describeLoad() {
+        Train t = controller.getSelectedTrain();
+        if (t == null) {
+            return "Load: (no train)";
+        }
+        Map<CargoType, Integer> counts = new EnumMap<CargoType, Integer>(CargoType.class);
+        for (Cargo c : t.getHold()) {
+            Integer prev = counts.get(c.getType());
+            counts.put(c.getType(), prev == null ? 1 : prev + 1);
+        }
+        StringBuilder sb = new StringBuilder("Load ");
+        sb.append(t.loadCount()).append("/").append(t.getCapacity());
+        if (!counts.isEmpty()) {
+            sb.append(" [");
+            boolean first = true;
+            for (Map.Entry<CargoType, Integer> e : counts.entrySet()) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                sb.append(e.getValue()).append(" ").append(e.getKey().getLabel());
+                first = false;
+            }
+            sb.append("]");
+        }
+        return sb.toString();
     }
 
     @Override

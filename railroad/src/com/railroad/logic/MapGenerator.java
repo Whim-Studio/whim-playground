@@ -1,6 +1,8 @@
 package com.railroad.logic;
 
 import com.railroad.model.GridPoint;
+import com.railroad.model.Industry;
+import com.railroad.model.IndustryType;
 import com.railroad.model.TerrainType;
 import com.railroad.model.Tile;
 import com.railroad.model.TileGrid;
@@ -44,7 +46,68 @@ public final class MapGenerator {
         double[][] heightField = buildHeightField(rng);
         applyTerrain(grid, heightField);
         List<Town> towns = placeTowns(grid, rng);
-        return new World(grid, towns, seed);
+        List<Industry> industries = placeIndustries(grid, towns, rng);
+        return new World(grid, towns, industries, seed);
+    }
+
+    /**
+     * Places the one Phase 2 production chain on the map: a coal mine on rough
+     * ground (hills/mountains, where coal belongs) and a steel mill next to a
+     * town (so a single station serves both the town and the mill). If no ideal
+     * tile is found the placement is skipped rather than forced onto water.
+     */
+    private List<Industry> placeIndustries(TileGrid grid, List<Town> towns, Random rng) {
+        List<Industry> industries = new ArrayList<Industry>();
+
+        GridPoint mine = findRoughTile(grid, rng);
+        if (mine != null) {
+            industries.add(new Industry(industries.size(), "Coal Mine",
+                    IndustryType.COAL_MINE, mine));
+        }
+
+        // Put the mill on a clear tile adjacent to a town, avoiding the town tile
+        // itself and any tile already taken by the mine.
+        GridPoint mill = findClearAdjacentToTown(grid, towns, mine);
+        if (mill != null) {
+            industries.add(new Industry(industries.size(), "Steel Mill",
+                    IndustryType.STEEL_MILL, mill));
+        }
+        return industries;
+    }
+
+    private GridPoint findRoughTile(TileGrid grid, Random rng) {
+        for (int i = 0; i < 5000; i++) {
+            int x = rng.nextInt(width);
+            int y = rng.nextInt(height);
+            TerrainType t = grid.terrainAt(x, y);
+            if (t == TerrainType.HILLS || t == TerrainType.MOUNTAINS) {
+                return new GridPoint(x, y);
+            }
+        }
+        return null;
+    }
+
+    private GridPoint findClearAdjacentToTown(TileGrid grid, List<Town> towns, GridPoint taken) {
+        for (Town t : towns) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0) {
+                        continue;
+                    }
+                    int x = t.getX() + dx;
+                    int y = t.getY() + dy;
+                    if (!grid.inBounds(x, y) || grid.terrainAt(x, y) != TerrainType.CLEAR) {
+                        continue;
+                    }
+                    GridPoint p = new GridPoint(x, y);
+                    if (taken != null && taken.equals(p)) {
+                        continue;
+                    }
+                    return p;
+                }
+            }
+        }
+        return null;
     }
 
     /** Coarse random control points bilinearly upsampled to the full grid. */
